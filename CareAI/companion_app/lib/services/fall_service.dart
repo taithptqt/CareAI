@@ -104,9 +104,11 @@ class FallService {
   /// Dừng âm thanh còi hú y tế khẩn cấp
   Future<bool> stopEmergencySound([String? eventId]) async {
     try {
-      final success = await _fallChannel.invokeMethod<bool>('stopEmergencySound', {
-        if (eventId != null) 'eventId': eventId,
-      });
+      final args = <String, dynamic>{};
+      if (eventId != null) {
+        args['eventId'] = eventId;
+      }
+      final success = await _fallChannel.invokeMethod<bool>('stopEmergencySound', args);
       return success ?? false;
     } catch (_) {
       return false;

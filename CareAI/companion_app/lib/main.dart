@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
+import 'caregiver/screens/home_screen.dart';
+import 'caregiver/screens/login_screen.dart';
+import 'caregiver/services/caregiver_api_service.dart';
 import 'screens/device_pairing_screen.dart';
+import 'screens/role_selection_screen.dart';
 import 'screens/sos_button_screen.dart';
 import 'services/api_service.dart';
 import 'services/local_offline_store.dart';
@@ -24,10 +29,13 @@ void callbackDispatcher() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Khởi tạo CSDL SQLite Outbox Spool
+  // 1. Khởi tạo CSDL SQLite Outbox Spool
   await LocalOfflineStore.instance.database;
 
-  // Khởi tạo Workmanager để đồng bộ nền
+  // 2. Khởi tạo Dịch vụ Người Thân (SharedPreferences & Server URL)
+  await CaregiverApiService.instance.init();
+
+  // 3. Khởi tạo Workmanager để đồng bộ nền thiết bị
   try {
     await Workmanager().initialize(
       callbackDispatcher,
@@ -45,25 +53,43 @@ void main() async {
     debugPrint('Không thể khởi tạo Workmanager: $e');
   }
 
-  // Kiểm tra trạng thái ghép đôi
-  final isPaired = await ApiService.instance.isPaired();
+  // 4. Kiểm tra vai trò đã chọn trước đó
+  final prefs = await SharedPreferences.getInstance();
+  final savedRole = prefs.getString(RoleSelectionScreen.prefSelectedRole);
 
-  runApp(CareAiCompanionApp(initialScreen: isPaired ? const SosButtonScreen() : const DevicePairingScreen()));
+  Widget initialScreen;
+
+  if (savedRole == 'elder') {
+    // Chế độ Người cao tuổi: Kiểm tra trạng thái ghép đôi
+    final isPaired = await ApiService.instance.isPaired();
+    initialScreen = isPaired ? const SosButtonScreen() : const DevicePairingScreen();
+  } else if (savedRole == 'caregiver') {
+    // Chế độ Người thân: Kiểm tra đăng nhập JWT
+    final isLoggedIn = await CaregiverApiService.instance.isLoggedIn();
+    initialScreen = isLoggedIn ? const HomeScreen() : const LoginScreen();
+  } else {
+    // Chưa chọn vai trò -> Hiển thị Màn hình Chọn Vai Trò
+    initialScreen = const RoleSelectionScreen();
+  }
+
+  runApp(CareAiUnifiedApp(initialScreen: initialScreen));
 }
 
-class CareAiCompanionApp extends StatelessWidget {
+class CareAiUnifiedApp extends StatelessWidget {
   final Widget initialScreen;
 
-  const CareAiCompanionApp({super.key, required this.initialScreen});
+  const CareAiUnifiedApp({super.key, required this.initialScreen});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CareAI Companion',
+      title: 'CareAI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB),
+          seedColor: const Color(0xFF0284C7),
+          primary: const Color(0xFF0284C7),
+          secondary: const Color(0xFF0EA5E9),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
