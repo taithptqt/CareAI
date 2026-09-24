@@ -56,23 +56,32 @@ class RoleSelectionScreen extends StatelessWidget {
               // Logo & Tiêu đề
               Center(
                 child: Container(
-                  width: 72,
-                  height: 72,
+                  width: 76,
+                  height: 76,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB).withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF3B82F6), width: 2),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.health_and_safety_rounded,
-                    size: 40,
-                    color: Color(0xFF60A5FA),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 76,
+                      height: 76,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
               const Text(
-                'CareAI System',
+                'CareAI',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 26,
