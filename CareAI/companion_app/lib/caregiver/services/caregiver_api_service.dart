@@ -9,7 +9,7 @@ class CaregiverApiService {
   CaregiverApiService._init();
 
   static const String defaultUsbUrl = 'http://127.0.0.1:5097';
-  static const String defaultInternetUrl = 'https://promote-continue-scholarships-guy.trycloudflare.com';
+  static const String defaultInternetUrl = 'https://recording-arthur-widely-bald.trycloudflare.com';
   static const String defaultWifiUrl = 'http://192.168.0.105:5097';
 
   String _currentServerUrl = defaultUsbUrl;
