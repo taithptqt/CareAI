@@ -10,16 +10,16 @@
 
 ## 1. TỔNG QUAN PHÂN BỔ NHIỆM VỤ 4 PHẦN
 
-| Phân Phần | Tên Nhiệm Vụ Trọng Tâm | Use Case Phụ Trách | Phân Hệ Liên Quan |
-| :--- | :--- | :--- | :--- |
-| **Phần 1** | **Trục Viễn Trắc, Đồng Bộ Smartwatch, GPS & Thích Nghi Ngưỡng** | UC-04, UC-05, UC-10, UC-11 | Mobile Companion, Backend API, Infrastructure, CSDL Azure SQL |
-| **Phần 2** | **Trục Trung Tâm Cấp Cứu, Điều Phối Quorum SLA 60s & Dấu Vết Pháp Y** | UC-06, UC-07, UC-08, UC-14 | Core Clinical Engine, Infrastructure Workers, Backend API, Mobile |
-| **Phần 3** | **Trục Quản Trị Nhóm Gia Đình, Mã Mời 6 Số, RBAC & Vòng Đời Thiết Bị** | UC-01, UC-02, UC-03, UC-12, UC-13 | Core Auth, Backend API, Mobile App Caregiver |
-| **Phần 4** | **Trục Trí Tuệ Nhân Tạo (ML.NET) Phân Tích Dị Biệt & Báo Cáo Tuần** | UC-15, UC-16 | Infrastructure ML.NET Worker, Prompt Engine, Azure SQL, Mobile |
+| Phân Phần | Thành Viên Đảm Nhận | Tên Nhiệm Vụ Trọng Tâm | Use Case Phụ Trách | Phân Hệ Liên Quan |
+| :--- | :--- | :--- | :--- | :--- |
+| **Phần 1** | **Hiếu** | **Trục Viễn Trắc, Đồng Bộ Smartwatch, GPS & Thích Nghi Ngưỡng** | UC-04, UC-05, UC-10, UC-11 | Mobile Companion, Backend API, Infrastructure, CSDL Azure SQL |
+| **Phần 2** | **Tài** | **Trục Trung Tâm Cấp Cứu, Điều Phối Quorum SLA 60s & Dấu Vết Pháp Y** | UC-06, UC-07, UC-08, UC-14 | Core Clinical Engine, Infrastructure Workers, Backend API, Mobile |
+| **Phần 3** | **Thịnh** | **Trục Quản Trị Nhóm Gia Đình, Mã Mời 6 Số, RBAC & Vòng Đời Thiết Bị** | UC-01, UC-02, UC-03, UC-12, UC-13 | Core Auth, Backend API, Mobile App Caregiver |
+| **Phần 4** | **Hiển** | **Trục Trí Tuệ Nhân Tạo (ML.NET) Phân Tích Dị Biệt & Báo Cáo Tuần** | UC-15, UC-16 | Infrastructure ML.NET Worker, Prompt Engine, Azure SQL, Mobile |
 
 ---
 
-## 2. PHẦN 1: TRỤC VIỄN TRẮC, ĐỒNG BỘ SMARTWATCH, GPS & TỰ ĐIỀU CHỈNH NGƯỠNG THÍCH NGHI
+## 2. PHẦN 1: TRỤC VIỄN TRẮC, ĐỒNG BỘ SMARTWATCH, GPS & TỰ ĐIỀU CHỈNH NGƯỠNG THÍCH NGHI (Phụ Trách: Hiếu)
 
 ### 2.1 Danh Mục Nhiệm Vụ Cụ Thể
 
@@ -70,7 +70,7 @@
 
 ---
 
-## 3. PHẦN 2: TRỤC TRUNG TÂM PHẢN ỨNG CẤP CỨU, ĐIỀU PHỐI QUORUM SLA 60S & DẤU VẾT PHÁP Y
+## 3. PHẦN 2: TRỤC TRUNG TÂM PHẢN ỨNG CẤP CỨU, ĐIỀU PHỐI QUORUM SLA 60S & DẤU VẾT PHÁP Y (Phụ Trách: Tài)
 
 ### 3.1 Danh Mục Nhiệm Vụ Cụ Thể
 
@@ -120,7 +120,7 @@
 
 ---
 
-## 4. PHẦN 3: TRỤC QUẢN TRỊ NHÓM GIA ĐÌNH, MÃ MỜI 6 SỐ, PHÂN QUYỀN RBAC & VÒNG ĐỜI THIẾT BỊ
+## 4. PHẦN 3: TRỤC QUẢN TRỊ NHÓM GIA ĐÌNH, MÃ MỜI 6 SỐ, PHÂN QUYỀN RBAC & VÒNG ĐỜI THIẾT BỊ (Phụ Trách: Thịnh)
 
 ### 4.1 Danh Mục Nhiệm Vụ Cụ Thể
 
@@ -167,7 +167,7 @@
 
 ---
 
-## 5. PHẦN 4: TRỤC TRÍ TUỆ NHÂN TẠO (AI/ML) PHÂN TÍCH DỊ BIỆT SINH HOẠT & BÁO CÁO Y TẾ TUẦN
+## 5. PHẦN 4: TRỤC TRÍ TUỆ NHÂN TẠO (AI/ML) PHÂN TÍCH DỊ BIỆT SINH HOẠT & BÁO CÁO Y TẾ TUẦN (Phụ Trách: Hiển)
 
 ### 5.1 Danh Mục Nhiệm Vụ Cụ Thể
 
