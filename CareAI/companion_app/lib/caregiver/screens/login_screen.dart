@@ -107,29 +107,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.25),
                         blurRadius: 16,
                         offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.family_restroom,
-                    size: 38,
-                    color: Colors.white,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'CareAI Caregiver',
+                  'CareAI',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
