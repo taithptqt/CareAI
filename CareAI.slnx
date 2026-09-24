@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CareAI.API/CareAI.API.csproj" />
+    <Project Path="src/CareAI.Core/CareAI.Core.csproj" />
+    <Project Path="src/CareAI.Infrastructure/CareAI.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CareAI.UnitTests/CareAI.UnitTests.csproj" />
+  </Folder>
+</Solution>

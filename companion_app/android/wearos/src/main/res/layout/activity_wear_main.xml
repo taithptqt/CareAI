@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.wear.widget.BoxInsetLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/wear_black">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        android:clipToPadding="false"
+        android:paddingTop="18dp"
+        android:paddingBottom="42dp"
+        app:boxedEdges="left|right">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <!-- Title: App Name -->
+            <TextView
+                android:id="@+id/tvWearTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/wear_title"
+                android:textColor="#38BDF8"
+                android:textSize="12sp"
+                android:letterSpacing="0.04"
+                android:textStyle="bold" />
+
+            <!-- Subtitle / Monitoring Status Badge -->
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:background="@drawable/bg_wear_status_badge"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="2dp"
+                android:singleLine="true"
+                android:text="@string/wear_status_monitoring"
+                android:textColor="@color/wear_green_online"
+                android:textSize="9.5sp"
+                android:textStyle="bold" />
+
+            <!-- Vitals Card: Pill Shape with PPG & SpO2 -->
+            <LinearLayout
+                android:id="@+id/layoutVitals"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_wear_vitals"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="5dp">
+
+                <TextView
+                    android:id="@+id/tvVitals"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:text="@string/wear_vitals_label"
+                    android:textColor="@color/wear_text_primary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Test Fall Button: Large Pill Shape with Icon -->
+            <Button
+                android:id="@+id/btnSimulateFall"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="7dp"
+                android:background="@drawable/bg_wear_btn_fall"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/wear_simulate_fall_btn"
+                android:textColor="@color/wear_text_primary"
+                android:textSize="10.5sp"
+                android:textStyle="bold" />
+
+            <!-- Touch SOS Button: Pill Shape -->
+            <Button
+                android:id="@+id/btnManualSos"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:layout_marginTop="5dp"
+                android:background="@drawable/bg_wear_btn_sos"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/wear_send_sos_btn"
+                android:textColor="@color/wear_text_primary"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <!-- Diagnostic Status Log -->
+            <TextView
+                android:id="@+id/tvLogResult"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:gravity="center"
+                android:text="@string/wear_status_ready"
+                android:textColor="@color/wear_text_secondary"
+                android:textSize="8.5sp" />
+
+        </LinearLayout>
+    </ScrollView>
+</androidx.wear.widget.BoxInsetLayout>

@@ -1,0 +1,69 @@
+# ==========================================
+# CareAI Project - Root .gitignore
+# ==========================================
+
+# 1. External & Unrelated Projects
+AcademicManagement/
+tools/
+
+# 2. Visual Studio & IDEs
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# 3. .NET & C# Build Artifacts
+**/bin/
+**/obj/
+**/TestResults/
+
+# 4. Flutter & Dart Build Artifacts
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+
+# 5. Android Build Artifacts & Credentials
+**/.gradle/
+**/local.properties
+**/*.apk
+**/*.aab
+**/*.keystore
+**/*.jks
+
+# 6. Database & Cache Files
+*.db
+*.db-shm
+*.db-wal
+__pycache__/
+*.pyc
+
+# 7. Agent Scratch & Migration Scripts
+apply_*.py
+check_*.py
+verify_*.py
+inspect_*.py
+diagnose_*.py
+clean_hyperbolic_language.py
+test_counts.py
+test_script_matches.py
+test_targets_*.py
+sync_mirrors.py
+update_spool.py
+find_targets.py
+fix_quotes.py
+check_lines.py
+check_blocks.py
+deep_scan_master_plan.py
+add_facts_15_16.py
+test_styled_output.docx
+Chat.docx
+*.log
+chatgpt_*.txt
+*user_prompt.txt
+search_results.txt
