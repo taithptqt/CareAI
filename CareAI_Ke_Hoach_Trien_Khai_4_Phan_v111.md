@@ -230,3 +230,9 @@
    - Filtered Unique Index `UIX_Incidents_SingleActiveElder` trên `Incidents`.
    - Native Android Direct Boot và phân vùng Device Protected Storage giữ vững nguyên vẹn.
 5. **Kỷ luật kiểm thử**: Mọi tính năng phải build được thật (`dotnet build` 0 warning, 0 error), test pass thật (100% Facts Passed), và kiểm thử thực địa minh bạch trên thiết bị thật Samsung Galaxy A55 5G.
+
+---
+
+## 7. YÊU CẦU BẮT BUỘC VỀ THIẾT KẾ GIAO DIỆN (UI/UX) THEO NHIỆM VỤ
+- **Trách nhiệm tự điều chỉnh & thiết kế lại UI**: Mỗi thành viên khi đảm nhận phần chức năng/nhiệm vụ nào trong kế hoạch có trách nhiệm tự chủ động rà soát, điều chỉnh và thiết kế lại toàn bộ giao diện (UI/UX) của phân hệ/tính năng đó sao cho thân thiện, trực quan, dễ thao tác và phù hợp tối đa với người dùng (người cao tuổi cần chữ lớn rõ ràng, tương phản cao, thao tác tối giản; người thân cần bảng điều khiển nắm bắt thông tin trong 3 giây và xử lý cấp cứu tức thì).
+
