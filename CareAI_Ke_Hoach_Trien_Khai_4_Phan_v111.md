@@ -22,6 +22,7 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
    - Hợp nhất hoàn toàn phân hệ Người cao tuổi (Companion SOS & Fall) và phân hệ Người thân (Caregiver Monitoring) vào một ứng dụng duy nhất, điều hướng qua `RoleSelectionScreen` và lưu trạng thái vào `SharedPreferences`.
    - Bảo toàn 100% các thành phần Native Android Direct Boot (`PhoneBootReceiver`), Device Protected Storage (`CareAiFallStore`), còi hú y tế ICU 1350Hz phần cứng (`SoundPool` 0ms latency), `AlarmManager.RTC_WAKEUP` và Full-Screen Intent.
    - **8/8 Kịch bản Phần cứng HIL (HIL-01 đến HIL-08)** đã nghiệm thu thực địa 100% thành công trên điện thoại thật Samsung Galaxy A55 5G (`R5CY10M8BZN`).
+   - **Chuẩn hóa Nhận Diện Thương Hiệu & Màn Hình Khởi Động**: Tích hợp logo CareAI biểu tượng nổi (Pure Floating Glyph) trên nền tối `#0F172A`, cấu hình `values-v31/styles.xml` xử lý triệt để nền trắng nhấp nháy trên Android 12+, loại bỏ hoàn toàn viền hộp gò bó, và mở rộng lề đệm an toàn Launcher Icon lên 38%.
 3. **Module Galaxy Watch (Wear OS)**:
    - Module Native Kotlin `:wearos` biên dịch thành công APK `wearos-debug.apk`, tích hợp Google Health Services, chạy mượt mà trên màn hình OLED tròn của Wear OS Virtual Watch (`emulator-5554`).
 4. **Mã Nguồn & Git Repository**:

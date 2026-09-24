@@ -17,20 +17,20 @@ Toàn bộ mã nguồn và giải pháp thực thi của dự án được tập
 | :--- | :--- | :--- | :--- |
 | **Solution File** | [`CareAI/CareAI.slnx`](./CareAI/CareAI.slnx) | XML .NET Solution | Quản lý toàn bộ các dự án Backend và Kiểm thử tự động. |
 | **Backend Server** | [`CareAI/src/`](./CareAI/src/) | C# (.NET 9.0 LTS), EF Core 9.0.2, ASP.NET Core Kestrel | Máy chủ điều phối trung tâm, xử lý 16 Use Case, kết nối CSDL Azure SQL Cloud / SQL Server. |
-| **App Trung Gian Cụ Ông / Cụ Bà** | [`CareAI/companion_app/`](./CareAI/companion_app/) | Flutter 3.x, Kotlin Native (Direct Boot, AlarmManager RTC_WAKEUP, SoundPool 1350Hz) | Cài trên điện thoại đặt cạnh người cao tuổi (Samsung Galaxy A55 5G), nhận tín hiệu từ đồng hồ, còi hú SOS. |
-| **App Đồng Hồ Thông Minh** | [`CareAI/companion_app/android/wearos/`](./CareAI/companion_app/android/wearos/) | Kotlin Native, AndroidX Wear OS, Google Health Services | Module đồng hồ chạy trên Samsung Galaxy Watch (Wear OS), cảm biến gia tốc IMU/nhịp tim PPG, giao diện tròn OLED. |
-| **App Người Thân / Con Cháu** | [`CareAI/caregiver_app/`](./CareAI/caregiver_app/) | Flutter 3.x (Package ID: `vn.careai.caregiver`) | Cài trên điện thoại riêng của con cháu, theo dõi sinh hiệu trực tiếp, nhận Quorum Alerting còi hú khi cụ ngã, tiếp nhận cứu nạn (ACK/Resolve). |
+| **Ứng Dụng Hợp Nhất CareAI (Unified App)** | [`CareAI/companion_app/`](./CareAI/companion_app/) | Flutter 3.x, Kotlin Native (Direct Boot, AlarmManager RTC_WAKEUP, SoundPool 1350Hz) | Ứng dụng di động duy nhất (`vn.careai.companion`) tích hợp cả 2 chế độ: **Chế độ Người cao tuổi** (SOS khẩn cấp, Direct Boot, còi hú ICU) và **Chế độ Người thân** (`lib/caregiver/` - theo dõi sinh hiệu, nhận cảnh báo Quorum, ACK/Resolve sự cố). Chuyển đổi vai trò linh hoạt 2 chiều. |
+| **App Đồng Hồ Thông Minh** | [`CareAI/companion_app/android/wearos/`](./CareAI/companion_app/android/wearos/) | Kotlin Native, AndroidX Wear OS, Google Health Services | Module đồng hồ chạy trên Samsung Galaxy Watch (Wear OS), cảm biến gia tốc IMU/nhịp tim PPG, giao diện tròn OLED (Capsule Pills). |
 | **Kiểm Thử Tự Động (Unit Tests)** | [`CareAI/tests/CareAI.UnitTests/`](./CareAI/tests/CareAI.UnitTests/) | xUnit, FluentAssertions, EF Core In-Memory | 36 bài kiểm thử Facts chuẩn (36/36 Facts Passed 100%) bảo vệ toàn diện các bất biến nghiệp vụ. |
 
 ---
 
 ## 📚 BỘ TÀI LIỆU KẾ HOẠCH & HƯỚNG DẪN KỸ THUẬT CHUẨN
 
-1. **[Tài Liệu Hướng Dẫn Cài Đặt Môi Trường & Chạy Dự Án](./HUONG_DAN_SETUP_MOI_TRUONG_VA_CHAY_DU_AN_CAREAI.md)**: Hướng dẫn trọn gói cài đặt SDK (.NET 9, Java 21, Flutter, Android SDK), biến môi trường, kết nối thiết bị thật Android, máy ảo Wear OS, hướng dẫn môi trường cho iOS/iPhone, và mạng dự phòng kép.
-2. **[Hướng Dẫn Cấu Trúc Thư Mục & Phân Hệ Hệ Thống](./HUONG_DAN_CAU_TRUC_THU_MUC_VA_HE_THONG_CAREAI.md)**: Cẩm nang chi tiết về cấu trúc mã nguồn, cách mở và chạy độc lập từng phân hệ.
-3. **[Kế Hoạch Master v111.0](./CareAI_Final_Master_Plan_Airtight_Execution_14_2_3_3.md)**: Kế hoạch triển khai tổng thể và cam kết kỹ thuật chuẩn.
-4. **[Tập 1: Chiến Lược, Pháp Lý Non-SaMD & 16 Use Case](./CareAI_Tap_1_Yeu_Cau_Kien_Truc_Phap_Ly_Va_Ke_Hoach_Trien_Khai.docx)**: Tài liệu đặc tả chuẩn nghiệp vụ và pháp lý y tế.
-5. **[Tập 2: Chi Tiết CSDL, Mã Nguồn & 8 Kịch Bản HIL Testing](./CareAI_Tap_2_Chi_Tiet_Ma_Nguon_CSDL_Va_Kiem_Thu_HIL.docx)**: Tài liệu kiểm thử thực địa phần cứng máy thật.
+1. **[Kế Hoạch Triển Khai 4 Phần Cân Bằng v111.0](./CareAI_Ke_Hoach_Trien_Khai_4_Phan_v111.md)**: Kế hoạch triển khai chia 4 phần độc lập không phụ thuộc nhau (Phần 1: Viễn trắc & Tự điều chỉnh ngưỡng thích nghi; Phần 2: Trung tâm phản ứng cấp cứu; Phần 3: Quản trị gia đình; Phần 4: AI/ML phân tích dị biệt).
+2. **[Tài Liệu Hướng Dẫn Cài Đặt Môi Trường & Chạy Dự Án](./HUONG_DAN_SETUP_MOI_TRUONG_VA_CHAY_DU_AN_CAREAI.md)**: Hướng dẫn trọn gói cài đặt SDK (.NET 9, Java 21, Flutter, Android SDK), biến môi trường, kết nối thiết bị thật Android (Samsung Galaxy A55 5G), máy ảo Wear OS, hướng dẫn môi trường cho iOS/iPhone, và mạng dự phòng kép.
+3. **[Hướng Dẫn Cấu Trúc Thư Mục & Phân Hệ Hệ Thống](./HUONG_DAN_CAU_TRUC_THU_MUC_VA_HE_THONG_CAREAI.md)**: Cẩm nang chi tiết về cấu trúc mã nguồn, cách mở và chạy độc lập từng phân hệ.
+4. **[Kế Hoạch Master v111.0](./CareAI_Final_Master_Plan_Airtight_Execution_14_2_3_3.md)**: Kế hoạch triển khai tổng thể và cam kết kỹ thuật chuẩn.
+5. **[Tập 1: Chiến Lược, Pháp Lý Non-SaMD & 16 Use Case](./CareAI_Tap_1_Yeu_Cau_Kien_Truc_Phap_Ly_Va_Ke_Hoach_Trien_Khai.docx)**: Tài liệu đặc tả chuẩn nghiệp vụ và pháp lý y tế.
+6. **[Tập 2: Chi Tiết CSDL, Mã Nguồn & 8 Kịch Bản HIL Testing](./CareAI_Tap_2_Chi_Tiet_Ma_Nguon_CSDL_Va_Kiem_Thu_HIL.docx)**: Tài liệu kiểm thử thực địa phần cứng máy thật.
 
 ---
 
@@ -47,21 +47,15 @@ Kiểm tra sức khỏe hệ thống: `http://localhost:5097/health` -> Trả v�
 dotnet test CareAI/CareAI.slnx --nologo
 ```
 
-### 3. Chạy App Trung Gian (Companion App)
+### 3. Chạy Ứng Dụng Hợp Nhất CareAI (Unified Mobile App)
 ```powershell
 cd CareAI/companion_app
 flutter pub get
 flutter run
 ```
+*Lưu ý: Ứng dụng khởi động vào `RoleSelectionScreen`, cho phép chọn ngay giữa **Chế độ Người cao tuổi** hoặc **Chế độ Người thân**, và dễ dàng đổi vai trò bất kỳ lúc nào qua AppBar / Tab Tài khoản.*
 
-### 4. Chạy App Người Thân (Caregiver App)
-```powershell
-cd CareAI/caregiver_app
-flutter pub get
-flutter run
-```
-
-### 5. Biên Dịch Module Đồng Hồ (Wear OS)
+### 4. Biên Dịch Module Đồng Hồ (Wear OS)
 ```powershell
 cd CareAI/companion_app/android
 ./gradlew :wearos:assembleDebug

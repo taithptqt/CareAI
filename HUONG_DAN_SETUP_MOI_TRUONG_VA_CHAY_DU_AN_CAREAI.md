@@ -50,12 +50,12 @@ Dự án **CareAI** là nền tảng hỗ trợ cảnh báo y tế gia đình t�
                                    └────────────────────────┘
 ```
 
-Mã nguồn được tổ chức trong thư mục gốc (`d:/IT/PRACTICE`):
-- `src/CareAI.Core/`: Domain Entities, Enums, Value Objects, Business Invariants.
-- `src/CareAI.Infrastructure/`: EF Core DbContext, Migration Helper, Clinical Rule Engine, Background Workers.
-- `src/CareAI.API/`: Kestrel Controllers, Device Token Auth Middleware, Health Checks, Swagger UI.
-- `tests/CareAI.UnitTests/`: 36 bài kiểm thử xUnit bao phủ 100% các bất biến hệ thống.
-- `companion_app/`: Ứng dụng di động Flutter dành cho Cụ (kết hợp module Kotlin Native `:app` Direct Boot và module Native `:wearos` cho đồng hồ).
+Mã nguồn được tổ chức chuẩn chỉ trong thư mục dự án riêng (`CareAI/`):
+- `CareAI/src/CareAI.Core/`: Domain Entities, Enums, Value Objects, Business Invariants.
+- `CareAI/src/CareAI.Infrastructure/`: EF Core DbContext, Migration Helper, Clinical Rule Engine, Background Workers.
+- `CareAI/src/CareAI.API/`: Kestrel Controllers, Device Token Auth Middleware, Health Checks, Swagger UI.
+- `CareAI/tests/CareAI.UnitTests/`: 36 bài kiểm thử xUnit bao phủ 100% các bất biến hệ thống.
+- `CareAI/companion_app/`: Ứng dụng di động hợp nhất CareAI (tích hợp cả Chế độ Người cao tuổi và Chế độ Người thân `lib/caregiver/`, cùng module Kotlin Native `:app` Direct Boot và module Native `:wearos` cho đồng hồ).
 - `tools/`: Chứa tiện ích đường truyền `cloudflared.exe`.
 
 ---
@@ -437,10 +437,10 @@ static const String internetTunnelUrl = 'https://<tunnel-id-moi>.trycloudflare.c
 
 ## 9. BIÊN DỊCH & CÀI ĐẶT ỨNG DỤNG DI ĐỘNG (COMPANION APP & WEAR OS)
 
-### 9.1 Biên Dịch Ứng Dụng Điện Thoại Companion App
-Di chuyển vào thư mục `companion_app`:
+### 9.1 Biên Dịch Ứng Dụng Hợp Nhất CareAI (Unified Mobile App)
+Di chuyển vào thư mục `CareAI/companion_app`:
 ```powershell
-cd D:\IT\PRACTICE\companion_app
+cd D:\IT\PRACTICE\CareAI\companion_app
 
 # 1. Cài đặt các gói thư viện Flutter
 flutter pub get
@@ -448,7 +448,7 @@ flutter pub get
 # 2. Biên dịch tệp APK thật qua Gradle
 ./android/gradlew.bat assembleDebug
 ```
-*Tệp APK thành phẩm*: `companion_app/build/app/outputs/flutter-apk/app-debug.apk` (Dung lượng khoảng 164 MB).
+*Tệp APK thành phẩm*: `CareAI/companion_app/build/app/outputs/flutter-apk/app-debug.apk` (Dung lượng khoảng 164 MB, tích hợp cả Chế độ Người cao tuổi và Chế độ Người thân).
 
 ### 9.2 Cài Đặt Lên Điện Thoại Samsung Galaxy A55 5G
 Kiểm tra thiết bị đã kết nối:
@@ -464,12 +464,12 @@ adb -s R5CY10M8BZN install -r build/app/outputs/flutter-apk/app-debug.apk
 ### 9.3 Biên Dịch & Cài Đặt Module Đồng Hồ Wear OS Lên Emulator
 Module Wear OS nằm cùng trong cấu trúc multi-module `:wearos`.
 ```powershell
-cd D:\IT\PRACTICE\companion_app
+cd D:\IT\PRACTICE\CareAI\companion_app
 
 # Biên dịch APK Wear OS độc lập
 ./android/gradlew.bat :wearos:assembleDebug
 ```
-*Tệp APK thành phẩm*: `companion_app/build/wearos/outputs/apk/debug/wearos-debug.apk`.
+*Tệp APK thành phẩm*: `CareAI/companion_app/build/wearos/outputs/apk/debug/wearos-debug.apk`.
 
 Cài đặt lên đồng hồ ảo Wear OS (`emulator-5554`):
 ```powershell
