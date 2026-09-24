@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- wearos/src/main/AndroidManifest.xml -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Khai báo thiết bị đeo Smartwatch -->
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <!-- [KHẮC PHỤC TRIỆT ĐỂ P0-3]: Quyền chuẩn hóa AOSP / Samsung để liên kết PassiveListenerService với Google Health Services -->
+    <uses-permission android:name="com.google.android.wearable.healthservices.permission.PASSIVE_DATA_BINDING" />
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Khai báo WearOsApplication và BootReceiver để đăng ký listener tự động -->
+    <application
+        android:name=".WearOsApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="CareAI Wear"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="false" />
+
+        <!-- Giao diện màn hình tròn trực quan cho Samsung Galaxy Watch -->
+        <activity
+            android:name=".WearOsMainActivity"
+            android:exported="true"
+            android:label="CareAI Wear"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.DeviceDefault">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".WearOsBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".WearOsFallListenerService"
+            android:permission="com.google.android.wearable.healthservices.permission.PASSIVE_DATA_BINDING"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.wearable.healthservices.action.PASSIVE_LISTENER_SERVICE" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
