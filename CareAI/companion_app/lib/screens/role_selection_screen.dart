@@ -55,28 +55,11 @@ class RoleSelectionScreen extends StatelessWidget {
               const SizedBox(height: 24),
               // Logo & Tiêu đề
               Center(
-                child: Container(
-                  width: 76,
-                  height: 76,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      width: 76,
-                      height: 76,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 84,
+                  height: 84,
+                  fit: BoxFit.contain,
                 ),
               ),
               const SizedBox(height: 16),
