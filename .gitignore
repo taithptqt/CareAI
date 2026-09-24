@@ -67,3 +67,21 @@ Chat.docx
 chatgpt_*.txt
 *user_prompt.txt
 search_results.txt
+
+# 8. Local Agent Rules, Old Drafts & Scripts (Kept locally on disk, ignored in Git)
+AGENTS.md
+GEMINI.md
+CAM_KET_NGUYEN_TAC_TRIEN_KHAI_CAREAI.md
+SO_TAY_KINH_NGHIEM_DEV_VA_FIX_LOI_CAREAI.md
+TIEN_TRINH_DU_AN_CAREAI.md
+CareAI_Master_Plan_v*.md
+CareAI_Final_Master_Plan_Airtight_Execution.md
+CareAI_Final_Master_Plan_Airtight_Execution_14.md
+CareAI_Final_Master_Plan_Airtight_Execution_14_2.md
+CareAI_Final_Master_Plan_Airtight_Execution_14_2_3.md
+CareAI_Final_Master_Plan_Airtight_Execution_14_2_3_2.md
+CareAI_Use_Case_Specification*
+TÀI LIỆU ĐẶC TẢ YÊU CẦU PHẦN MỀM*
+*.ps1
+build_volume_*.py
+docx_helper.py
