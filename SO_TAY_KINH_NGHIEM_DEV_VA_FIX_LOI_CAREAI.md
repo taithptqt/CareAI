@@ -604,9 +604,33 @@ Qua mổ xẻ mã nguồn tầng Native Android và Flutter, đội ngũ đã l�
   * Phải thiết lập Header `Content-Type: application/json; charset=utf-8`.
   * Các trường DateTime trong DTO C# (ví dụ `DateOfBirth`) bắt buộc phải truyền định dạng ISO 8601 hợp lệ (`YYYY-MM-DDTHH:mm:ssZ`), không được truyền số nguyên hay chuỗi sai định dạng.
 
+---
 
+## 14. KINH NGHIỆM ĐÓNG GÓI MÃ NGUỒN GIT, PHÂN ĐỊNH THƯ MỤC & XÁC THỰC GITHUB PUSH
 
+### 14.1 Cạm Bẫy Đẩy Lên GitHub Gặp Lỗi "Repository not found" (404)
+- **Hiện tượng**: Khi chạy `git push -u origin main` hoặc `git ls-remote https://github.com/taithptqt/CareAI.git`, Git báo lỗi:
+  `remote: Repository not found.`
+  `fatal: repository 'https://github.com/taithptqt/CareAI.git/' not found`
+- **Nguyên nhân cốt lõi**:
+  1. **Kho lưu trữ chưa được tạo**: Trên tài khoản GitHub `taithptqt`, người dùng chưa tạo một repository trống mang tên `CareAI`.
+  2. **Bảo mật của GitHub với Private Repository**: Nếu repository đã được tạo ở chế độ **Private**, bất kỳ truy vấn nào không có token xác thực hoặc xác thực sai tài khoản đều bị GitHub trả về mã `404 Not Found` (thay vì 403 Forbidden) để ngăn kẻ xấu dò quét tên kho riêng tư của người khác.
+  3. **Lệch tài khoản trong Windows Credential Manager**: Trên máy tính Windows, Git Credential Manager có thể đang lưu token của một tài khoản GitHub khác (ví dụ: tài khoản trường học hoặc cá nhân khác). Khi push vào repo của `taithptqt`, Git gửi thông tin xác thực cũ và bị GitHub từ chối.
+- **Giải pháp xử lý chuẩn xác 100%**:
+  1. Người dùng truy cập `https://github.com/new` và tạo repository mang tên `CareAI` (có thể chọn Public hoặc Private).
+  2. Nếu là Private, có 2 cách push:
+     * **Cách 1 (Khuyên dùng)**: Tạo một **Personal Access Token (PAT)** tại `https://github.com/settings/tokens` (chọn quyền `repo`), sau đó push qua URL có token:
+       `git push https://<TOKEN>@github.com/taithptqt/CareAI.git main`
+     * **Cách 2**: Chạy lệnh xóa cache credential cũ và đăng nhập lại bằng tài khoản `taithptqt`:
+       `cmdkey /delete:LegacyGeneric:target=git:https://github.com`
+       Sau đó chạy lại `git push -u origin main` để trình duyệt hiện popup đăng nhập tài khoản `taithptqt`.
 
-
-
+### 14.2 Chiến Lược .gitignore Cho Hệ Sinh Thái Đa Nền Tảng (Dotnet + Flutter + Wear OS)
+- **Vấn đề**: Dự án CareAI tích hợp cả C# .NET 9, Flutter, Android Native và tài liệu Word/Markdown trong cùng 1 workspace. Nếu `git add .` thiếu chọn lọc, repository sẽ bị phình to hàng trăm MB bởi:
+  * Thư mục `bin/`, `obj/` của .NET.
+  * Thư mục `.dart_tool/`, `build/` của Flutter.
+  * Thư mục `.gradle/` và các file `*.apk` (bản debug có thể nặng 150MB+).
+  * Dự án ngoài lề không thuộc CareAI (như `AcademicManagement/`).
+  * File công cụ ngoài lề như `tools/cloudflared.exe` (80MB).
+- **Quy chuẩn**: Bắt buộc tạo tệp `.gitignore` chuẩn ở thư mục gốc để lọc sạch toàn bộ các thư mục tạm này trước khi commit. Nhờ đó, repository Git giữ được dung lượng cực kỳ gọn gàng, tải về nhanh chóng và chuẩn mực kiến trúc doanh nghiệp.
 
