@@ -10,8 +10,13 @@ import '../services/api_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
 import '../services/sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../caregiver/screens/home_screen.dart';
+import '../caregiver/screens/login_screen.dart';
+import '../caregiver/services/caregiver_api_service.dart';
 import 'device_pairing_screen.dart';
 import 'fall_countdown_dialog.dart';
+import 'role_selection_screen.dart';
 
 class SosButtonScreen extends StatefulWidget {
   const SosButtonScreen({super.key});
@@ -274,6 +279,39 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     }
   }
 
+  Future<void> _handleSwitchRole() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Đổi vai trò sử dụng?'),
+        content: const Text(
+          'Bạn có muốn chuyển sang Chế độ Người thân (Caregiver Dashboard) để theo dõi và quản lý từ xa?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7)),
+            child: const Text('CHUYỂN ĐỔI', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(RoleSelectionScreen.prefSelectedRole, 'caregiver');
+      await CaregiverApiService.instance.init();
+      final isLoggedIn = await CaregiverApiService.instance.isLoggedIn();
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => isLoggedIn ? const HomeScreen() : const LoginScreen(),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -305,6 +343,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF38BDF8)),
+            tooltip: 'Đổi vai trò Người thân',
+            onPressed: _handleSwitchRole,
+          ),
           IconButton(
             icon: Badge(
               isLabelVisible: _pendingPacketCount > 0,

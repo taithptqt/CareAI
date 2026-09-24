@@ -3,9 +3,9 @@ import 'package:careai_companion/main.dart';
 import 'package:careai_companion/screens/device_pairing_screen.dart';
 
 void main() {
-  testWidgets('CareAiCompanionApp smoke test loads DevicePairingScreen', (WidgetTester tester) async {
+  testWidgets('CareAiUnifiedApp smoke test loads DevicePairingScreen', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const CareAiCompanionApp(initialScreen: DevicePairingScreen()),
+      const CareAiUnifiedApp(initialScreen: DevicePairingScreen()),
     );
 
     // Verify key titles on pairing screen
