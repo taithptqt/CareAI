@@ -53,10 +53,27 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
 | :--- | :--- | :--- | :--- | :--- |
 | **Phạm vi Use Case** | UC-04, UC-05, UC-10 (Sinh hiệu & GPS), UC-11 (Thích nghi ngưỡng) | UC-06, UC-07, UC-08, UC-14 | UC-01 (Nâng cao), UC-02, UC-03 (Nâng cao), UC-12, UC-13 | UC-15, UC-16, Module AI Analytics |
 | **Độ nặng nghiệp vụ** | **25%** (Cân bằng) | **25%** (Cân bằng) | **25%** (Cân bằng) | **25%** (Cân bằng) |
+| **Nhiệm vụ Thiết kế UI/UX** | **Thiết kế lại Màn hình chính Người cao tuổi** (Nút SOS cảm ứng xúc giác lớn, phông chữ lớn WCAG AAA, thẻ trạng thái mộc mạc) & **Dashboard Sinh hiệu Người thân** (Thẻ màu y tế, Biểu đồ 24h, Bản đồ GPS). | **Thiết kế lại Màn hình Cứu hộ Quorum** (Banner đỏ, nút 115 kèm địa chỉ nhà cụ, nút ACK) & **Hộp thoại Đếm ngược Ngã 30s** (Số đếm 72sp, nút "TÔI ỔN" xanh lá siêu to). | **Thiết kế lại UI Onboarding & Ghép nối** (Hình minh họa sinh động từng bước, Quét mã QR 1 chạm) & **Màn hình Quản trị Gia đình** (Danh thiếp gia đình ấm áp, chia sẻ mã mời tiện lợi). | **Thiết kế lại UI "Góc Sức Khỏe AI"** & **Báo cáo Tuần** (Dạng thẻ tạp chí y tế hiện đại, biểu tượng cảm xúc gần gũi, văn phong ân cần, biểu đồ đơn giản dễ hiểu). |
 | **Thành phần Di động** | Đồng bộ Health Connect, SQLite WAL 7 ngày, Live Charts, Map | Giao diện Quorum Alerting, Còi hú, Nút gọi 115, Nút Tiếp nhận ACK | Màn hình Quản lý thành viên, Mã mời 6 ký tự, Quét mã QR ghép nối, Đổi quyền | Thẻ nhận định thông minh AI, Màn hình xem Báo cáo sức khỏe tuần |
 | **Thành phần Backend** | Telemetry Batch Ingestion, Transient Retry, Adaptive Engine | Clinical Rule Engine, Multi-Device Watchdog 60s, OCC Concurrency | Family RBAC Service, Pairing PIN Service, Token Revocation, Safe Erasure | In-Process ML.NET Time-Series Worker, LLM Prompt Engine, Deterministic Template |
 | **Cơ sở dữ liệu** | `HealthMeasurements`, `ProcessedTelemetryLedgers`, `DeviceClinicalStates` | `Incidents`, `IncidentTimelineEvents`, `NotificationOutbox` | `ElderProfiles`, `ElderCaregivers`, `DevicePairingTokens`, `FamilyInvitations` | `HealthInsights`, `WeeklyHealthReports`, `HealthMeasurements` (Read-only) |
 | **Tính Độc Lập** | **100% Độc lập**: Chỉ ghi nhận sinh hiệu và tính toán ngưỡng. | **100% Độc lập**: Vận hành trên bảng sự cố và quy trình cấp cứu. | **100% Độc lập**: Quản trị tài khoản, nhóm gia đình và thiết bị. | **100% Độc lập**: Chạy phân tích offline trên dữ liệu lịch sử. |
+
+### 2.1 Bộ Nguyên Tắc Thiết Kế Lại Giao Diện UI/UX Thân Thiện & Phù Hợp Người Dùng (Human-Centered Design Framework)
+
+Nhằm xóa bỏ hoàn toàn rào cản công nghệ và mang lại sự an tâm tuyệt đối, toàn bộ giao diện của CareAI được thiết kế lại xoay quanh 2 nhóm người dùng với nhu cầu chuyên biệt:
+
+1. **Trụ cột 1: Chế độ Người cao tuổi (Elderly Experience - Silver Accessibility & WCAG 2.2 AAA)**:
+   - **Tối giản hóa tối đa (Zero-Friction & Minimalist)**: Màn hình không chứa các menu phức tạp hay nút bấm thừa thãi. Trọng tâm tuyệt đối là **Nút SOS khẩn cấp siêu lớn** ở trung tâm màn hình (đường kính >= 180dp), có hiệu ứng nhịp thở dịu mắt và phản hồi rung Haptic lực mạnh khi chạm vào.
+   - **Thị giác người già**: Cỡ chữ lớn dễ đọc (18sp – 32sp), độ tương phản cao (High Contrast Ratio >= 7:1) chống mờ mắt, đục thủy tinh thể; biểu tượng to bản trực quan.
+   - **Ngôn ngữ mộc mạc, gần gũi**: Ẩn sạch 100% các thông số kỹ thuật (IP, Port, SHA-256, Reverse, USB). Thay bằng thông điệp ấm áp: *"Hệ thống đang bảo vệ bạn an toàn"*, *"Con cháu đang trực ban"*.
+   - **Cứu hộ chống hoảng loạn**: Khi phát hiện ngã, hộp thoại đếm ngược 30 giây hiển thị số to **72sp**; nút **"TÔI ỔN"** màu xanh lá cây khổng lồ (chiều cao >= 64dp, chiếm trọn 50% đáy màn hình) để người già dễ dàng chạm tay hủy khi chỉ vấp ngã nhẹ kể cả khi tay run hoặc đang nằm dưới sàn.
+
+2. **Trụ cột 2: Chế độ Người thân (Caregiver Experience - Glanceable Medical Dashboard)**:
+   - **Nhận diện trạng thái trong 3 giây (3-Second Peace of Mind)**: Vừa mở app là con cháu nắm bắt ngay thể trạng của cha mẹ thông qua hệ thống thẻ màu y tế chuẩn hóa (Xanh lá - Ổn định, Vàng - Chú ý nhẹ, Đỏ - Nguy kịch, Xám - Mất kết nối).
+   - **Công thái học ngón tay cái (Thumb-Zone Friendly)**: Toàn bộ nút thao tác khẩn cấp (Gọi 115, Gọi trực tiếp cho cụ, Tiếp nhận cứu hộ ACK) được bố trí ở nửa dưới màn hình để dễ dàng bấm bằng 1 tay khi đang vội vã.
+   - **Cấp cứu thông minh 1 chạm**: Khi có sự cố ngã, màn hình người thân hiển thị to rõ ràng **Địa chỉ nhà cụ** kèm nút gọi 115 để con cháu đọc ngay cho bác sĩ cấp cứu mà không mất thời gian tìm kiếm địa chỉ.
+   - **Chuyển đổi vai trò mượt mà**: Nút chuyển đổi vai trò nổi bật trên thanh AppBar và tab Tài khoản với hộp thoại xác nhận rõ ràng, dễ hiểu.
 
 ---
 
@@ -68,7 +85,7 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
   1. Thiết lập luồng thu thập dữ liệu sinh hiệu thụ động định kỳ từ Samsung Galaxy Watch qua Google Health Connect.
   2. Cơ chế lưu đệm ngoại tuyến SQLite WAL 7 ngày trên điện thoại, truyền mẻ Batch-Lane (`/api/v1/telemetry/batch`) phản hồi `< 15ms` (HTTP 202 Accepted).
   3. Xử lý nền Bulk Ingestion tại Backend Kestrel với mạch Retry 5 lần chống quá tải 5 DTU và cầu dao bảo vệ RAM máy chủ.
-  4. Trực quan hóa dữ liệu sinh hiệu thời gian thực: Biểu đồ nhịp tim 24 giờ, bước chân, và định vị GPS của cụ trên bản đồ.
+  4. Trực quan hóa dữ liệu sinh hiệu thời gian thực và **thiết kế lại toàn diện giao diện UI/UX Chế độ Người cao tuổi và Chế độ Người thân** theo chuẩn công thái học y tế: Màn hình chính cho cụ tối giản, dễ bấm, phông chữ lớn; Dashboard sinh hiệu cho người thân trực quan với thẻ màu y tế, biểu đồ 24h và bản đồ GPS.
   5. **Chức năng Tự Động Thu Thập Dữ Liệu & Tự Điều Chỉnh Ngưỡng Thích Nghi Theo Thời Gian (Adaptive Threshold Tuning)**: Phân tích phân phối xác suất dữ liệu lịch sử 14 ngày của cụ để tự động tính toán và điều chỉnh dải ngưỡng an toàn phù hợp với thể trạng thực tế, kết hợp cơ chế Zero-Downtime Cache Invalidation.
 
 ### 3.2 Các Hạng Mục Nhiệm Vụ Cụ Thể (Actionable Tasks)
@@ -86,9 +103,16 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
    - Bulk Insert vào `HealthMeasurements` trên Azure SQL.
    - Mạch Transient Retry 5 lần (delay 5s) và Dead Letter Batch khi lỗi lặp lại.
    - Cầu dao giới hạn RAM máy chủ không vượt quá 700MB trên môi trường Azure B1s 1GB RAM.
-4. **Nhiệm vụ 1.4 - Trực Quan Hóa Dashboard Sinh Hiệu & Bản Đồ GPS (`companion_app/lib/caregiver`)**:
-   - Màn hình Bảng điều khiển người thân: Thẻ màu sức khỏe (Xanh, Vàng, Đỏ, Xám), Biểu đồ đường biến thiên nhịp tim 24 giờ qua (fl_chart), Thanh tiến độ bước chân so với mục tiêu vận động.
-   - Tích hợp Bản đồ GPS tương tác (OpenStreetMap / flutter_map) hiển thị tọa độ gần nhất và thời điểm đo.
+4. **Nhiệm vụ 1.4 - Thiết Kế Lại Toàn Diện UI/UX Dashboard Sinh Hiệu & Màn Hình Chính Người Cao Tuổi Thân Thiện (`companion_app`)**:
+   - **Thiết kế lại Giao diện Chế độ Người cao tuổi (`lib/screens/sos_button_screen.dart`)**:
+     * Tối ưu hóa Nút SOS trung tâm: Kích thước siêu lớn (chiếm 45% diện tích màn hình), phủ viền nhịp thở nhẹ nhàng, phản hồi rung Haptic lực mạnh khi bấm.
+     * Thẻ trạng thái kết nối bằng ngôn ngữ tự nhiên: *"Đang bảo vệ bạn"*, *"Con cháu đang trực ban"*, ẩn sạch toàn bộ thông số kỹ thuật (IP, Port, URL, Reverse).
+     * Nâng cấp cỡ chữ lớn (18sp - 24sp), phông số to rõ nét, tương phản cao trên nền xanh đá `#0F172A`.
+   - **Thiết kế lại Dashboard Chế độ Người thân (`lib/caregiver/screens/home_screen.dart`, `elder_dashboard_screen.dart`)**:
+     * Thẻ màu y tế tổng quan (Medical Glanceable Cards): Nhận biết ngay thể trạng của cụ trong 3 giây (Xanh - Bình thường, Vàng - Chú ý, Đỏ - Nguy kịch, Xám - Mất kết nối).
+     * Biểu đồ biến thiên nhịp tim 24 giờ trực quan (fl_chart) với chỉ số Min/Max/Avg trong ngày, phân vùng màu an toàn.
+     * Thanh đo bước chân vận động hàng ngày dạng vòng tròn tiến độ (Circular Progress).
+     * Bản đồ GPS tương tác (OpenStreetMap / flutter_map) hiển thị vị trí gần nhất của cụ, bán kính sai số và thời điểm đo.
 5. **Nhiệm vụ 1.5 - Thuật Toán Tự Điều Chỉnh Ngưỡng Thích Nghi Theo Thời Gian (`CareAI.Core`)**:
    - Xây dựng dịch vụ `AdaptiveThresholdService`: Định kỳ phân tích dữ liệu nhịp tim nghỉ ngơi 14 ngày gần nhất của cụ theo bách phân vị (Percentile 5th và 95th).
    - Tự động đề xuất dải ngưỡng mới: `RecommendedMin` (>= 40 bpm) và `RecommendedMax` (<= 160 bpm).
@@ -98,6 +122,7 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
 ### 3.3 Tiêu Chí Nghiệm Thu (Definition of Done - DoD)
 - [ ] Gửi mẻ 500 mẫu viễn trắc từ điện thoại lên server, phản hồi HTTP 202 Accepted trong `< 15ms`.
 - [ ] Dữ liệu sinh hiệu lưu trữ bền vững vào Azure SQL, không mất mát khi ngắt kết nối mạng tạm thời (thử lại thành công từ SQLite sau 7 ngày).
+- [ ] Màn hình chính của Cụ và Dashboard Người thân được thiết kế lại đẹp mắt, thân thiện, phông chữ lớn, đạt chuẩn tiếp cận người cao tuổi (WCAG AAA).
 - [ ] Biểu đồ nhịp tim 24 giờ và bản đồ GPS hiển thị trực quan, mượt mà trên Chế độ Người thân.
 - [ ] Thuật toán Adaptive Thresholds tự động tính toán chính xác dải ngưỡng mới dựa trên dữ liệu 14 ngày và cập nhật Cache trong 0ms.
 - [ ] Bổ sung xUnit Fact Tests mới cho luồng Batch-Lane và Adaptive Tuning, bảo đảm 100% test pass.
@@ -125,10 +150,15 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
    - Gom nhóm đa thiết bị theo cụ: Chỉ cảnh báo mất mạng khi TẤT CẢ các thiết bị của cụ mất tín hiệu quá 5 phút.
    - Triệt để tuân thủ Quy tắc Ức chế Cấp cứu: Nếu cụ đang có sự cố SOS hoặc Ngã, cấm tạo sự cố mất mạng rác, chỉ ghi chú bổ sung vào sự cố hiện tại.
    - Pha 2: Tự động phục hồi đóng sự cố sang `Resolved` độc lập khi thiết bị có tín hiệu trở lại.
-3. **Nhiệm vụ 2.3 - Quorum Alerting SLA 60s & Giao Diện Cứu Hộ Khẩn Cấp (`companion_app`)**:
-   - Khi có sự cố `Critical`, gửi còi hú đồng thời tới toàn bộ người thân trong gia đình qua Google FCM High Priority.
-   - Màn hình Chi tiết Sự cố khẩn cấp trên app người thân: Còi hú y tế, thông tin chỉ số sinh hiệu lúc xảy ra sự cố, vị trí GPS.
-   - Nút hành động nhanh: Bấm gọi trực tiếp cho cụ, Bấm gọi Cấp cứu 115 (kèm hiển thị nhanh địa chỉ nhà của cụ để đọc cho tổng đài viên).
+3. **Nhiệm vụ 2.3 - Thiết Kế Lại UI/UX Màn Hình Cứu Hộ Khẩn Cấp Quorum & Đếm Ngược Ngã Phù Hợp Tâm Lý Hoảng Loạn (`companion_app`)**:
+   - **Thiết kế lại Hộp thoại Đếm ngược Ngã 30s của Cụ (`lib/screens/fall_countdown_dialog.dart`)**:
+     * Đồng hồ đếm ngược số to **72sp** kèm vòng tròn hoạt họa nhấp nháy đỏ - cam cảnh báo rõ rệt.
+     * Nút **"TÔI ỔN"** màu xanh lá cây khổng lồ (chiều cao >= 64dp, chiếm trọn 50% đáy màn hình) để người già dễ dàng chạm tay hủy khi chỉ vấp ngã nhẹ kể cả khi tay run hoặc đang nằm dưới sàn.
+     * Nút **"CẦN TRỢ GIÚP - GỬI NGAY"** màu đỏ đun nổi bật để chủ động gửi cấp cứu lập tức không cần chờ 30 giây.
+   - **Thiết kế lại Giao diện Quorum Cứu Hộ Người Thân (`lib/caregiver/screens/incident_detail_screen.dart`)**:
+     * Banner đỏ toàn màn hình với hiệu ứng nhấp nháy y tế cảnh báo khẩn cấp khi cụ gặp nạn.
+     * Thẻ thông tin sự cố công thái học: Hiển thị ngay nhịp tim lúc ngã, lực va đập gia tốc và thời gian chính xác.
+     * Vùng cứu hộ khẩn cấp 1 chạm: Hiển thị to đậm **Địa chỉ nhà của cụ** để con cháu đọc ngay cho tổng đài 115 mà không cần nhớ lại; Nút **"GỌI 115 NGAY"** màu đỏ nổi bật và nút **"TIẾP NHẬN CỨU HỘ (ACK)"** màu xanh dương ở vùng ngón tay cái.
 4. **Nhiệm vụ 2.4 - Quy Trình Tiếp Nhận (ACK) & Giải Quyết (Resolve) Chuẩn OCC (`CareAI.API`)**:
    - Triển khai endpoint `POST /api/v1/incidents/{id}/acknowledge`: Kiểm tra BOLA, kiểm tra OCC `RowVersion`, chuyển trạng thái `Acknowledged`, tắt còi hú và thông báo cho các người thân khác biết đã có người xử lý.
    - Triển khai endpoint `POST /api/v1/incidents/{id}/resolve`: Yêu cầu ghi chú y tế lâm sàng (`ResolutionNotes`), chuyển trạng thái `Resolved`.
@@ -140,6 +170,7 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
 
 ### 4.3 Tiêu Chí Nghiệm Thu (Definition of Done - DoD)
 - [ ] Mô phỏng nhịp tim 185 bpm: Hệ thống kích hoạt còi hú khẩn cấp và đẩy thông báo Quorum tới người thân trong `< 3 giây`.
+- [ ] Màn hình đếm ngược của Cụ và màn hình Quorum Cứu hộ Người thân được thiết kế lại tối ưu công thái học, giúp thao tác cấp cứu trong cơn hoảng loạn chỉ mất 1-2 chạm.
 - [ ] Hai người thân cùng bấm tiếp nhận đồng thời: Người bấm sau nhận HTTP 409 Conflict với thông báo rõ ràng người trước đã tiếp nhận, triệt tiêu lỗi ghi đè Lost Update nhờ OCC `RowVersion`.
 - [ ] Ngắt tín hiệu thiết bị khi đang có SOS: Watchdog không tạo sự cố rác đè lên sự cố SOS đang mở.
 - [ ] Ghi chú y tế và dấu vết người tiếp nhận/giải quyết được lưu trữ bất biến và hiển thị đầy đủ trên Timeline lịch sử.
@@ -163,14 +194,18 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
    - Chuẩn hóa quy trình đăng ký/đăng nhập với BCrypt work factor 11.
    - Quản lý biến đếm `FailedLoginAttempts`: Nếu sai >= 5 lần, khóa tài khoản 15 phút (`LockoutEnd = DateTime.UtcNow.AddMinutes(15)`), trả về HTTP 423 Locked.
    - Cơ chế cấp lại mật khẩu qua mã OTP 6 số gửi qua Email.
-2. **Nhiệm vụ 3.2 - Quản Lý Hồ Sơ Cụ & Sinh Mã PIN / QR Code Ghép Nối (`CareAI.API` & `companion_app`)**:
+2. **Nhiệm vụ 3.2 - Quản Lý Hồ Sơ Cụ & Thiết Kế Lại UI/UX Ghép Nối Thiết Bị Bằng Visual Stepper & Mã QR (`CareAI.API` & `companion_app`)**:
    - Màn hình Tạo/Sửa hồ sơ cụ: Họ tên, Năm sinh, Giới tính, Tiền sử bệnh lý nền, Số điện thoại khẩn cấp.
    - Endpoint `POST /api/v1/elders/{id}/pairing-code`: Sinh mã PIN 6 số (băm SHA-256 lưu CSDL, TTL 15 phút).
-   - Sinh mã QR chứa chuỗi ghép nối chuẩn để điện thoại của cụ chỉ cần quét camera là tự động điền mã PIN và ghép nối.
-3. **Nhiệm vụ 3.3 - Quản Trị Nhóm Gia Đình & Mã Mời 24 Giờ (`CareAI.API` & `companion_app`)**:
+   - **Thiết kế lại quy trình Onboarding ghép nối thân thiện (Visual Stepper)**:
+     * Hướng dẫn trực quan từng bước bằng hoạt họa sinh động: (Bước 1) Bật Bluetooth điện thoại $\to$ (Bước 2) Đeo Galaxy Watch $\to$ (Bước 3) Quét mã QR.
+     * Tạo mã QR Code trên app người thân để camera điện thoại của cụ chỉ cần quét là tự động điền mã PIN và ghép nối trong 1 chạm, loại bỏ hoàn toàn việc người già phải gõ bàn phím số phức tạp.
+3. **Nhiệm vụ 3.3 - Quản Trị Nhóm Gia Đình & Thiết Kế Lại Giao Diện Danh Thiếp Thành Viên Ấm Cúng (`CareAI.API` & `companion_app`)**:
    - Endpoint `POST /api/v1/elders/{id}/invitations`: Sinh mã mời gia đình 6 ký tự viết hoa (ví dụ: `CARE88`, TTL 24 giờ).
    - Endpoint `POST /api/v1/invitations/accept`: Người thân phụ nhập mã mời để tham gia nhóm chăm sóc cụ.
-   - Màn hình Quản lý thành viên gia đình trên app người thân: Hiển thị danh sách con cháu đang cùng chăm sóc, vai trò và nút thu hồi quyền theo dõi.
+   - **Thiết kế lại giao diện Quản lý Gia đình thân thiện**:
+     * Thể hiện dạng danh thiếp thành viên ấm áp (Family Cards), có ảnh đại diện, số điện thoại và huy hiệu phân quyền nổi bật (Người thân chính / Người thân phụ).
+     * Nút sao chép mã mời 1 chạm kèm nút chia sẻ trực tiếp qua Zalo / Tin nhắn SMS cho người thân khác dễ dàng tham gia nhóm.
 4. **Nhiệm vụ 3.4 - Thực Thi Ma Trận Phân Quyền RBAC Nghiêm Ngặt (`CareAI.Core`)**:
    - Xây dựng RBAC Policy Authorization:
      * **Primary Caregiver (Đại diện pháp lý)**: Toàn quyền cấu hình ngưỡng y tế, mời/xóa thành viên, hủy thiết bị, xóa hồ sơ và tiếp nhận/đóng sự cố.
@@ -182,6 +217,7 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
 
 ### 5.3 Tiêu Chí Nghiệm Thu (Definition of Done - DoD)
 - [ ] Nhập sai mật khẩu 5 lần: Tài khoản bị khóa 15 phút, trả về HTTP 423 Locked.
+- [ ] Quy trình ghép nối thiết bị qua mã QR và giao diện Quản lý Gia đình được thiết kế lại trực quan, dễ thao tác, có hình ảnh minh họa sinh động từng bước.
 - [ ] Ghép nối thành công thiết bị qua mã PIN 6 số hoặc quét mã QR trong vòng 15 phút; mã hết hạn bị từ chối với HTTP 400.
 - [ ] Mời thành viên mới qua mã 6 ký tự thành công; tài khoản người thân phụ không thể thực hiện các thao tác quản trị y tế (nhận HTTP 403 Forbidden).
 - [ ] Hủy ghép nối thiết bị từ xa: Thiết bị của cụ nhận lệnh ngầm, xóa sạch bộ nhớ đệm và trở về trạng thái chờ ghép nối ban đầu.
@@ -222,15 +258,19 @@ Tính đến ngày 24/09/2026, dự án CareAI đã hoàn thành 100% các cột
      * Tự động kích hoạt bộ sinh báo cáo quy tắc dựa trên số liệu thực tế: *"Báo cáo tuần [Ngày - Ngày]: Sức khỏe của Cụ tuần qua nhìn chung rất ổn định. Nhịp tim trung bình đạt [X] bpm. Cụ duy trì vận động trung bình [Y] bước/ngày. Trong tuần không phát sinh sự cố khẩn cấp nào..."*.
      * Đảm bảo báo cáo không bao giờ bị gián đoạn hoặc thất bại.
    - Lưu trữ văn bản vào bảng `WeeklyHealthReports` trên Azure SQL và gửi thông báo đẩy nhắc nhở người thân.
-5. **Nhiệm vụ 4.5 - Giao Diện "Góc Sức Khỏe AI" & Lịch Sử Báo Cáo Tuần (`companion_app`)**:
-   - Xây dựng tab "Góc Sức Khỏe AI" trên Chế độ Người thân: Hiển thị các thẻ nhận định thông minh (Health Insights) với lời khuyên thăm hỏi sức khỏe cho gia đình.
-   - Màn hình xem Báo cáo Tuần chi tiết với giao diện thẻ thanh lịch, hỗ trợ tra cứu lịch sử báo cáo các tuần trước.
+5. **Nhiệm vụ 4.5 - Thiết Kế Lại UI/UX 'Góc Sức Khỏe AI' & Báo Cáo Y Tế Tuần Dạng Tạp Chí Thân Thiện (`companion_app`)**:
+   - **Thiết kế lại tab 'Góc Sức Khỏe AI' (`lib/caregiver/screens/ai_insights_tab.dart`)**:
+     * Hiển thị các thẻ nhận định thông minh (Health Insights) dạng tạp chí sức khỏe hiện đại (Clean Magazine Cards), tông màu pastel dịu mắt.
+     * Mỗi nhận định đi kèm biểu tượng minh họa gần gũi (trái tim, giấc ngủ, bước chân) và lời gợi ý hành động ân cần cho con cháu (ví dụ: *"Hôm nay cụ vận động ít hơn thường lệ, bạn hãy gọi điện thăm cụ nhé!"*).
+   - **Thiết kế lại Màn hình Báo Cáo Tuần (`weekly_report_screen.dart`)**:
+     * Bố cục báo cáo 3 phần mạch lạc, phông chữ thanh lịch, biểu đồ tóm tắt xu hướng biến thiên sinh hiệu đơn giản hóa để mọi lứa tuổi trong gia đình đều đọc hiểu trong 5 giây mà không cần kiến thức y khoa chuyên sâu.
+     * Hỗ trợ cuộn xem lịch sử báo cáo các tuần trước kèm tính năng xuất chia sẻ nhanh cho bác sĩ gia đình.
 
 ### 6.3 Tiêu Chí Nghiệm Thu (Definition of Done - DoD)
 - [ ] Mô hình ML.NET chạy in-process trong RAM Kestrel, phát hiện chính xác điểm đột biến nhịp tim ẩn ban đêm và lưu bản ghi `HealthInsight` thành công.
 - [ ] Toàn bộ chuỗi payload gửi tới API AI hoàn toàn sạch thông tin PII (chỉ chứa số liệu thống kê trừu tượng).
 - [ ] Thử nghiệm ngắt mạng Internet của API AI: Hệ thống tự động chuyển sang Deterministic Fallback Engine trong 0ms, sinh ra bản báo cáo tuần chuẩn xác bằng tiếng Việt mà không ném ngoại lệ ra ngoài.
-- [ ] Giao diện "Góc Sức Khỏe AI" và Báo cáo Tuần hiển thị trực quan, mượt mà trên ứng dụng di động.
+- [ ] Giao diện "Góc Sức Khỏe AI" và Báo cáo Tuần được thiết kế lại trực quan, ấm áp, đạt chuẩn thẩm mỹ y tế gia đình, dễ tiếp cận cho người dùng.
 - [ ] Bổ sung xUnit Fact Tests cho luồng ML.NET Spike Detection, PII Anonymizer và Deterministic Fallback.
 
 ---
@@ -262,3 +302,4 @@ Trong suốt quá trình triển khai 4 phần trên, đội ngũ cam kết tuâ
    - Filtered Unique Index `UIX_Incidents_SingleActiveElder` trên `Incidents`.
    - Native Android Direct Boot và phân vùng Device Protected Storage giữ vững nguyên vẹn.
 5. **Kỷ luật kiểm thử**: Mọi tính năng tạo ra phải build được thật (`dotnet build` 0 warning, 0 error), test pass thật (100% Facts Passed), và kiểm thử thực địa minh bạch trên thiết bị thật Samsung Galaxy A55 5G.
+6. **Kỷ luật Thiết kế UI/UX Thân thiện & Trắc ẩn (Human-Centered UX)**: Luôn đặt người cao tuổi (thị lực kém, tay run, phản xạ chậm) và người thân (bận rộn, cần an tâm trong 3 giây) làm trọng tâm. Mọi màn hình phải đạt chuẩn WCAG AAA, phông chữ lớn, tương phản cao, giấu sạch thông số kỹ thuật rườm rà, và phản hồi xúc giác Haptic đầm chắc.
