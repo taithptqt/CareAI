@@ -457,6 +457,66 @@ public static class DatabaseMigrationHelper
         CREATE INDEX IX_PasswordResetTokens_OtpHash ON PasswordResetTokens(OtpHash);
         CREATE INDEX IX_PasswordResetTokens_Expires ON PasswordResetTokens(ExpiresAt);
     END;
+
+    -- ============================================================================
+    -- PHẦN 4: TRÍ TUỆ NHÂN TẠO ML.NET & ZERO-PII GEMINI WEEKLY REPORT
+    -- ============================================================================
+
+    IF OBJECT_ID(N'dbo.HealthInsights', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.HealthInsights (
+            Id BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+            ElderProfileId NVARCHAR(50) NOT NULL,
+            DeviceId NVARCHAR(50) NOT NULL,
+            InsightType NVARCHAR(50) NOT NULL,
+            WindowEndUtc DATETIME2 NOT NULL,
+            ObservedValue FLOAT NOT NULL,
+            BaselineValue FLOAT NOT NULL,
+            PValue FLOAT NOT NULL,
+            Description NVARCHAR(1000) NOT NULL,
+            CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+            CONSTRAINT FK_HealthInsights_Elder FOREIGN KEY (ElderProfileId)
+                REFERENCES dbo.ElderProfiles(Id) ON DELETE CASCADE
+        );
+        CREATE UNIQUE INDEX UIX_HealthInsights_Window
+            ON dbo.HealthInsights(ElderProfileId, DeviceId, InsightType, WindowEndUtc);
+    END;
+
+    IF OBJECT_ID(N'dbo.WeeklyHealthReports', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.WeeklyHealthReports (
+            Id BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+            ElderProfileId NVARCHAR(50) NOT NULL,
+            WeekStartUtc DATETIME2 NOT NULL,
+            WeekEndUtc DATETIME2 NOT NULL,
+            Content NVARCHAR(MAX) NOT NULL,
+            Source NVARCHAR(20) NOT NULL,
+            CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+            CONSTRAINT FK_WeeklyHealthReports_Elder FOREIGN KEY (ElderProfileId)
+                REFERENCES dbo.ElderProfiles(Id) ON DELETE CASCADE
+        );
+        CREATE UNIQUE INDEX UIX_WeeklyHealthReports_Week ON dbo.WeeklyHealthReports(ElderProfileId, WeekEndUtc);
+    END;
+
+    IF OBJECT_ID(N'dbo.WeeklyReportNotifications', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.WeeklyReportNotifications (
+            Id BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+            WeeklyHealthReportId BIGINT NOT NULL,
+            CaregiverPushTokenId NVARCHAR(50) NOT NULL,
+            Status NVARCHAR(20) NOT NULL DEFAULT 'PENDING',
+            RetryCount INT NOT NULL DEFAULT 0,
+            NextAttemptUtc DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+            SentAt DATETIME2 NULL,
+            RowVersion ROWVERSION NOT NULL,
+            CONSTRAINT FK_WeeklyReportNotifications_Report FOREIGN KEY (WeeklyHealthReportId)
+                REFERENCES dbo.WeeklyHealthReports(Id) ON DELETE CASCADE
+        );
+        CREATE UNIQUE INDEX UIX_WeeklyReportNotifications_Recipient
+            ON dbo.WeeklyReportNotifications(WeeklyHealthReportId, CaregiverPushTokenId);
+        CREATE INDEX IX_WeeklyReportNotifications_Status_NextAttemptUtc
+            ON dbo.WeeklyReportNotifications(Status, NextAttemptUtc);
+    END;
     """;
 
     public static async Task InitializeDatabaseAsync(string connectionString, ILogger? logger = null, CancellationToken ct = default)

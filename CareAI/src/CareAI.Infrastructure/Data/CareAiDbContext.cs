@@ -24,6 +24,9 @@ public class CareAiDbContext : DbContext
     public DbSet<ClinicalRuleCooldown> ClinicalRuleCooldowns => Set<ClinicalRuleCooldown>();
     public DbSet<FamilyInvitation> FamilyInvitations => Set<FamilyInvitation>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<HealthInsight> HealthInsights => Set<HealthInsight>();
+    public DbSet<WeeklyHealthReport> WeeklyHealthReports => Set<WeeklyHealthReport>();
+    public DbSet<WeeklyReportNotification> WeeklyReportNotifications => Set<WeeklyReportNotification>();
 
     /// <summary>
     /// Cho phép ngoại lệ quản trị ghi đè hoặc bảo trì lịch sử nếu có yêu cầu pháp lý/tuân thủ đặc biệt.
@@ -319,6 +322,47 @@ public class CareAiDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(p => p.OtpHash);
             b.HasIndex(p => p.ExpiresAt);
+        });
+
+        // 13. HealthInsight
+        modelBuilder.Entity<HealthInsight>(b =>
+        {
+            b.ToTable("HealthInsights");
+            b.HasKey(i => i.Id);
+            b.Property(i => i.ElderProfileId).HasMaxLength(50).IsRequired();
+            b.Property(i => i.DeviceId).HasMaxLength(50).IsRequired();
+            b.Property(i => i.InsightType).HasMaxLength(50).IsRequired();
+            b.Property(i => i.Description).HasMaxLength(1000).IsRequired();
+            b.HasOne(i => i.ElderProfile).WithMany().HasForeignKey(i => i.ElderProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(i => new { i.ElderProfileId, i.DeviceId, i.InsightType, i.WindowEndUtc })
+                .IsUnique().HasDatabaseName("UIX_HealthInsights_Window");
+        });
+
+        // 14. WeeklyHealthReport
+        modelBuilder.Entity<WeeklyHealthReport>(b =>
+        {
+            b.ToTable("WeeklyHealthReports");
+            b.HasKey(r => r.Id);
+            b.Property(r => r.ElderProfileId).HasMaxLength(50).IsRequired();
+            b.Property(r => r.Content).IsRequired();
+            b.Property(r => r.Source).HasMaxLength(20).IsRequired();
+            b.HasOne(r => r.ElderProfile).WithMany().HasForeignKey(r => r.ElderProfileId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(r => new { r.ElderProfileId, r.WeekEndUtc }).IsUnique().HasDatabaseName("UIX_WeeklyHealthReports_Week");
+        });
+
+        // 15. WeeklyReportNotification
+        modelBuilder.Entity<WeeklyReportNotification>(b =>
+        {
+            b.ToTable("WeeklyReportNotifications");
+            b.HasKey(n => n.Id);
+            b.Property(n => n.CaregiverPushTokenId).HasMaxLength(50).IsRequired();
+            b.Property(n => n.Status).HasMaxLength(20).IsRequired();
+            b.Property(n => n.RowVersion).IsRowVersion();
+            b.HasOne(n => n.WeeklyHealthReport).WithMany().HasForeignKey(n => n.WeeklyHealthReportId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(n => new { n.WeeklyHealthReportId, n.CaregiverPushTokenId }).IsUnique()
+                .HasDatabaseName("UIX_WeeklyReportNotifications_Recipient");
+            b.HasIndex(n => new { n.Status, n.NextAttemptUtc });
         });
     }
 }
