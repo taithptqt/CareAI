@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
+using CareAI.Core.Interfaces;
 using CareAI.Infrastructure.Data;
 
 namespace CareAI.Infrastructure.Engines;
@@ -10,11 +11,16 @@ public class ClinicalDiagnosticEngine
 {
     private readonly CareAiDbContext _db;
     private readonly ILogger<ClinicalDiagnosticEngine> _logger;
+    private readonly IAdaptiveThresholdService? _thresholdService;
 
-    public ClinicalDiagnosticEngine(CareAiDbContext db, ILogger<ClinicalDiagnosticEngine> logger)
+    public ClinicalDiagnosticEngine(
+        CareAiDbContext db,
+        ILogger<ClinicalDiagnosticEngine> logger,
+        IAdaptiveThresholdService? thresholdService = null)
     {
         _db = db;
         _logger = logger;
+        _thresholdService = thresholdService;
     }
 
     /// <summary>
@@ -28,6 +34,18 @@ public class ClinicalDiagnosticEngine
         CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
+
+        // Lấy ngưỡng thích nghi cá nhân hóa cho từng cụ (tự động phân tách Ngày và Đêm theo Khung giờ ngủ)
+        double minBpm = 40.0;
+        double maxBpm = 120.0;
+        bool isNight = false;
+        if (_thresholdService != null)
+        {
+            var thresholds = await _thresholdService.GetEffectiveThresholdsForTimeAsync(elderProfileId, now, ct);
+            minBpm = thresholds.Min;
+            maxBpm = thresholds.Max;
+            isNight = thresholds.IsNight;
+        }
 
         // 1. Phân loại mức độ vi phạm quy tắc lâm sàng
         string? emergencyType = null;
@@ -46,17 +64,19 @@ public class ClinicalDiagnosticEngine
             severity = IncidentSeverity.Critical;
             clinicalReason = $"CẢNH BÁO NGUY KỊCH: Nhịp tim tụt xuống {heartRate} bpm (nguy cơ vô tâm thu / ngừng tuần hoàn)!";
         }
-        else if (heartRate > 120 && recentSteps <= 10)
+        else if (heartRate > maxBpm && recentSteps <= 10)
         {
             emergencyType = EmergencyType.Tachycardia;
             severity = IncidentSeverity.High;
-            clinicalReason = $"Cảnh báo: Nhịp tim tăng cao {heartRate} bpm trong trạng thái nghỉ ngơi.";
+            var periodDesc = isNight ? "ban đêm (lúc ngủ)" : "trạng thái nghỉ ngơi ban ngày";
+            clinicalReason = $"Cảnh báo: Nhịp tim tăng cao {heartRate} bpm vượt ngưỡng an toàn {periodDesc} ({maxBpm} bpm).";
         }
-        else if (heartRate < 40)
+        else if (heartRate < minBpm)
         {
             emergencyType = EmergencyType.Bradycardia;
             severity = IncidentSeverity.High;
-            clinicalReason = $"Cảnh báo: Nhịp tim chậm kéo dài {heartRate} bpm.";
+            var periodDesc = isNight ? "ban đêm (lúc ngủ)" : "ban ngày";
+            clinicalReason = $"Cảnh báo: Nhịp tim chậm kéo dài {heartRate} bpm dưới ngưỡng an toàn {periodDesc} ({minBpm} bpm).";
         }
 
         if (emergencyType == null)

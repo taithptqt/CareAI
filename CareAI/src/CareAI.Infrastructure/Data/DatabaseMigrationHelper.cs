@@ -21,9 +21,48 @@ public static class DatabaseMigrationHelper
             EmergencyContact NVARCHAR(50) NULL,
             PairingPin NVARCHAR(10) NULL,
             PinExpiresAt DATETIME2 NULL,
+            RestingHeartRateMin FLOAT NOT NULL DEFAULT 40.0,
+            RestingHeartRateMax FLOAT NOT NULL DEFAULT 120.0,
+            ThresholdsUpdatedAt DATETIME2 NULL,
             CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
             UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
         );
+    END;
+
+    -- ĐẢM BẢO IDEMPOTENT: Bổ sung các cột ngưỡng nếu bảng đã tồn tại từ phiên bản trước
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'RestingHeartRateMin')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD RestingHeartRateMin FLOAT NOT NULL DEFAULT 40.0;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'RestingHeartRateMax')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD RestingHeartRateMax FLOAT NOT NULL DEFAULT 120.0;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'ThresholdsUpdatedAt')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD ThresholdsUpdatedAt DATETIME2 NULL;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'NightHeartRateMin')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD NightHeartRateMin FLOAT NOT NULL DEFAULT 40.0;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'NightHeartRateMax')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD NightHeartRateMax FLOAT NOT NULL DEFAULT 90.0;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'SleepWindowStart')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD SleepWindowStart NVARCHAR(10) NOT NULL DEFAULT '22:00';
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'SleepWindowEnd')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD SleepWindowEnd NVARCHAR(10) NOT NULL DEFAULT '06:00';
     END;
 
     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DeviceRegistrations')

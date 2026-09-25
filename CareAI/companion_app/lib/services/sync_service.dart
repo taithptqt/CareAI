@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
 import 'api_service.dart';
+import 'health_connect_service.dart';
 import 'local_offline_store.dart';
 
 class SyncResult {
@@ -123,5 +124,17 @@ class SyncService {
       packetType: 'TELEMETRY_BATCH',
       payload: payloadJson,
     );
+  }
+
+  /// Chu kỳ toàn vẹn của TelemetrySyncWorker (Nhiệm vụ 1.1):
+  /// 1. Gặt hái sinh hiệu từ Health Connect vào SQLite Spool (careai_local_spool.db) với Synced = 0
+  /// 2. Đẩy các gói PENDING lên Backend API (POST /api/v1/telemetry/ingest hoặc batch)
+  /// 3. Dọn dẹp tự động các bản ghi đã đồng bộ cũ hơn 7 ngày bằng purgeOldSyncedPackets
+  Future<SyncResult> harvestAndSyncCycle() async {
+    try {
+      await HealthConnectService.instance.harvestAndSpoolVitals();
+    } catch (_) {}
+
+    return await syncOfflineSpool();
   }
 }

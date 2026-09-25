@@ -32,6 +32,12 @@ public class CareAiDbContext : DbContext
             b.Property(e => e.FullName).HasMaxLength(100).IsRequired();
             b.Property(e => e.EmergencyContact).HasMaxLength(50);
             b.Property(e => e.PairingPin).HasMaxLength(10);
+            b.Property(e => e.RestingHeartRateMin).HasDefaultValue(40.0);
+            b.Property(e => e.RestingHeartRateMax).HasDefaultValue(120.0);
+            b.Property(e => e.NightHeartRateMin).HasDefaultValue(40.0);
+            b.Property(e => e.NightHeartRateMax).HasDefaultValue(90.0);
+            b.Property(e => e.SleepWindowStart).HasMaxLength(10).HasDefaultValue("22:00");
+            b.Property(e => e.SleepWindowEnd).HasMaxLength(10).HasDefaultValue("06:00");
         });
 
         // 2. DeviceRegistration
@@ -89,6 +95,7 @@ public class CareAiDbContext : DbContext
         // 6. Incident & Filtered Unique Index UIX_Incidents_SingleActiveElder
         modelBuilder.Entity<Incident>(b =>
         {
+            b.ToTable("Incidents", tb => tb.UseSqlOutputClause(false));
             b.HasKey(i => i.Id);
             b.Property(i => i.EmergencyType).HasMaxLength(50).IsRequired();
             b.Property(i => i.Severity).HasConversion<int>().IsRequired();
@@ -110,6 +117,7 @@ public class CareAiDbContext : DbContext
         // 7. IncidentTimelineEvent
         modelBuilder.Entity<IncidentTimelineEvent>(b =>
         {
+            b.ToTable("IncidentTimelineEvents", tb => tb.UseSqlOutputClause(false));
             b.HasKey(t => t.Id);
             b.Property(t => t.EventType).HasMaxLength(50).IsRequired();
             b.HasOne(t => t.Incident)

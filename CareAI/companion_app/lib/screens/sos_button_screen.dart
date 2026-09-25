@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../caregiver/screens/home_screen.dart';
 import '../caregiver/screens/login_screen.dart';
 import '../caregiver/services/caregiver_api_service.dart';
+import '../services/location_service.dart';
 import 'device_pairing_screen.dart';
 import 'fall_countdown_dialog.dart';
 import 'role_selection_screen.dart';
@@ -34,6 +35,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   bool _isSosActive = false;
   String? _lastSosPacketId;
   DateTime? _lastSyncTime;
+  String _currentGps = 'Đang định vị GPS...';
 
   Timer? _healthCheckTimer;
   StreamSubscription<FallEvent>? _fallSubscription;
@@ -95,6 +97,16 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         _lastSyncTime = lastSync;
       });
     }
+
+    // Lấy tọa độ GPS thực tế của thiết bị (Không dùng bản đồ Trung Quốc)
+    try {
+      final loc = await LocationService.instance.getCurrentLocation(requestPermissionIfDenied: false);
+      if (mounted) {
+        setState(() {
+          _currentGps = loc.coordinatesFormatted;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkServerHealth() async {
@@ -181,12 +193,19 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       TelemetrySample(metricType: 'BATTERY', value: 92.0, unit: '%', timestamp: now),
     ];
 
+    // TUÂN THỦ NGHIÊM NGẶT: Lấy tọa độ GPS thực tế từ phần cứng thiết bị (Không dùng bản đồ Trung Quốc)
+    final gpsResult = await LocationService.instance.getCurrentLocation();
+    final realGpsLocation = gpsResult.coordinatesFormatted;
+    if (mounted) {
+      setState(() => _currentGps = realGpsLocation);
+    }
+
     final sosRequest = SosPacketRequest(
       packetId: packetId,
       emergencyType: 'MANUAL_SOS',
       severity: 'CRITICAL',
       triggeredAt: now,
-      gpsLocation: '10.7769, 106.7009', // Vị trí giả lập tọa độ người cao tuổi
+      gpsLocation: realGpsLocation,
       samples: samples,
     );
 
@@ -401,6 +420,48 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                         Text(
                           'Mã thiết bị: $_deviceId',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () async {
+                            final loc = await LocationService.instance.getCurrentLocation();
+                            if (mounted) setState(() => _currentGps = loc.coordinatesFormatted);
+                            await LocationService.instance.openGoogleMaps(loc.latitude, loc.longitude, label: 'Vị trí Cụ: $_elderName');
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on, size: 13, color: Color(0xFF38BDF8)),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'GPS: $_currentGps',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF38BDF8), fontWeight: FontWeight.w500),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0369A1).withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: const Color(0xFF38BDF8), width: 0.5),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('Google Maps', style: TextStyle(fontSize: 9, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+                                      SizedBox(width: 2),
+                                      Icon(Icons.open_in_new, size: 9, color: Color(0xFF38BDF8)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

@@ -305,6 +305,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Kết nối: ${CaregiverApiService.instance.currentServerUrl}',
                   style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),

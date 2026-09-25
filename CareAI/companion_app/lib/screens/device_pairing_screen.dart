@@ -214,6 +214,7 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),

@@ -402,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return RefreshIndicator(
       onRefresh: _loadElders,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
         itemCount: _elders.length,
         itemBuilder: (ctx, idx) {
           final elder = _elders[idx];
@@ -671,6 +671,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
+          const SizedBox(height: 28),
         ],
       ),
     );

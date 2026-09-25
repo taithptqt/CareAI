@@ -15,8 +15,8 @@ import 'services/sync_service.dart';
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
     try {
-      // Tác vụ đồng bộ nền định kỳ 15 phút (UC-03 Offline-to-Online Batch Sync)
-      final result = await SyncService.instance.syncOfflineSpool();
+      // Tác vụ gặt hái sinh hiệu Health Connect & đồng bộ nền định kỳ 15 phút (Nhiệm vụ 1.1)
+      final result = await SyncService.instance.harvestAndSyncCycle();
       debugPrint('[CareAI-Workmanager] Đã đồng bộ nền thành công: ${result.syncedCount} gói tin');
       return true;
     } catch (e) {

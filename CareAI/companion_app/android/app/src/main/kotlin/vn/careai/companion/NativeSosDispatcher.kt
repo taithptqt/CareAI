@@ -1,8 +1,11 @@
 package vn.careai.companion
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.work.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +28,7 @@ object NativeSosDispatcher {
 
         // [BẤT BIẾN P0-4]: ĐỒNG NHẤT CANONICAL PACKETID (CHỐNG DUPLICATE RACE CONDITION VỚI FLUTTER)
         val canonicalPacketId = "FALL_${record.eventId}"
+        val nativeGps = getNativeLastKnownLocation(context)
 
         val payload = JSONObject().apply {
             put("deviceId", deviceId)
@@ -32,6 +36,9 @@ object NativeSosDispatcher {
             put("eventId", record.eventId)
             put("emergencyType", "FALL")
             put("notes", "CẢNH BÁO TÉ NGÃ NATIVE FAIL-SAFE: Cảm biến Galaxy Watch xác nhận ngã phần cứng. Watchdog OS kích hoạt Outbox-First SOS.")
+            if (nativeGps != null) {
+                put("gpsLocation", nativeGps)
+            }
             put("samples", JSONArray().apply {
                 put(JSONObject().apply {
                     put("metricType", "FALL")
@@ -91,6 +98,40 @@ object NativeSosDispatcher {
             } catch (e: Exception) {
                 Log.e("CareAI-Dispatcher", "[FAST-PATH EXCEPTION] Lỗi kết nối mạng: ${e.message}. Sự cố vẫn nằm an toàn trong Outbox cho WorkManager!")
             }
+        }
+    }
+
+    fun getNativeLastKnownLocation(context: Context): String? {
+        return try {
+            val fine = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val coarse = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (!fine && !coarse) return null
+
+            val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
+            var bestLoc: android.location.Location? = null
+
+            try {
+                if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    if (loc != null) bestLoc = loc
+                }
+            } catch (_: SecurityException) {}
+
+            try {
+                if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                    val loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                    if (loc != null && (bestLoc == null || loc.time > bestLoc.time)) {
+                        bestLoc = loc
+                    }
+                }
+            } catch (_: SecurityException) {}
+
+            if (bestLoc != null) {
+                "${String.format(java.util.Locale.US, "%.6f", bestLoc.latitude)}, ${String.format(java.util.Locale.US, "%.6f", bestLoc.longitude)}"
+            } else null
+        } catch (e: Exception) {
+            Log.w("CareAI-Dispatcher", "Không thể lấy vị trí native: ${e.message}")
+            null
         }
     }
 

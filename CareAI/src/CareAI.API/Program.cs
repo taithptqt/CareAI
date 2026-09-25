@@ -4,9 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using CareAI.API.Middlewares;
+using CareAI.Core.Interfaces;
 using CareAI.Infrastructure.BackgroundWorkers;
+using CareAI.Infrastructure.Channels;
 using CareAI.Infrastructure.Data;
 using CareAI.Infrastructure.Engines;
+using CareAI.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,11 +30,16 @@ builder.Services.AddMemoryCache(options =>
     options.CompactionPercentage = 0.20;
 });
 
-// 3. ĐĂNG KÝ CORE ENGINES
+// 2.1 HÀNG ĐỢI PHI KHÓA NON-BLOCKING MEMORY CHANNEL (NHIỆM VỤ 1.2)
+builder.Services.AddSingleton<ITelemetryBatchQueue, TelemetryBatchQueue>();
+
+// 3. ĐĂNG KÝ CORE ENGINES & SERVICES
 builder.Services.AddScoped<TelemetryEngine>();
+builder.Services.AddScoped<IAdaptiveThresholdService, AdaptiveThresholdService>();
 builder.Services.AddScoped<ClinicalDiagnosticEngine>();
 
 // 4. ĐĂNG KÝ HỆ THỐNG BACKGROUND WORKERS
+builder.Services.AddHostedService<TelemetryBatchProcessorWorker>();
 builder.Services.AddHostedService<NotificationDispatcherWorker>();
 builder.Services.AddHostedService<WatchdogBackgroundWorker>();
 builder.Services.AddHostedService<DataRetentionBackgroundWorker>();
