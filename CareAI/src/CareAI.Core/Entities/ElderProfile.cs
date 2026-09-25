@@ -11,6 +11,7 @@ public class ElderProfile
     public double? HomeLatitude { get; set; }
     public double? HomeLongitude { get; set; }
     public string? PairingPin { get; set; }
+    public string? PairingPinHash { get; set; }
     public DateTime? PinExpiresAt { get; set; }
     public double RestingHeartRateMin { get; set; } = 40.0;
     public double RestingHeartRateMax { get; set; } = 120.0;
@@ -19,6 +20,7 @@ public class ElderProfile
     public string SleepWindowStart { get; set; } = "22:00";
     public string SleepWindowEnd { get; set; } = "06:00";
     public DateTime? ThresholdsUpdatedAt { get; set; }
+    public bool IsDeleted { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

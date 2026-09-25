@@ -7,6 +7,8 @@ public class Caregiver
     public string PhoneNumber { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
+    public int FailedLoginAttempts { get; set; } = 0;
+    public DateTime? LockoutEnd { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
