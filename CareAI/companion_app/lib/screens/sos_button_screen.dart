@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 import '../models/fall_event.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
 import '../services/api_service.dart';
+import '../services/emergency_evidence_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
 import '../services/sync_service.dart';
@@ -36,6 +39,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   String? _lastSosPacketId;
   DateTime? _lastSyncTime;
   String _currentGps = 'Đang định vị GPS...';
+  String _gpsStatus = 'Đang lấy vị trí hiện tại...';
+  bool _locatingGps = false;
+  bool _backgroundGpsGranted = false;
 
   Timer? _healthCheckTimer;
   StreamSubscription<FallEvent>? _fallSubscription;
@@ -48,6 +54,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     _loadDeviceInfo();
     _checkServerHealth();
     _loadPendingCount();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_prepareGps());
+    });
 
     // Khởi chạy Animation rung/lan tỏa cho nút SOS
     _rippleController = AnimationController(
@@ -173,6 +182,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   Future<void> _triggerManualSos() async {
     HapticFeedback.heavyImpact();
+    final locationTask = EmergencyEvidenceService.captureCurrentLocation();
 
     // Mở hộp thoại xác nhận 5 giây (chống chạm nhầm)
     final shouldSend = await showDialog<bool>(
@@ -194,8 +204,12 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     ];
 
     // TUÂN THỦ NGHIÊM NGẶT: Lấy tọa độ GPS thực tế từ phần cứng thiết bị (Không dùng bản đồ Trung Quốc)
+    final recentFix = EmergencyEvidenceService.recentFix;
     final gpsResult = await LocationService.instance.getCurrentLocation();
-    final realGpsLocation = gpsResult.coordinatesFormatted;
+    final realGpsLocation = gpsResult.isRealGps
+        ? gpsResult.coordinatesFormatted
+        : (recentFix?.coordinates ?? gpsResult.coordinatesFormatted);
+    final initialGps = realGpsLocation;
     if (mounted) {
       setState(() => _currentGps = realGpsLocation);
     }
@@ -206,6 +220,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       severity: 'CRITICAL',
       triggeredAt: now,
       gpsLocation: realGpsLocation,
+      gpsIsSimulated: recentFix?.isSimulated ?? false,
       samples: samples,
     );
 
@@ -223,9 +238,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
     // BƯỚC 2: Thử Fast-Lane HTTP POST trực tiếp lên máy chủ
     try {
-      final success = await ApiService.instance.sendFastLaneSos(sosRequest);
-      if (success) {
+      final result = await ApiService.instance.sendFastLaneSosWithResult(sosRequest);
+      if (result.accepted) {
         await LocalOfflineStore.instance.markPacketSynced(packetId);
+        if (result.incidentId != null) {
+          unawaited(EmergencyEvidenceService.attachLocationWhenReady(
+              result.incidentId!, locationTask, initiallySentGps: initialGps));
+          unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
+        }
       }
     } catch (_) {
       // Ngoại tuyến: Sự cố đã được lưu an toàn trong SQLite Outbox
@@ -264,6 +284,62 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             'Đồng bộ hoàn tất: Đã gửi ${result.syncedCount} gói tin, Còn chờ: ${result.remainingPending}',
           ),
           backgroundColor: Colors.indigo,
+        ),
+      );
+    }
+  }
+
+  Future<void> _prepareGps() async {
+    await EmergencyEvidenceService.requestPermissions();
+    final backgroundGranted = await Permission.locationAlways.isGranted;
+    if (mounted) setState(() => _backgroundGpsGranted = backgroundGranted);
+    await _refreshGps();
+  }
+
+  Future<void> _enableBackgroundGps() async {
+    final status = await Permission.locationAlways.request();
+    if (mounted) {
+      setState(() => _backgroundGpsGranted = status.isGranted);
+      if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+          'Để gửi GPS khi app ở nền, chọn “Cho phép mọi lúc” trong quyền vị trí của CareAI.')));
+      }
+    }
+  }
+
+  Future<void> _refreshGps() async {
+    if (_locatingGps) return;
+    if (mounted) {
+      setState(() {
+        _locatingGps = true;
+        _gpsStatus = 'Đang lấy vị trí hiện tại...';
+      });
+    }
+    final fix = await EmergencyEvidenceService.captureCurrentLocation();
+    if (mounted) {
+      setState(() {
+        _locatingGps = false;
+      _gpsStatus = fix == null
+          ? 'Chưa có GPS. Kiểm tra quyền vị trí và bật định vị.'
+          : '${fix.isSimulated ? 'GPS MÔ PHỎNG' : 'GPS'}: ${fix.coordinates}'
+              '${fix.accuracyMeters == null ? '' : ' (±${fix.accuracyMeters!.round()} m)'}';
+      });
+    }
+  }
+
+  Future<void> _simulateUrgentHeartRate() async {
+    final sample = TelemetrySample(
+      metricType: 'HEART_RATE',
+      value: 185,
+      unit: 'bpm',
+      timestamp: DateTime.now().toUtc(),
+    );
+    await SyncService.instance.enqueueTelemetrySamples([sample]);
+    await _loadPendingCount();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Mẫu 185 bpm đã được gửi ngay hoặc lưu để gửi lại khi có kết nối.'),
         ),
       );
     }
@@ -463,8 +539,23 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                             ),
                           ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(_gpsStatus, style: TextStyle(fontSize: 11,
+                          color: EmergencyEvidenceService.recentFix == null
+                              ? const Color(0xFFFBBF24) : const Color(0xFF86EFAC))),
+                        if (!_backgroundGpsGranted)
+                          TextButton(
+                            onPressed: _enableBackgroundGps,
+                            child: const Text('Bật GPS khi app ở nền',
+                              style: TextStyle(fontSize: 11)),
+                          ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Lấy lại GPS hiện tại',
+                    onPressed: _locatingGps ? null : _prepareGps,
+                    icon: const Icon(Icons.my_location, color: Color(0xFF38BDF8)),
                   ),
                 ],
               ),
@@ -541,6 +632,16 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 ],
               ),
             ),
+
+            if (kDebugMode)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: OutlinedButton.icon(
+                  onPressed: _simulateUrgentHeartRate,
+                  icon: const Icon(Icons.monitor_heart_outlined),
+                  label: const Text('Mô phỏng nhịp tim 185 bpm'),
+                ),
+              ),
 
             // Banner trạng thái SOS đang kích hoạt
             if (_isSosActive)

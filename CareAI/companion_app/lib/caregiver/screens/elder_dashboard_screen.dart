@@ -8,6 +8,7 @@ import '../../services/location_service.dart';
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 import 'incident_detail_screen.dart';
+import 'incident_history_screen.dart';
 
 class ElderDashboardScreen extends StatefulWidget {
   final String elderProfileId;
@@ -164,6 +165,19 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history_rounded, color: Color(0xFF38BDF8)),
+            tooltip: 'Lịch sử sự cố của cụ',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => IncidentHistoryScreen(
+                  initialElderProfileId: widget.elderProfileId,
+                  initialElderName: widget.elderName,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Color(0xFF38BDF8)),
             tooltip: 'Làm mới dữ liệu',

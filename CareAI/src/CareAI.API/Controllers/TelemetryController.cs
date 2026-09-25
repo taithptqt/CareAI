@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using CareAI.Core.DTOs;
 using CareAI.Infrastructure.Channels;
+using CareAI.Core.Entities;
 using CareAI.Infrastructure.Data;
 using CareAI.Infrastructure.Engines;
 
@@ -17,7 +18,36 @@ public class TelemetryController : ControllerBase
     private readonly IMemoryCache _cache;
     private readonly TelemetryEngine _telemetryEngine;
     private readonly ClinicalDiagnosticEngine _clinicalEngine;
+    private readonly UrgentTelemetryEngine _urgentEngine;
     private readonly ILogger<TelemetryController> _logger;
+
+    public TelemetryController(
+        CareAiDbContext db,
+        ITelemetryBatchQueue? queue,
+        IMemoryCache? cache,
+        TelemetryEngine telemetryEngine,
+        ClinicalDiagnosticEngine clinicalEngine,
+        UrgentTelemetryEngine? urgentEngine = null,
+        ILogger<TelemetryController>? logger = null)
+    {
+        _db = db;
+        _queue = queue ?? new TelemetryBatchQueue();
+        _cache = cache ?? new MemoryCache(new MemoryCacheOptions());
+        _telemetryEngine = telemetryEngine;
+        _clinicalEngine = clinicalEngine;
+        _urgentEngine = urgentEngine ?? new UrgentTelemetryEngine(db, clinicalEngine);
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<TelemetryController>.Instance;
+    }
+
+    public TelemetryController(
+        CareAiDbContext db,
+        TelemetryEngine telemetryEngine,
+        ClinicalDiagnosticEngine clinicalEngine,
+        UrgentTelemetryEngine urgentEngine,
+        ILogger<TelemetryController> logger)
+        : this(db, null, null, telemetryEngine, clinicalEngine, urgentEngine, logger)
+    {
+    }
 
     public TelemetryController(
         CareAiDbContext db,
@@ -26,14 +56,10 @@ public class TelemetryController : ControllerBase
         TelemetryEngine telemetryEngine,
         ClinicalDiagnosticEngine clinicalEngine,
         ILogger<TelemetryController> logger)
+        : this(db, queue, cache, telemetryEngine, clinicalEngine, null, logger)
     {
-        _db = db;
-        _queue = queue;
-        _cache = cache;
-        _telemetryEngine = telemetryEngine;
-        _clinicalEngine = clinicalEngine;
-        _logger = logger;
     }
+
 
     /// <summary>
     /// Tiếp nhận mẻ viễn trắc sinh hiệu qua hàng đợi phi khóa Non-Blocking Channel (Nhiệm vụ 1.2)
@@ -106,8 +132,49 @@ public class TelemetryController : ControllerBase
     }
 
     /// <summary>
-    /// Endpoint tương thích ngược (Ingest Endpoint)
-    /// Mặc định đưa vào Channel hàng đợi phi khóa (HTTP 202). Nếu ?sync=true sẽ xử lý đồng bộ (HTTP 201).
+    /// Nhận một mẫu nhịp tim nguy kịch ngay khi đo, không chờ batch sync.
+    /// </summary>
+    [HttpPost("urgent-heart-rate")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> IngestUrgentHeartRate(
+        [FromBody] UrgentHeartRateRequest request, CancellationToken ct)
+    {
+        var validatedDeviceId = HttpContext.Items["ValidatedDeviceId"] as string;
+        if (string.IsNullOrEmpty(validatedDeviceId))
+            return Unauthorized(new { error = "Thiếu xác thực thiết bị." });
+
+        if (string.IsNullOrWhiteSpace(request.PacketId) || request.PacketId.Length > 100)
+            return BadRequest(new { error = "PacketId phải có từ 1 đến 100 ký tự." });
+        if (!double.IsFinite(request.HeartRateBpm) || request.HeartRateBpm <= 0 || request.HeartRateBpm > 300 ||
+            (request.HeartRateBpm < 180 && request.HeartRateBpm > 35))
+            return BadRequest(new { error = "Đường khẩn chỉ nhận nhịp tim nguy kịch từ 1–35 hoặc 180–300 bpm." });
+        var measuredAt = request.Timestamp.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(request.Timestamp, DateTimeKind.Utc)
+            : request.Timestamp.ToUniversalTime();
+        if (request.Timestamp == default || measuredAt > DateTime.UtcNow.AddMinutes(1))
+            return BadRequest(new { error = "Thời điểm đo không hợp lệ." });
+
+        var result = await _urgentEngine.ProcessHeartRateAsync(validatedDeviceId, request, ct);
+        if (result.Status == "DEVICE_INACTIVE")
+            return Unauthorized(new { error = "Thiết bị không còn hoạt động." });
+
+        var response = new
+        {
+            status = result.Status,
+            packetId = request.PacketId,
+            incidentId = result.IncidentId
+        };
+        return result.Duplicate || result.Status == "STORED_STALE"
+            ? Ok(response)
+            : StatusCode(StatusCodes.Status201Created, response);
+    }
+
+    /// <summary>
+    /// Tiếp nhận gói tin viễn trắc định kỳ theo mẻ (Batch-Lane Ingestion)
+
     /// </summary>
     [HttpPost("ingest")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
@@ -116,13 +183,14 @@ public class TelemetryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> IngestTelemetry(
         [FromBody] TelemetryBatchRequest batch,
-        [FromQuery] bool sync = false,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        [FromQuery] bool sync = true)
     {
         if (!sync)
         {
             return await IngestTelemetryBatch(batch, ct);
         }
+
 
         // Luồng đồng bộ truyền thống
         var validatedDeviceId = HttpContext.Items["ValidatedDeviceId"] as string;
@@ -144,18 +212,24 @@ public class TelemetryController : ControllerBase
             return Unauthorized(new { error = "Thiết bị không tồn tại trong hệ thống." });
         }
 
-        var (processedCount, message) = await _telemetryEngine.ProcessBatchLaneAsync(validatedDeviceId, batch, ct);
+        var acceptedSamples = new List<HealthMeasurement>();
+        var (processedCount, message) = await _telemetryEngine.ProcessBatchLaneAsync(
+            validatedDeviceId, batch, ct, acceptedSamples);
 
-        foreach (var sample in batch.Samples)
+        // Kiểm tra lâm sàng theo thời gian thực cho các mẫu nhịp tim
+        foreach (var sample in acceptedSamples.OrderBy(s => s.Timestamp))
+
         {
-            if (string.Equals(sample.MetricType, "HEART_RATE", StringComparison.OrdinalIgnoreCase))
+            if (sample.MetricType == "HEART_RATE" &&
+                sample.Timestamp >= DateTime.UtcNow.AddMinutes(-2) &&
+                sample.Timestamp <= DateTime.UtcNow.AddMinutes(1))
             {
                 await _clinicalEngine.EvaluateHeartRateSampleAsync(
                     elderProfileId: device.ElderProfileId,
                     deviceId: validatedDeviceId,
                     heartRate: sample.Value,
-                    recentSteps: 0,
-                    ct: ct);
+                    ct: ct,
+                    measuredAtUtc: sample.Timestamp);
             }
         }
 

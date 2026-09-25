@@ -6,6 +6,7 @@ import '../models/fall_event.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
 import '../services/api_service.dart';
+import '../services/emergency_evidence_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
 import '../services/voice_guidance_service.dart';
@@ -30,11 +31,13 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
   Timer? _timer;
   late AnimationController _pulseController;
   bool _isActionTaken = false;
+  late final Future<CurrentGpsFix?> _locationTask;
 
   @override
   void initState() {
     super.initState();
     _remainingSeconds = widget.event.secondsRemaining;
+    _locationTask = EmergencyEvidenceService.captureCurrentLocation();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -99,12 +102,17 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
 
     final canonicalPacketId = 'FALL_${widget.event.eventId}';
 
+    final recentFix = EmergencyEvidenceService.recentFix;
+    final initialGps = recentFix?.coordinates;
     final request = SosPacketRequest(
       packetId: canonicalPacketId,
       eventId: widget.event.eventId,
       emergencyType: 'FALL',
       severity: 'CRITICAL',
       triggeredAt: DateTime.now().toUtc(),
+      gpsLocation: initialGps,
+      gpsIsSimulated: recentFix?.isSimulated,
+      gpsAccuracyMeters: recentFix?.accuracyMeters,
       samples: [
         TelemetrySample(
           metricType: 'FALL',
@@ -124,8 +132,15 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
 
     // Bắn Fast-Lane SOS
     try {
-      await ApiService.instance.sendFastLaneSos(request);
-      await LocalOfflineStore.instance.markPacketSynced(canonicalPacketId);
+      final result = await ApiService.instance.sendFastLaneSosWithResult(request);
+      if (result.accepted) {
+        await LocalOfflineStore.instance.markPacketSynced(canonicalPacketId);
+        if (result.incidentId != null) {
+          unawaited(EmergencyEvidenceService.attachLocationWhenReady(
+              result.incidentId!, _locationTask, initiallySentGps: initialGps));
+          unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
+        }
+      }
     } catch (_) {
       // Ngoại tuyến: Vẫn nằm an toàn trong SQLite Outbox
     }
