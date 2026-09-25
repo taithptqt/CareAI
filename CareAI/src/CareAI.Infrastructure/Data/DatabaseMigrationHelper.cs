@@ -178,6 +178,60 @@ public static class DatabaseMigrationHelper
         );
         CREATE INDEX IX_NotificationOutbox_Pending ON NotificationOutboxes(Status, NextRetryAt);
     END;
+
+    -- ============================================================================
+    -- PHẦN 3: QUẢN TRỊ NHÓM GIA ĐÌNH, RBAC & VÒNG ĐỜI THIẾT BỊ
+    -- ============================================================================
+
+    -- Bổ sung cột Brute-Force Lockout cho Caregivers
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Caregivers') AND name = 'FailedLoginAttempts')
+    BEGIN
+        ALTER TABLE Caregivers ADD FailedLoginAttempts INT NOT NULL DEFAULT 0;
+        ALTER TABLE Caregivers ADD LockoutEnd DATETIME2 NULL;
+    END;
+
+    -- Bổ sung cột cho ElderProfiles
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ElderProfiles') AND name = 'IsDeleted')
+    BEGIN
+        ALTER TABLE ElderProfiles ADD IsDeleted BIT NOT NULL DEFAULT 0;
+        ALTER TABLE ElderProfiles ADD PairingPinHash NVARCHAR(128) NULL;
+    END;
+
+    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FamilyInvitations')
+    BEGIN
+        CREATE TABLE FamilyInvitations (
+            Id NVARCHAR(50) NOT NULL PRIMARY KEY,
+            ElderProfileId NVARCHAR(50) NOT NULL,
+            InvitedByCaregiverId NVARCHAR(50) NOT NULL,
+            InvitationCode NVARCHAR(10) NOT NULL,
+            InvitationCodeHash NVARCHAR(128) NOT NULL,
+            IsUsed BIT NOT NULL DEFAULT 0,
+            AcceptedByCaregiverId NVARCHAR(50) NULL,
+            AcceptedAt DATETIME2 NULL,
+            ExpiresAt DATETIME2 NOT NULL,
+            CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+            CONSTRAINT FK_FamilyInvitations_Elder FOREIGN KEY (ElderProfileId) REFERENCES ElderProfiles(Id) ON DELETE CASCADE,
+            CONSTRAINT FK_FamilyInvitations_Caregiver FOREIGN KEY (InvitedByCaregiverId) REFERENCES Caregivers(Id) ON DELETE NO ACTION
+        );
+        CREATE INDEX IX_FamilyInvitations_CodeHash ON FamilyInvitations(InvitationCodeHash);
+        CREATE INDEX IX_FamilyInvitations_Expires ON FamilyInvitations(ExpiresAt);
+    END;
+
+    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PasswordResetTokens')
+    BEGIN
+        CREATE TABLE PasswordResetTokens (
+            Id NVARCHAR(50) NOT NULL PRIMARY KEY,
+            CaregiverId NVARCHAR(50) NOT NULL,
+            OtpCode NVARCHAR(10) NOT NULL,
+            OtpHash NVARCHAR(128) NOT NULL,
+            IsUsed BIT NOT NULL DEFAULT 0,
+            ExpiresAt DATETIME2 NOT NULL,
+            CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+            CONSTRAINT FK_PasswordResetTokens_Caregiver FOREIGN KEY (CaregiverId) REFERENCES Caregivers(Id) ON DELETE CASCADE
+        );
+        CREATE INDEX IX_PasswordResetTokens_OtpHash ON PasswordResetTokens(OtpHash);
+        CREATE INDEX IX_PasswordResetTokens_Expires ON PasswordResetTokens(ExpiresAt);
+    END;
     """;
 
     public static async Task InitializeDatabaseAsync(string connectionString, ILogger? logger = null, CancellationToken ct = default)

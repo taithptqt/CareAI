@@ -8,6 +8,8 @@ import 'elder_dashboard_screen.dart';
 import 'incident_detail_screen.dart';
 import 'login_screen.dart';
 import 'server_config_dialog.dart';
+import 'family_management_screen.dart';
+import 'elder_edit_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../screens/device_pairing_screen.dart';
 import '../../screens/role_selection_screen.dart';
@@ -234,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text('Hiệu lực trong vòng 10 phút', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text('Hiệu lực trong vòng 15 phút (Lưu băm SHA-256 an toàn)', style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
             actions: [
@@ -247,10 +249,103 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi sinh PIN: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
       }
     }
+  }
+
+  void _showEditElderDialog(ElderItem elder) {
+    showDialog(
+      context: context,
+      builder: (_) => ElderEditDialog(
+        elder: elder,
+        onUpdated: () => _loadElders(),
+        onDeleted: () => _loadElders(),
+      ),
+    );
+  }
+
+  Future<void> _showAcceptInvitationDialog() async {
+    final codeCtrl = TextEditingController();
+    String? dialogError;
+    bool isAccepting = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.group_add, color: Color(0xFF0284C7)),
+              SizedBox(width: 8),
+              Text('Tham Gia Nhóm Gia Đình', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Nhập mã mời 6 ký tự do Người bảo hộ chính cung cấp:',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 6,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4),
+                decoration: const InputDecoration(
+                  labelText: 'Mã Mời (VD: A3X7K2)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.vpn_key_outlined),
+                ),
+              ),
+              if (dialogError != null)
+                Text(dialogError!, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
+              onPressed: isAccepting
+                  ? null
+                  : () async {
+                      final code = codeCtrl.text.trim();
+                      if (code.isEmpty) return;
+                      setDState(() {
+                        isAccepting = true;
+                        dialogError = null;
+                      });
+                      try {
+                        final res = await CaregiverApiService.instance.acceptFamilyInvitation(code);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        _loadElders();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Đã tham gia nhóm chăm sóc Cụ ${res.elderName} thành công!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDState(() {
+                          isAccepting = false;
+                          dialogError = e.toString().replaceAll('Exception:', '').trim();
+                        });
+                      }
+                    },
+              child: isAccepting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Tham Gia'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -262,6 +357,11 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF0284C7),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.group_add_outlined),
+            tooltip: 'Nhập mã mời tham gia nhóm',
+            onPressed: _showAcceptInvitationDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -483,20 +583,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    const Divider(height: 20),
+                    const Divider(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         TextButton.icon(
                           icon: const Icon(Icons.key, size: 16, color: Color(0xFF0284C7)),
-                          label: const Text('Sinh Mã PIN Ghép Nối', style: TextStyle(color: Color(0xFF0284C7), fontSize: 12)),
+                          label: const Text('Mã PIN (15p)', style: TextStyle(color: Color(0xFF0284C7), fontSize: 12)),
                           onPressed: () => _generatePinForElder(elder),
                         ),
-                        const Row(
-                          children: [
-                            Text('Xem Chỉ Số', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0284C7))),
-                            Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF0284C7)),
-                          ],
+                        TextButton.icon(
+                          icon: const Icon(Icons.groups_outlined, size: 16, color: Color(0xFF0284C7)),
+                          label: const Text('Gia Đình', style: TextStyle(color: Color(0xFF0284C7), fontSize: 12)),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FamilyManagementScreen(elderId: elder.id, elderName: elder.fullName),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.settings_outlined, size: 18, color: Color(0xFF64748B)),
+                          tooltip: 'Chỉnh sửa / Quản trị',
+                          onPressed: () => _showEditElderDialog(elder),
                         ),
                       ],
                     ),

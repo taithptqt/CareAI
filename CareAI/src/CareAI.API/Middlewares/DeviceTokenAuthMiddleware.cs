@@ -38,6 +38,8 @@ public class DeviceTokenAuthMiddleware
             path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/caregivers", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/elders", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/invitations", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/dashboard", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase))
         {
@@ -53,9 +55,11 @@ public class DeviceTokenAuthMiddleware
             return;
         }
 
-        // Bỏ qua nếu là endpoint của Devices dành cho Caregiver (pair, revoke)
+        // Bỏ qua nếu là endpoint của Devices dành cho Caregiver (pair, revoke, unpair, generate-pin)
         if (path.StartsWith("/api/v1/devices/pair", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("/revoke", StringComparison.OrdinalIgnoreCase))
+            path.Contains("/revoke", StringComparison.OrdinalIgnoreCase) ||
+            path.Contains("/unpair", StringComparison.OrdinalIgnoreCase) ||
+            path.Contains("/generate-pin", StringComparison.OrdinalIgnoreCase))
         {
             await _next(context);
             return;

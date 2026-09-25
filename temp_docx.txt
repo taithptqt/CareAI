@@ -1,0 +1,204 @@
+BẢN PHÂN CÔNG NHIỆM VỤ TRIỂN KHAI CAREAI v111.0
+(CAREAI AIRTIGHT TASK BREAKDOWN & ACTIONABLE ROADMAP)
+• Dự án: Hệ thống Y tế Từ xa & Cảnh báo Cấp cứu Gia đình CareAI
+• Phiên bản kiến trúc: Sovereign Modular Monolith (.NET 9 LTS · Azure SQL · Kotlin Direct Boot · Flutter Single Unified App)
+• Định vị pháp lý: Nền tảng Hỗ trợ Cảnh báo Chăm sóc Người cao tuổi (Non-SaMD)
+• Tình trạng nền tảng: Backend 36/36 Facts Passed, Direct Boot & HIL 8/8 Passed trên Samsung A55, CSDL Azure SQL Cloud hoạt động, App di động hợp nhất.
+1. TỔNG QUAN PHÂN BỔ NHIỆM VỤ 4 PHẦN
+Phân Phần
+Thành Viên Đảm Nhận
+Tên Nhiệm Vụ Trọng Tâm
+Use Case Phụ Trách
+Phân Hệ Liên Quan
+Phần 1
+Hiếu
+Trục Viễn Trắc, Đồng Bộ Smartwatch, GPS & Thích Nghi Ngưỡng
+UC-04, UC-05, UC-10, UC-11
+Mobile Companion, Backend API, Infrastructure, CSDL Azure SQL
+Phần 2
+Tài
+Trục Trung Tâm Cấp Cứu, Điều Phối Quorum SLA 60s & Dấu Vết Pháp Y
+UC-06, UC-07, UC-08, UC-14
+Core Clinical Engine, Infrastructure Workers, Backend API, Mobile
+Phần 3
+Thịnh
+Trục Quản Trị Nhóm Gia Đình, Mã Mời 6 Số, RBAC & Vòng Đời Thiết Bị
+UC-01, UC-02, UC-03, UC-12, UC-13
+Core Auth, Backend API, Mobile App Caregiver
+Phần 4
+Hiển
+Trục Trí Tuệ Nhân Tạo (ML.NET) Phân Tích Dị Biệt & Báo Cáo Tuần
+UC-15, UC-16
+Infrastructure ML.NET Worker, Prompt Engine, Azure SQL, Mobile
+2. PHẦN 1: TRỤC VIỄN TRẮC, ĐỒNG BỘ SMARTWATCH, GPS & TỰ ĐIỀU CHỈNH NGƯỠNG THÍCH NGHI (Phụ Trách: Hiếu)
+2.1 Danh Mục Nhiệm Vụ Cụ Thể
+🔹 Nhiệm vụ 1.1 - Thu Thập Sinh Hiệu Google Health Connect & Android WorkManager
+• Phân hệ: `CareAI/companion_app` (Flutter & Android Kotlin Native)
+• Nội dung kỹ thuật: 
+–  Cài đặt `TelemetrySyncWorker` chạy ngầm định kỳ 15 phút qua Android WorkManager.
+–  Đọc các bản ghi từ Health Connect: Nhịp tim từng phút (`HeartRateRecord`), Số bước chân (`StepsRecord`), Nồng độ oxy (`OxygenSaturationRecord`).
+–  Lưu trữ vào SQLite cục bộ (`careai_local_spool.db`) ở chế độ WAL, đánh dấu cờ `Synced = 0`.
+–  Hàm dọn dẹp `purgeOldSyncedPackets`: Tự động xóa các bản ghi đã đồng bộ (`Synced = 1`) cũ hơn 7 ngày.
+🔹 Nhiệm vụ 1.2 - API Batch Ingestion & Hàng Đợi Bộ Nhớ Non-Blocking
+• Phân hệ: `CareAI/src/CareAI.API` (C# .NET 9 LTS)
+• Nội dung kỹ thuật: 
+–  Xây dựng endpoint `POST /api/v1/telemetry/batch`: Xác thực token thiết bị qua `X-DeviceId`, giải mã mẻ tối đa 500 mẫu viễn trắc.
+–  Đẩy gói tin vào `System.Threading.Channels.Channel<HealthMeasurementPacket>` trong RAM và phản hồi ngay HTTP 202 Accepted trong `< 15ms`.
+–  Endpoint `POST /api/v1/telemetry/heartbeat`: Cập nhật mốc thời gian `LastHeartbeat` phục vụ giám sát đường truyền.
+🔹 Nhiệm vụ 1.3 - TelemetryBatchProcessor & Mạch Cầu Dao Bảo Vệ RAM
+• Phân hệ: `CareAI/src/CareAI.Infrastructure` (Background Service)
+• Nội dung kỹ thuật: 
+–  Triển khai Worker chạy nền tiêu thụ Channel theo mẻ 100 gói hoặc timeout 1.000ms.
+–  Khử trùng lặp Idempotency trên bảng `ProcessedTelemetryLedgers`.
+–  Bulk Insert dữ liệu vào bảng `HealthMeasurements` trên Azure SQL.
+–  Mạch Transient Retry 5 lần (khoảng cách 5s), chuyển Dead Letter Batch nếu thất bại lặp lại.
+–  Giới hạn ngưỡng tiêu thụ RAM dưới 700MB, chống tràn bộ nhớ trên hosting tài nguyên thấp.
+🔹 Nhiệm vụ 1.4 - Hiển Thị Dashboard Sinh Hiệu & Bản Đồ GPS
+• Phân hệ: `CareAI/companion_app/lib/caregiver` (Flutter)
+• Nội dung kỹ thuật: 
+–  Màn hình Bảng điều khiển: Thẻ hiển thị nhịp tim hiện tại, mức pin, số bước chân trong ngày.
+–  Biểu đồ đường biến thiên nhịp tim 24 giờ (thư viện `fl_chart`) kèm chỉ số Min/Max/Avg.
+–  Tích hợp bản đồ GPS (`flutter_map`) hiển thị tọa độ gần nhất của cụ và thời điểm đo.
+🔹 Nhiệm vụ 1.5 - Thuật Toán Tự Điều Chỉnh Ngưỡng Thích Nghi Theo Thời Gian
+• Phân hệ: `CareAI/src/CareAI.Core` & `CareAI/src/CareAI.API`
+• Nội dung kỹ thuật: 
+–  Xây dựng `AdaptiveThresholdService`: Định kỳ phân tích chuỗi nhịp tim nghỉ ngơi 14 ngày của cụ theo bách phân vị 5th và 95th.
+–  Tự động tính toán dải ngưỡng an toàn cá nhân hóa mới: `RecommendedMin` ($\ge 40$ bpm) và `RecommendedMax` ($\le 160$ bpm), giới hạn biên độ dịch chuyển tối đa 3 bpm/tuần.
+–  Endpoint `PUT /api/v1/elders/{id}/thresholds`: Cập nhật ngưỡng và làm mới tức thì `IMemoryCache` (Zero-Downtime Cache Invalidation).
+2.2 Tiêu Chí Nghiệm Thu Phần 1
+☐  Gửi mẻ 500 mẫu viễn trắc từ điện thoại lên server, phản hồi HTTP 202 Accepted trong `< 15ms`.
+☐  Dữ liệu sinh hiệu lưu trữ bền vững vào Azure SQL, không thất thoát khi mất mạng tạm thời (thử lại thành công từ SQLite sau 7 ngày).
+☐  Bảng điều khiển hiển thị đầy đủ biểu đồ nhịp tim 24h và bản đồ định vị GPS.
+☐  Thuật toán Adaptive Thresholds tính toán chuẩn xác dải ngưỡng mới từ dữ liệu 14 ngày và làm mới Cache trong 0ms.
+☐  Bộ kiểm thử xUnit Fact Tests bao phủ 100% luồng Batch Ingestion và Adaptive Tuning.
+3. PHẦN 2: TRỤC TRUNG TÂM PHẢN ỨNG CẤP CỨU, ĐIỀU PHỐI QUORUM SLA 60S & DẤU VẾT PHÁP Y (Phụ Trách: Tài)
+3.1 Danh Mục Nhiệm Vụ Cụ Thể
+🔹 Nhiệm vụ 2.1 - Clinical Diagnostic Engine & Tự Động Tái Mở Cấp Cứu
+• Phân hệ: `CareAI/src/CareAI.Core` & `CareAI/src/CareAI.Infrastructure`
+• Nội dung kỹ thuật: 
+–  Thẩm định thời gian thực: Bắt cơn rung thất ($\ge 180$ bpm), vô tâm thu ($\le 35$ bpm), và tăng nhịp đột ngột ($\ge 15$ bpm khi ngồi nghỉ).
+–  Cửa sổ khử trùng lặp (Debounce Cooldown Window 10 phút) chống kích hoạt chuông báo liên tục.
+–  Bất biến Re-escalation: Tự động chuyển sự cố từ `Acknowledged` quay lại `Open` và nâng mức `Critical` nếu chỉ số sinh hiệu của cụ xấu đi nguy kịch sau khi người thân đã bấm tiếp nhận.
+🔹 Nhiệm vụ 2.2 - Multi-Device Watchdog 60s & Quy Tắc Ức Chế Cấp Cứu
+• Phân hệ: `CareAI/src/CareAI.Infrastructure` (Background Service)
+• Nội dung kỹ thuật: 
+–  `DeviceStaleWorker` quét trạng thái kết nối mỗi 60 giây.
+–  Gom nhóm theo cụ: Chỉ tạo cảnh báo mất mạng khi TẤT CẢ thiết bị của cụ mất tín hiệu quá 5 phút.
+–  Quy tắc ức chế cấp cứu (Emergency Suppression Rule): Nếu cụ đang có sự cố SOS hoặc Ngã, cấm tạo sự cố mất mạng rác, chỉ ghi chú bổ sung vào sự cố hiện tại.
+–  Tự động phục hồi đóng sự cố sang `Resolved` khi thiết bị có tín hiệu trở lại.
+🔹 Nhiệm vụ 2.3 - Điều Phối Quorum Alerting SLA 60s & Màn Hình Cứu Hộ Khẩn Cấp
+• Phân hệ: `CareAI/src/CareAI.Infrastructure` & `CareAI/companion_app`
+• Nội dung kỹ thuật: 
+–  Gửi thông báo đẩy High Priority qua Google FCM tới đồng thời toàn bộ người thân trong gia đình khi có sự cố `Critical`.
+–  Màn hình khẩn cấp trên app người thân: Phát còi hú, hiển thị sinh hiệu lúc xảy ra sự cố, vị trí GPS và địa chỉ nhà cụ.
+–  Nút hành động nhanh: Gọi trực tiếp cho cụ và Gọi Cấp cứu 115 một chạm.
+🔹 Nhiệm vụ 2.4 - Quy Trình Tiếp Nhận (ACK) & Giải Quyết (Resolve) Chuẩn OCC Concurrency
+• Phân hệ: `CareAI/src/CareAI.API` (Controllers)
+• Nội dung kỹ thuật: 
+–  Endpoint `POST /api/v1/incidents/{id}/acknowledge`: Kiểm tra quyền BOLA, kiểm tra OCC `RowVersion`, chuyển trạng thái `Acknowledged`, tắt còi hú và thông báo cho người thân khác.
+–  Endpoint `POST /api/v1/incidents/{id}/resolve`: Bắt buộc nhập ghi chú lâm sàng (`ResolutionNotes`), chuyển trạng thái `Resolved`.
+–  Xử lý xung đột tương tranh: Nếu 2 người thân cùng bấm tiếp nhận đồng thời, người bấm sau nhận HTTP 409 Conflict kèm thông báo người trước đã tiếp nhận.
+🔹 Nhiệm vụ 2.5 - Tra Cứu Lịch Sử Sự Cố & Dấu Vết Pháp Y Bất Biến
+• Phân hệ: `CareAI/src/CareAI.API` & `CareAI/companion_app`
+• Nội dung kỹ thuật: 
+–  Endpoint `GET /api/v1/elders/{id}/incidents` phân trang, hỗ trợ lọc theo loại sự cố, mức độ nghiêm trọng và thời gian.
+–  Màn hình Timeline lịch sử sự cố: Thể hiện người tiếp nhận, thời điểm xử lý và ghi chú y tế.
+–  Biểu đồ chi tiết nhịp tim 15 phút trước và 15 phút sau sự cố phục vụ bác sĩ giám định hồi phục.
+–  Ràng buộc Append-Only trong CSDL: Cấm xóa hoặc chỉnh sửa lịch sử các sự cố đã đóng.
+3.2 Tiêu Chí Nghiệm Thu Phần 2
+☐  Kích hoạt nhịp tim giả lập 185 bpm: Kích hoạt còi hú và đẩy thông báo Quorum tới người thân trong `< 3 giây`.
+☐  Hai người thân tiếp nhận đồng thời: OCC `RowVersion` chặn đứng lỗi Lost Update, trả về HTTP 409 cho người thứ hai.
+☐  Ngắt kết nối thiết bị trong lúc đang có sự cố ngã: Watchdog không sinh sự cố mất mạng rác.
+☐  Dấu vết người tiếp nhận và ghi chú giải quyết hiển thị đầy đủ, bất biến trên Timeline.
+☐  Bộ kiểm thử xUnit Fact Tests bao phủ 100% luồng Quorum, OCC Concurrency và Clinical Re-escalation.
+4. PHẦN 3: TRỤC QUẢN TRỊ NHÓM GIA ĐÌNH, MÃ MỜI 6 SỐ, PHÂN QUYỀN RBAC & VÒNG ĐỜI THIẾT BỊ (Phụ Trách: Thịnh)
+4.1 Danh Mục Nhiệm Vụ Cụ Thể
+🔹 Nhiệm vụ 3.1 - Xác Thực Danh Tính & Khóa An Toàn Brute-Force
+• Phân hệ: `CareAI/src/CareAI.API` (AuthController)
+• Nội dung kỹ thuật: 
+–  Đăng ký, đăng nhập tài khoản người thân với mật khẩu băm BCrypt (work factor 11).
+–  Khóa tài khoản an toàn: Đếm `FailedLoginAttempts`, nếu sai $\ge 5$ lần, khóa tài khoản 15 phút (`LockoutEnd = DateTime.UtcNow.AddMinutes(15)`), trả về HTTP 423 Locked.
+–  Luồng quên mật khẩu qua mã OTP 6 số gửi qua Email.
+🔹 Nhiệm vụ 3.2 - Quản Lý Hồ Sơ Cụ & Ghép Nối Thiết Bị (Mã PIN 6 Số / QR Code)
+• Phân hệ: `CareAI/src/CareAI.API` & `CareAI/companion_app`
+• Nội dung kỹ thuật: 
+–  Màn hình tạo và chỉnh sửa hồ sơ người cao tuổi: Họ tên, năm sinh, bệnh lý nền, số điện thoại khẩn cấp.
+–  Endpoint `POST /api/v1/elders/{id}/pairing-code`: Sinh mã PIN 6 số dùng 1 lần (TTL 15 phút, lưu băm SHA-256 trong CSDL).
+–  Tạo mã QR Code trên app người thân để camera điện thoại của cụ quét tự động ghép nối trong 1 chạm.
+🔹 Nhiệm vụ 3.3 - Quản Trị Nhóm Gia Đình & Mã Mời 24 Giờ
+• Phân hệ: `CareAI/src/CareAI.API` & `CareAI/companion_app`
+• Nội dung kỹ thuật: 
+–  Endpoint `POST /api/v1/elders/{id}/invitations`: Sinh mã mời gia đình 6 ký tự viết hoa (TTL 24 giờ).
+–  Endpoint `POST /api/v1/invitations/accept`: Người thân phụ nhập mã mời để tham gia nhóm chăm sóc cụ.
+–  Màn hình Quản lý thành viên gia đình: Danh sách người chăm sóc, vai trò và nút thu hồi quyền theo dõi.
+🔹 Nhiệm vụ 3.4 - Thực Thi Ma Trận Phân Quyền RBAC Nghiêm Ngặt
+• Phân hệ: `CareAI/src/CareAI.Core` (Authorization Policies)
+• Nội dung kỹ thuật: 
+–  **Người thân chính (Primary Caregiver)**: Toàn quyền cấu hình ngưỡng y tế, mời/xóa thành viên, hủy thiết bị, xóa hồ sơ và tiếp nhận/đóng sự cố.
+–  **Người thân phụ (Secondary Caregiver)**: Quyền xem Dashboard, nhận còi hú FCM, tiếp nhận ACK, gọi cứu trợ; TUYỆT ĐỐI KHÔNG có quyền thay đổi ngưỡng, không có quyền xóa thành viên khác hoặc hủy thiết bị.
+–  Chặn đứng mọi hành vi leo quyền với mã lỗi HTTP 403 Forbidden.
+🔹 Nhiệm vụ 3.5 - Vòng Đời Thiết Bị & Quyền Xóa Dữ Liệu An Toàn
+• Phân hệ: `CareAI/src/CareAI.API` & `CareAI/companion_app`
+• Nội dung kỹ thuật: 
+–  Endpoint `POST /api/v1/devices/{id}/unpair`: Hủy ghép nối, đưa token vào danh sách đen (Blacklist) trong Cache, gửi silent push `WIPE_DEVICE_CREDENTIALS` yêu cầu điện thoại cụ xóa Keystore và trở về màn hình chờ ghép nối.
+–  Endpoint `DELETE /api/v1/elders/{id}`: Xác thực mật khẩu cấp 2 của Người thân chính. Xóa mềm hồ sơ cụ (`IsDeleted = true`), hủy liên kết thiết bị và ẩn danh hóa toàn bộ dữ liệu sinh hiệu (PII Removal).
+4.2 Tiêu Chí Nghiệm Thu Phần 3
+☐  Nhập sai mật khẩu 5 lần: Tài khoản bị khóa 15 phút, trả về HTTP 423 Locked.
+☐  Ghép nối thiết bị qua mã PIN 6 số hoặc quét mã QR thành công trong 15 phút; mã hết hạn bị từ chối với HTTP 400.
+☐  Mời thành viên mới qua mã 6 ký tự thành công; tài khoản người thân phụ bị chặn HTTP 403 khi cố thay đổi cấu hình y tế.
+☐  Hủy ghép nối từ xa: Điện thoại của cụ tự động xóa sạch thông tin đăng nhập và quay về màn hình ban đầu.
+☐  Bộ kiểm thử xUnit Fact Tests bao phủ 100% luồng RBAC, Brute-force Lockout và Data Anonymization.
+5. PHẦN 4: TRỤC TRÍ TUỆ NHÂN TẠO (AI/ML) PHÂN TÍCH DỊ BIỆT SINH HOẠT & BÁO CÁO Y TẾ TUẦN (Phụ Trách: Hiển)
+5.1 Danh Mục Nhiệm Vụ Cụ Thể
+🔹 Nhiệm vụ 4.1 - Mô Hình Học Máy Chuỗi Thời Gian ML.NET In-Process
+• Phân hệ: `CareAI/src/CareAI.Infrastructure` (Background Service)
+• Nội dung kỹ thuật: 
+–  Tích hợp thư viện `Microsoft.ML` (phiên bản ổn định LTS) chạy trực tiếp trong tiến trình Kestrel.
+–  `AnomalyDetectionWorker` chạy ngầm định kỳ lúc 02:00 sáng hàng ngày.
+–  Ứng dụng thuật toán `IidSpikeDetector` hoặc SSA trên chuỗi dữ liệu 14 ngày của cụ:
+• Phát hiện điểm đột biến nhịp tim ban đêm (nhịp tim khi ngủ cao bất thường so với thói quen của chính cụ).
+• Phát hiện bất thường vận động (số bước chân buổi sáng bằng 0 so với mức vận động thường ngày).
+–  Lưu bản ghi nhận định vào bảng `HealthInsights` trên Azure SQL.
+🔹 Nhiệm vụ 4.2 - Bộ Khử Dữ Liệu Định Danh Cá Nhân (Zero-PII Engine)
+• Phân hệ: `CareAI/src/CareAI.Infrastructure`
+• Nội dung kỹ thuật: 
+–  Xây dựng `PiiAnonymizerService`: Chuyển đổi dữ liệu thống kê tuần thành các chỉ số thống kê trừu tượng (nhịp tim trung bình, bước chân, số lần cảnh báo).
+–  Loại bỏ 100% thông tin tên thật, số điện thoại, địa chỉ nhà trước khi gửi dữ liệu ra bên ngoài.
+🔹 Nhiệm vụ 4.3 - WeeklyReportWorker & Tích Hợp GenAI Y Tế
+• Phân hệ: `CareAI/src/CareAI.Infrastructure`
+• Nội dung kỹ thuật: 
+–  `WeeklyReportWorker` tự động kích hoạt lúc 07:00 sáng Chủ Nhật hàng tuần.
+–  Cấu trúc Prompt y tế chuẩn hóa gửi tới API Google Gemini qua HttpClient (timeout 5s).
+–  Chuyển đổi số liệu thống kê thành văn bản tổng kết tuần ân cần, dễ hiểu bằng tiếng Việt: (1) Tổng quan sức khỏe tuần; (2) Điểm tích cực & Cần lưu ý; (3) Lời khuyên sinh hoạt tuần tới cho gia đình.
+🔹 Nhiệm vụ 4.4 - Cơ Chế Dự Phòng Tất Định Bắt Buộc (Deterministic Fallback Engine)
+• Phân hệ: `CareAI/src/CareAI.Infrastructure`
+• Nội dung kỹ thuật: 
+–  Xây dựng `RuleBasedWeeklyReportFallbackEngine`.
+–  Khi gọi API AI bên ngoài gặp lỗi (mất mạng, timeout, hoặc HTTP 429 Too Many Requests): Tự động chuyển sang bộ ghép chuỗi mẫu câu quy tắc nội bộ dựa trên số liệu thực tế trong 0ms.
+–  Đảm bảo báo cáo tuần không bao giờ bị gián đoạn hay thất bại.
+–  Lưu trữ báo cáo vào bảng `WeeklyHealthReports` trên Azure SQL và gửi thông báo đẩy tới người thân.
+🔹 Nhiệm vụ 4.5 - Màn Hình "Góc Sức Khỏe AI" & Lịch Sử Báo Cáo Tuần
+• Phân hệ: `CareAI/companion_app/lib/caregiver` (Flutter)
+• Nội dung kỹ thuật: 
+–  Tab "Góc Sức Khỏe AI": Hiển thị các thẻ nhận định thông minh kèm lời khuyên hỏi thăm sức khỏe cụ.
+–  Màn hình xem Báo cáo Tuần chi tiết với tính năng cuộn xem lịch sử các tuần trước.
+5.2 Tiêu Chí Nghiệm Thu Phần 4
+☐  Mô hình ML.NET chạy in-process, phát hiện chính xác điểm đột biến nhịp tim ẩn ban đêm và ghi bản ghi `HealthInsight` thành công.
+☐  Chuỗi payload gửi tới API AI hoàn toàn sạch thông tin PII.
+☐  Thử nghiệm ngắt mạng API AI: Hệ thống tự động kích hoạt Deterministic Fallback Engine trong 0ms, sinh báo cáo tiếng Việt chuẩn xác mà không văng lỗi.
+☐  Giao diện Góc Sức Khỏe AI và Báo Cáo Tuần hiển thị trực quan trên ứng dụng di động.
+☐  Bộ kiểm thử xUnit Fact Tests bao phủ 100% luồng ML.NET Spike Detection, PII Anonymizer và Deterministic Fallback.
+6. BỘ BẤT BIẾN KỸ THUẬT BẮT BUỘC (INVARIANT RULES)
+1. Tuân thủ lệnh 100% (Rule 0): Chỉ thực hiện đúng những gì User yêu cầu, chính xác tuyệt đối, báo cáo minh bạch và chờ lệnh tiếp theo sau mỗi bước.
+2. Anti-Scope Creep: Giữ vững Sovereign Modular Monolith (.NET 9 LTS), kiên quyết không cài đặt Kafka, Redis, RabbitMQ hay Kubernetes.
+3. Zero-Preview: Sử dụng 100% phiên bản thư viện ổn định LTS.
+4. Bảo tồn Invariants P0/P1: 
+• `DeviceTokenHash.ToLowerInvariant()` trên toàn bộ hệ thống.
+• Header HTTP xác thực bắt buộc là `X-DeviceId`.
+• Bộ lọc trùng lặp chỉ bắt trên `ProcessedTelemetryLedgers`.
+• Gói tin Fast-Lane SOS lưu toàn bộ các mẫu sinh hiệu đi kèm (Fact 35).
+• Filtered Unique Index `UIX_Incidents_SingleActiveElder` trên `Incidents`.
+• Native Android Direct Boot và phân vùng Device Protected Storage giữ vững nguyên vẹn.
+5. Kỷ luật kiểm thử: Mọi tính năng phải build được thật (`dotnet build` 0 warning, 0 error), test pass thật (100% Facts Passed), và kiểm thử thực địa minh bạch trên thiết bị thật Samsung Galaxy A55 5G.
+7. YÊU CẦU BẮT BUỘC VỀ THIẾT KẾ GIAO DIỆN (UI/UX) THEO NHIỆM VỤ
+• Trách nhiệm tự điều chỉnh & thiết kế lại UI: Mỗi thành viên khi đảm nhận phần chức năng/nhiệm vụ nào trong kế hoạch có trách nhiệm tự chủ động rà soát, điều chỉnh và thiết kế lại toàn bộ giao diện (UI/UX) của phân hệ/tính năng đó sao cho thân thiện, trực quan, dễ thao tác và phù hợp tối đa với người dùng (người cao tuổi cần chữ lớn rõ ràng, tương phản cao, thao tác tối giản; người thân cần bảng điều khiển nắm bắt thông tin trong 3 giây và xử lý cấp cứu tức thì).

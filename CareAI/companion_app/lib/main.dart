@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -29,28 +30,32 @@ void callbackDispatcher() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Khởi tạo CSDL SQLite Outbox Spool
-  await LocalOfflineStore.instance.database;
+  // SQLite và Workmanager chỉ được hỗ trợ trên native platforms.
+  if (!kIsWeb) {
+    await LocalOfflineStore.instance.database;
+  }
 
   // 2. Khởi tạo Dịch vụ Người Thân (SharedPreferences & Server URL)
   await CaregiverApiService.instance.init();
 
   // 3. Khởi tạo Workmanager để đồng bộ nền thiết bị
-  try {
-    await Workmanager().initialize(
-      callbackDispatcher,
-    );
+  if (!kIsWeb) {
+    try {
+      await Workmanager().initialize(
+        callbackDispatcher,
+      );
 
-    await Workmanager().registerPeriodicTask(
-      'careai_periodic_sync_task',
-      'careai_periodic_sync',
-      frequency: const Duration(minutes: 15),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
-    );
-  } catch (e) {
-    debugPrint('Không thể khởi tạo Workmanager: $e');
+      await Workmanager().registerPeriodicTask(
+        'careai_periodic_sync_task',
+        'careai_periodic_sync',
+        frequency: const Duration(minutes: 15),
+        constraints: Constraints(
+          networkType: NetworkType.connected,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Không thể khởi tạo Workmanager: $e');
+    }
   }
 
   // 4. Kiểm tra vai trò đã chọn trước đó
