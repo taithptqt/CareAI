@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/device_models.dart';
@@ -110,6 +112,11 @@ class ApiService {
 
   /// Gửi tín hiệu SOS Fast-Lane với cơ chế Chuyển mạch Dự phòng Kép (Dual-Failover)
   Future<bool> sendFastLaneSos(SosPacketRequest packet) async {
+    return (await sendFastLaneSosWithResult(packet)).accepted;
+  }
+
+  Future<({bool accepted, String? incidentId})> sendFastLaneSosWithResult(
+      SosPacketRequest packet) async {
     final deviceId = await getDeviceId();
     final deviceToken = await getDeviceToken();
 
@@ -123,7 +130,13 @@ class ApiService {
       'X-Device-Token': deviceToken,
     };
 
-    final endpoints = _getEndpointsToTry();
+    final prefs = await SharedPreferences.getInstance();
+    final pairedUrl = prefs.getString('server_base_url');
+    final endpoints = {
+      if (pairedUrl != null && pairedUrl.isNotEmpty) pairedUrl,
+      _activeServerUrl,
+      ..._getEndpointsToTry(),
+    };
 
     for (final url in endpoints) {
       try {
@@ -135,14 +148,15 @@ class ApiService {
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           _activeServerUrl = url;
-          return true;
+          final responseBody = jsonDecode(response.body) as Map<String, dynamic>;
+          return (accepted: true, incidentId: responseBody['incidentId'] as String?);
         }
       } catch (_) {
         // Tự động chuyển mạch sang endpoint dự phòng tiếp theo
       }
     }
 
-    return false;
+    return (accepted: false, incidentId: null);
   }
 
   /// Gửi dữ liệu viễn trắc định kỳ theo lô (Batch-Lane Ingestion)
@@ -182,6 +196,126 @@ class ApiService {
       } catch (_) {}
     }
 
+    return false;
+  }
+
+  /// Gửi ngay mẫu tim nguy kịch; packetId được giữ nguyên khi thử lại từ SQLite.
+  Future<bool> sendUrgentHeartRate(String packetId, TelemetrySample sample) async {
+    final deviceId = await getDeviceId();
+    final deviceToken = await getDeviceToken();
+    if (deviceId == null || deviceToken == null) {
+      throw const HttpException('Thiết bị chưa được ghép nối.');
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'X-DeviceId': deviceId,
+      'X-Device-Token': deviceToken,
+    };
+    final body = jsonEncode({
+      'packetId': packetId,
+      'heartRateBpm': sample.value,
+      'timestamp': sample.timestamp.toUtc().toIso8601String(),
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final pairedServerUrl = prefs.getString('server_base_url');
+    final endpoints = {
+      if (pairedServerUrl != null && pairedServerUrl.isNotEmpty) pairedServerUrl,
+      _activeServerUrl,
+      ..._getEndpointsToTry(),
+    };
+
+    for (final url in endpoints) {
+      try {
+        final response = await http.post(
+          Uri.parse('$url/api/v1/telemetry/urgent-heart-rate'),
+          headers: headers,
+          body: body,
+        ).timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          _activeServerUrl = url;
+          return true;
+        }
+      } catch (_) {
+        // Cùng packetId được gửi lại qua kênh tiếp theo hoặc hàng đợi offline.
+      }
+    }
+
+    return false;
+  }
+
+  Future<bool> uploadIncidentPhoto(String incidentId, Uint8List jpeg,
+      DateTime capturedAt) async {
+    final deviceId = await getDeviceId();
+    final deviceToken = await getDeviceToken();
+    if (deviceId == null || deviceToken == null || jpeg.isEmpty || jpeg.length > 1000000) {
+      return false;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final pairedUrl = prefs.getString('server_base_url');
+    final endpoints = {
+      if (pairedUrl != null && pairedUrl.isNotEmpty) pairedUrl,
+      _activeServerUrl,
+      ..._getEndpointsToTry(),
+    };
+    for (final url in endpoints) {
+      try {
+        final request = http.MultipartRequest('POST',
+            Uri.parse('$url/api/v1/incidents/${Uri.encodeComponent(incidentId)}/photo'));
+        request.headers['X-DeviceId'] = deviceId;
+        request.headers['X-Device-Token'] = deviceToken;
+        request.fields['capturedAt'] = capturedAt.toUtc().toIso8601String();
+        request.files.add(http.MultipartFile.fromBytes('photo', jpeg,
+          filename: 'incident.jpg', contentType: MediaType('image', 'jpeg')));
+        final response = await http.Response.fromStream(
+            await request.send().timeout(const Duration(seconds: 8)));
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          _activeServerUrl = url;
+          return true;
+        }
+        if (response.statusCode >= 400 && response.statusCode < 500) return false;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  Future<bool> attachIncidentLocation(
+      String incidentId, String coordinates, DateTime capturedAt,
+      {bool isSimulated = false, double? accuracyMeters}) async {
+    final deviceId = await getDeviceId();
+    final deviceToken = await getDeviceToken();
+    if (deviceId == null || deviceToken == null) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final pairedUrl = prefs.getString('server_base_url');
+    final endpoints = {
+      if (pairedUrl != null && pairedUrl.isNotEmpty) pairedUrl,
+      _activeServerUrl,
+      ..._getEndpointsToTry(),
+    };
+    for (final url in endpoints) {
+      try {
+        final response = await http.post(
+          Uri.parse('$url/api/v1/incidents/${Uri.encodeComponent(incidentId)}/location'),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-DeviceId': deviceId,
+            'X-Device-Token': deviceToken,
+          },
+          body: jsonEncode({
+            'coordinates': coordinates,
+            'capturedAt': capturedAt.toUtc().toIso8601String(),
+            'isSimulated': isSimulated,
+            'accuracyMeters': accuracyMeters,
+          }),
+        ).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          _activeServerUrl = url;
+          return true;
+        }
+        if (response.statusCode >= 400 && response.statusCode < 500) return false;
+      } catch (_) {}
+    }
     return false;
   }
 

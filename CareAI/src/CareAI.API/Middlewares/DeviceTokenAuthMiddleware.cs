@@ -46,8 +46,12 @@ public class DeviceTokenAuthMiddleware
         }
 
         // Bỏ qua nếu là endpoint của Incidents dành cho Caregiver (active, ack, resolve, call)
+        var deviceEvidenceUpload = path.StartsWith("/api/v1/incidents/", StringComparison.OrdinalIgnoreCase) &&
+            (path.EndsWith("/photo", StringComparison.OrdinalIgnoreCase) ||
+             path.EndsWith("/location", StringComparison.OrdinalIgnoreCase)) &&
+            HttpMethods.IsPost(context.Request.Method);
         if (path.StartsWith("/api/v1/incidents", StringComparison.OrdinalIgnoreCase) &&
-            !path.Equals("/api/v1/incidents/sos", StringComparison.OrdinalIgnoreCase))
+            !path.Equals("/api/v1/incidents/sos", StringComparison.OrdinalIgnoreCase) && !deviceEvidenceUpload)
         {
             await _next(context);
             return;
@@ -64,6 +68,7 @@ public class DeviceTokenAuthMiddleware
         // Các endpoint thiết bị phần cứng bắt buộc xác thực:
         if (path.StartsWith("/api/v1/telemetry", StringComparison.OrdinalIgnoreCase) ||
             path.Equals("/api/v1/incidents/sos", StringComparison.OrdinalIgnoreCase) ||
+            deviceEvidenceUpload ||
             path.StartsWith("/api/v1/devices/heartbeat", StringComparison.OrdinalIgnoreCase))
         {
             if (!context.Request.Headers.TryGetValue("X-DeviceId", out var deviceIdHeader) ||

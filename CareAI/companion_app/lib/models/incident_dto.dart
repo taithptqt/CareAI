@@ -7,6 +7,8 @@ class SosPacketRequest {
   final String? severity;
   final DateTime? triggeredAt;
   final String? gpsLocation;
+  final bool? gpsIsSimulated;
+  final double? gpsAccuracyMeters;
   final List<TelemetrySample>? samples;
 
   SosPacketRequest({
@@ -16,6 +18,8 @@ class SosPacketRequest {
     this.severity,
     this.triggeredAt,
     this.gpsLocation,
+    this.gpsIsSimulated,
+    this.gpsAccuracyMeters,
     this.samples,
   });
 
@@ -27,6 +31,8 @@ class SosPacketRequest {
       if (severity != null) 'severity': severity,
       'triggeredAt': (triggeredAt ?? DateTime.now().toUtc()).toUtc().toIso8601String(),
       if (gpsLocation != null) 'gpsLocation': gpsLocation,
+      if (gpsIsSimulated != null) 'gpsIsSimulated': gpsIsSimulated,
+      if (gpsAccuracyMeters != null) 'gpsAccuracyMeters': gpsAccuracyMeters,
       if (samples != null)
         'samples': samples!.map((s) => s.toJson()).toList(),
     };
@@ -42,6 +48,8 @@ class SosPacketRequest {
           ? DateTime.tryParse(json['triggeredAt'] as String)
           : null,
       gpsLocation: json['gpsLocation'] as String?,
+      gpsIsSimulated: json['gpsIsSimulated'] as bool?,
+      gpsAccuracyMeters: (json['gpsAccuracyMeters'] as num?)?.toDouble(),
       samples: json['samples'] != null
           ? (json['samples'] as List<dynamic>)
               .map((s) => TelemetrySample.fromJson(s as Map<String, dynamic>))

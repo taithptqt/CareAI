@@ -7,6 +7,9 @@ public class ElderProfile
     public DateTime DateOfBirth { get; set; }
     public string? MedicalNotes { get; set; }
     public string? EmergencyContact { get; set; }
+    public string? HomeAddress { get; set; }
+    public double? HomeLatitude { get; set; }
+    public double? HomeLongitude { get; set; }
     public string? PairingPin { get; set; }
     public DateTime? PinExpiresAt { get; set; }
     public double RestingHeartRateMin { get; set; } = 40.0;

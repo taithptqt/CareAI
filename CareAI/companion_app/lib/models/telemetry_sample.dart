@@ -11,6 +11,11 @@ class TelemetrySample {
     required this.timestamp,
   });
 
+  bool get isCriticalHeartRate =>
+      metricType.toUpperCase() == 'HEART_RATE' &&
+      value.isFinite &&
+      ((value >= 180 && value <= 300) || (value > 0 && value <= 35));
+
   Map<String, dynamic> toJson() {
     return {
       'metricType': metricType,

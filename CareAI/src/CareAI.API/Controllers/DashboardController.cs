@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using CareAI.Core.DTOs;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
+using CareAI.Infrastructure.Engines;
 
 namespace CareAI.API.Controllers;
 
@@ -59,7 +60,7 @@ public class DashboardController : ControllerBase
 
         // Trạng thái thiết bị
         var activeDevices = elder.Devices.Where(d => d.IsActive).ToList();
-        var isOnline = activeDevices.Any(d => d.LastHeartbeat >= now.AddMinutes(-15));
+        var isOnline = activeDevices.Any(d => d.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfter));
         var deviceStatus = isOnline ? "ONLINE" : "OFFLINE";
         var lastSyncedAt = activeDevices.Count > 0 ? (DateTime?)activeDevices.Max(d => d.LastHeartbeat) : null;
 
@@ -153,22 +154,7 @@ public class DashboardController : ControllerBase
             StepGoal: 6000,
             LastKnownGpsLocation: lastKnownGpsLocation,
             lastSyncedAt,
-            activeIncident != null ? new IncidentResponseDto(
-                activeIncident.Id,
-                activeIncident.ElderProfileId,
-                elder.FullName,
-                activeIncident.TriggeredByDeviceId,
-                activeIncident.EmergencyType,
-                activeIncident.Severity.ToString(),
-                activeIncident.Status.ToString(),
-                activeIncident.TriggeredAt,
-                activeIncident.AcknowledgedAt,
-                activeIncident.AcknowledgedByCaregiverId,
-                activeIncident.ResolvedAt,
-                activeIncident.ResolvedByCaregiverId,
-                activeIncident.ResolutionNotes,
-                activeIncident.TimelineEvents.OrderBy(t => t.RecordedAt).Select(t => new IncidentTimelineDto(t.EventType, t.Description, t.RecordedAt)).ToList()
-            ) : null
+            activeIncident != null ? IncidentDtoMapper.ToResponse(activeIncident, elder.FullName) : null
         );
 
         return Ok(response);

@@ -50,6 +50,9 @@ class ElderItem {
   final DateTime dateOfBirth;
   final String? medicalNotes;
   final String? emergencyContact;
+  final String? homeAddress;
+  final double? homeLatitude;
+  final double? homeLongitude;
   final String? pairingPin;
   final DateTime? pinExpiresAt;
   final int deviceCount;
@@ -61,6 +64,9 @@ class ElderItem {
     required this.dateOfBirth,
     this.medicalNotes,
     this.emergencyContact,
+    this.homeAddress,
+    this.homeLatitude,
+    this.homeLongitude,
     this.pairingPin,
     this.pinExpiresAt,
     required this.deviceCount,
@@ -88,6 +94,9 @@ class ElderItem {
       dateOfBirth: DateTime.tryParse(json['dateOfBirth'] ?? '') ?? DateTime(1950, 1, 1),
       medicalNotes: json['medicalNotes'],
       emergencyContact: json['emergencyContact'],
+      homeAddress: json['homeAddress'] as String?,
+      homeLatitude: (json['homeLatitude'] as num?)?.toDouble(),
+      homeLongitude: (json['homeLongitude'] as num?)?.toDouble(),
       pairingPin: json['pairingPin'],
       pinExpiresAt: json['pinExpiresAt'] != null ? DateTime.tryParse(json['pinExpiresAt']) : null,
       deviceCount: json['deviceCount'] ?? 0,
@@ -142,6 +151,42 @@ class IncidentTimeline {
   }
 }
 
+class IncidentSnapshot {
+  final double? heartRateBpm;
+  final double? spO2Percent;
+  final double? bpSystolic;
+  final double? bpDiastolic;
+  final DateTime? vitalsMeasuredAt;
+  final String? gpsLocation;
+  final String? currentGpsLocation;
+  final DateTime? currentGpsMeasuredAt;
+  final bool? currentGpsIsSimulated;
+  final double? currentGpsAccuracyMeters;
+  final String? homeAddress;
+
+  IncidentSnapshot.fromJson(Map<String, dynamic> json)
+      : heartRateBpm = (json['heartRateBpm'] as num?)?.toDouble(),
+        spO2Percent = (json['spO2Percent'] as num?)?.toDouble(),
+        bpSystolic = (json['bpSystolic'] as num?)?.toDouble(),
+        bpDiastolic = (json['bpDiastolic'] as num?)?.toDouble(),
+        vitalsMeasuredAt = DateTime.tryParse(json['vitalsMeasuredAt']?.toString() ?? ''),
+        gpsLocation = json['gpsLocation'] as String?,
+        currentGpsLocation = json['currentGpsLocation'] as String?,
+        currentGpsMeasuredAt = DateTime.tryParse(json['currentGpsMeasuredAt']?.toString() ?? ''),
+        currentGpsIsSimulated = json['currentGpsIsSimulated'] as bool?,
+        currentGpsAccuracyMeters = (json['currentGpsAccuracyMeters'] as num?)?.toDouble(),
+        homeAddress = json['homeAddress'] as String?;
+}
+
+class IncidentAlertState {
+  final int cycleNumber;
+  final DateTime? deadlineAt;
+
+  IncidentAlertState.fromJson(Map<String, dynamic> json)
+      : cycleNumber = (json['cycleNumber'] as num?)?.toInt() ?? 0,
+        deadlineAt = DateTime.tryParse(json['deadlineAt']?.toString() ?? '');
+}
+
 class Incident {
   final String id;
   final String elderProfileId;
@@ -156,6 +201,10 @@ class Incident {
   final DateTime? resolvedAt;
   final String? resolvedByCaregiverId;
   final String? resolutionNotes;
+  final String? rowVersion;
+  final IncidentSnapshot? snapshot;
+  final IncidentAlertState? alertState;
+  final IncidentHeartRateWindow? heartRateSeries;
   final List<IncidentTimeline> timeline;
 
   Incident({
@@ -172,6 +221,10 @@ class Incident {
     this.resolvedAt,
     this.resolvedByCaregiverId,
     this.resolutionNotes,
+    this.rowVersion,
+    this.snapshot,
+    this.alertState,
+    this.heartRateSeries,
     required this.timeline,
   });
 
@@ -219,6 +272,13 @@ class Incident {
       resolvedAt: json['resolvedAt'] != null ? DateTime.tryParse(json['resolvedAt']) : null,
       resolvedByCaregiverId: json['resolvedByCaregiverId'],
       resolutionNotes: json['resolutionNotes'],
+      rowVersion: json['rowVersion'] as String?,
+      snapshot: json['snapshot'] is Map<String, dynamic>
+          ? IncidentSnapshot.fromJson(json['snapshot'] as Map<String, dynamic>) : null,
+      alertState: json['alertState'] is Map<String, dynamic>
+          ? IncidentAlertState.fromJson(json['alertState'] as Map<String, dynamic>) : null,
+      heartRateSeries: json['heartRateSeries'] is Map<String, dynamic>
+          ? IncidentHeartRateWindow.fromJson(json['heartRateSeries'] as Map<String, dynamic>) : null,
       timeline: (json['timeline'] as List<dynamic>?)
               ?.map((e) => IncidentTimeline.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -481,6 +541,23 @@ class BloodPressurePoint {
   }
 }
 
+class HeartRateSample {
+  final double bpm;
+  final DateTime timestamp;
+
+  HeartRateSample({
+    required this.bpm,
+    required this.timestamp,
+  });
+
+  factory HeartRateSample.fromJson(Map<String, dynamic> json) {
+    return HeartRateSample(
+      bpm: (json['bpm'] as num?)?.toDouble() ?? 0.0,
+      timestamp: DateTime.tryParse(json['timestamp']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
 class BloodPressureHistoryData {
   final List<BloodPressurePoint> points;
   final double latestSystolic;
@@ -506,6 +583,32 @@ class BloodPressureHistoryData {
       latestDiastolic: (json['latestDiastolic'] as num?)?.toDouble() ?? 80.0,
       classification: json['classification'] ?? 'Bình thường',
       statusColor: json['statusColor'] ?? 'GREEN',
+    );
+  }
+}
+
+class IncidentHeartRateWindow {
+  final DateTime incidentTriggeredAt;
+  final DateTime windowStart;
+  final DateTime windowEnd;
+  final List<HeartRateSample> samples;
+
+  IncidentHeartRateWindow({
+    required this.incidentTriggeredAt,
+    required this.windowStart,
+    required this.windowEnd,
+    required this.samples,
+  });
+
+  factory IncidentHeartRateWindow.fromJson(Map<String, dynamic> json) {
+    return IncidentHeartRateWindow(
+      incidentTriggeredAt: DateTime.tryParse(json['incidentTriggeredAt']?.toString() ?? '') ?? DateTime.now(),
+      windowStart: DateTime.tryParse(json['windowStart']?.toString() ?? '') ?? DateTime.now(),
+      windowEnd: DateTime.tryParse(json['windowEnd']?.toString() ?? '') ?? DateTime.now(),
+      samples: (json['samples'] as List<dynamic>?)
+              ?.map((e) => HeartRateSample.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }
@@ -599,4 +702,37 @@ class HourlyStepsData {
   }
 }
 
+class PagedIncidents {
+  final List<Incident> items;
+  final int page;
+  final int pageSize;
+  final int totalCount;
+  final int totalPages;
+  final bool hasPreviousPage;
+  final bool hasNextPage;
 
+  PagedIncidents({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    required this.totalCount,
+    required this.totalPages,
+    required this.hasPreviousPage,
+    required this.hasNextPage,
+  });
+
+  factory PagedIncidents.fromJson(Map<String, dynamic> json) {
+    return PagedIncidents(
+      items: (json['items'] as List<dynamic>?)
+              ?.map((e) => Incident.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      page: (json['page'] as num?)?.toInt() ?? 1,
+      pageSize: (json['pageSize'] as num?)?.toInt() ?? 20,
+      totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
+      totalPages: (json['totalPages'] as num?)?.toInt() ?? 0,
+      hasPreviousPage: json['hasPreviousPage'] as bool? ?? false,
+      hasNextPage: json['hasNextPage'] as bool? ?? false,
+    );
+  }
+}

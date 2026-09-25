@@ -71,6 +71,18 @@ class SyncService {
               await LocalOfflineStore.instance.markPacketFailed(packet.packetId);
               failedCount++;
             }
+          } else if (packet.packetType == 'URGENT_HEART_RATE') {
+            final json = jsonDecode(packet.payload) as Map<String, dynamic>;
+            final sample = TelemetrySample.fromJson(json);
+            final success = await ApiService.instance.sendUrgentHeartRate(packet.packetId, sample);
+
+            if (success) {
+              await LocalOfflineStore.instance.markPacketSynced(packet.packetId);
+              syncedCount++;
+            } else {
+              await LocalOfflineStore.instance.markPacketFailed(packet.packetId);
+              failedCount++;
+            }
           } else if (packet.packetType == 'TELEMETRY_BATCH') {
             final jsonList = jsonDecode(packet.payload) as List<dynamic>;
             final samples = jsonList
@@ -116,14 +128,36 @@ class SyncService {
   /// Ghi nhận và lưu gói viễn trắc sinh hiệu vào hàng đợi SQLite Outbox
   Future<void> enqueueTelemetrySamples(List<TelemetrySample> samples) async {
     if (samples.isEmpty) return;
-    final batchId = 'BATCH_${const Uuid().v4().substring(0, 8)}';
-    final payloadJson = jsonEncode(samples.map((s) => s.toJson()).toList());
+    final routineSamples = <TelemetrySample>[];
+    for (final sample in samples) {
+      if (!sample.isCriticalHeartRate) {
+        routineSamples.add(sample);
+        continue;
+      }
 
-    await LocalOfflineStore.instance.enqueuePacket(
-      packetId: batchId,
-      packetType: 'TELEMETRY_BATCH',
-      payload: payloadJson,
-    );
+      final packetId = 'HR_${const Uuid().v4()}';
+      await LocalOfflineStore.instance.enqueuePacket(
+        packetId: packetId,
+        packetType: 'URGENT_HEART_RATE',
+        payload: jsonEncode(sample.toJson()),
+      );
+      try {
+        if (await ApiService.instance.sendUrgentHeartRate(packetId, sample)) {
+          await LocalOfflineStore.instance.markPacketSynced(packetId);
+        }
+      } catch (_) {
+        // Gói tin vẫn nằm trong SQLite để gửi lại với cùng packetId.
+      }
+    }
+
+    if (routineSamples.isNotEmpty) {
+      final batchId = 'BATCH_${const Uuid().v4()}';
+      await LocalOfflineStore.instance.enqueuePacket(
+        packetId: batchId,
+        packetType: 'TELEMETRY_BATCH',
+        payload: jsonEncode(routineSamples.map((s) => s.toJson()).toList()),
+      );
+    }
   }
 
   /// Chu kỳ toàn vẹn của TelemetrySyncWorker (Nhiệm vụ 1.1):

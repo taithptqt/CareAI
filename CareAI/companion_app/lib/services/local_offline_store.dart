@@ -110,7 +110,7 @@ class LocalOfflineStore {
       'client_packets',
       where: 'status = ? OR synced = 0',
       whereArgs: ['PENDING'],
-      orderBy: 'created_at ASC',
+      orderBy: "CASE WHEN packet_type IN ('SOS_ALERT', 'FALL_ALERT', 'URGENT_HEART_RATE') THEN 0 ELSE 1 END, created_at ASC",
       limit: limit,
     );
 
