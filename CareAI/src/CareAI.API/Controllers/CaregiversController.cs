@@ -178,4 +178,75 @@ public class CaregiversController : ControllerBase
 
         return StatusCode(StatusCodes.Status201Created, dto);
     }
+
+    /// <summary>
+    /// Chỉnh sửa thông tin hồ sơ Người cao tuổi (UC-02)
+    /// RBAC: Chỉ Primary Caregiver mới có quyền chỉnh sửa. Secondary Caregiver -> 403 Forbidden.
+    /// </summary>
+    [HttpPut("elders/{id}")]
+    [ProducesResponseType(typeof(ElderItemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateElder(string id, [FromBody] UpdateElderRequest request, CancellationToken ct)
+    {
+        var caregiverId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(caregiverId))
+            return Unauthorized(new { error = "Không tìm thấy danh tính người dùng trong phiên làm việc." });
+
+        var relation = await _db.ElderCaregivers
+            .FirstOrDefaultAsync(ec => ec.CaregiverId == caregiverId && ec.ElderProfileId == id && ec.IsActive, ct);
+
+        if (relation == null)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền quản lý người cao tuổi này." });
+        }
+
+        if (relation.Role != CaregiverRole.Primary)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Chỉ người bảo hộ chính (Primary) mới có quyền chỉnh sửa hồ sơ người cao tuổi." });
+        }
+
+        var elder = await _db.ElderProfiles
+            .Include(e => e.Devices)
+            .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted, ct);
+
+        if (elder == null)
+        {
+            return NotFound(new { error = "Không tìm thấy hồ sơ người cao tuổi." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+        {
+            elder.FullName = request.FullName.Trim();
+        }
+
+        if (request.DateOfBirth.HasValue)
+        {
+            elder.DateOfBirth = request.DateOfBirth.Value;
+        }
+
+        elder.MedicalNotes = request.MedicalNotes?.Trim() ?? elder.MedicalNotes;
+        elder.EmergencyContact = request.EmergencyContact?.Trim() ?? elder.EmergencyContact;
+        elder.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("[ELDER-UPDATED] Primary Caregiver {CaregiverId} đã cập nhật hồ sơ Cụ {ElderId} ({FullName})", caregiverId, elder.Id, elder.FullName);
+
+        var activeDevices = elder.Devices.Where(d => d.IsActive).ToList();
+        var isOnline = activeDevices.Any(d => d.LastHeartbeat >= DateTime.UtcNow.AddMinutes(-15));
+
+        return Ok(new ElderItemDto(
+            elder.Id,
+            elder.FullName,
+            elder.DateOfBirth,
+            elder.MedicalNotes,
+            elder.EmergencyContact,
+            elder.PairingPin,
+            elder.PinExpiresAt,
+            activeDevices.Count,
+            isOnline ? "ONLINE" : "OFFLINE"
+        ));
+    }
 }
+

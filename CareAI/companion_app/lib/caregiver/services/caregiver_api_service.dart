@@ -172,9 +172,230 @@ class CaregiverApiService {
       final auth = AuthResponse.fromJson(data);
       await saveAuth(auth);
       return auth;
+    } else if (response.statusCode == 423) {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Tài khoản đã bị tạm khóa 15 phút do nhập sai mật khẩu quá 5 lần.');
     } else {
       final err = _extractError(response.body);
       throw Exception(err.isNotEmpty ? err : 'Email hoặc mật khẩu không chính xác');
+    }
+  }
+
+  // 11. Quên mật khẩu - Gửi mã OTP qua Email (NV 3.1)
+  Future<void> forgotPassword(String email) async {
+    final body = jsonEncode({
+      'email': email.trim().toLowerCase(),
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/auth/forgot-password'),
+          headers: _buildHeaders(null),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return;
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể gửi yêu cầu đặt lại mật khẩu');
+    }
+  }
+
+  // 12. Xác nhận OTP & Đổi mật khẩu mới (NV 3.1)
+  Future<void> resetPassword({
+    required String email,
+    required String otpCode,
+    required String newPassword,
+  }) async {
+    final body = jsonEncode({
+      'email': email.trim().toLowerCase(),
+      'otpCode': otpCode.trim(),
+      'newPassword': newPassword,
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/auth/reset-password'),
+          headers: _buildHeaders(null),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return;
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Đặt lại mật khẩu thất bại');
+    }
+  }
+
+  // 13. Chỉnh sửa hồ sơ Người cao tuổi (NV 3.2 - Primary only)
+  Future<ElderItem> updateElder(
+    String elderId, {
+    String? fullName,
+    DateTime? dateOfBirth,
+    String? medicalNotes,
+    String? emergencyContact,
+  }) async {
+    final token = await getToken();
+    final body = jsonEncode({
+      'fullName': fullName?.trim(),
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'medicalNotes': medicalNotes?.trim(),
+      'emergencyContact': emergencyContact?.trim(),
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .put(
+          Uri.parse('$baseUrl/api/v1/caregivers/elders/$elderId'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return ElderItem.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền chỉnh sửa hồ sơ.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Cập nhật hồ sơ thất bại (${response.statusCode})');
+    }
+  }
+
+  // 14. Tạo mã mời gia đình 6 ký tự (NV 3.3 - Primary only, TTL 24h)
+  Future<FamilyInvitationResponse> createFamilyInvitation(String elderId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId/invitations'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 201) {
+      return FamilyInvitationResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền tạo mã mời gia đình.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể tạo mã mời gia đình (${response.statusCode})');
+    }
+  }
+
+  // 15. Chấp nhận mã mời gia đình 6 ký tự (NV 3.3)
+  Future<AcceptInvitationResponse> acceptFamilyInvitation(String invitationCode) async {
+    final token = await getToken();
+    final body = jsonEncode({
+      'invitationCode': invitationCode.trim().toUpperCase(),
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/invitations/accept'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return AcceptInvitationResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 409) {
+      throw Exception('Bạn đã là thành viên trong nhóm chăm sóc của người cao tuổi này.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Mã mời không chính xác hoặc đã hết hạn (24 giờ).');
+    }
+  }
+
+  // 16. Lấy danh sách thành viên nhóm chăm sóc (NV 3.3)
+  Future<List<FamilyMember>> getFamilyMembers(String elderId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId/members'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> list = jsonDecode(response.body);
+      return list.map((e) => FamilyMember.fromJson(e as Map<String, dynamic>)).toList();
+    } else if (response.statusCode == 403) {
+      throw Exception('Bạn không có quyền xem nhóm gia đình này.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể tải danh sách thành viên (${response.statusCode})');
+    }
+  }
+
+  // 17. Thu hồi quyền thành viên khỏi nhóm gia đình (NV 3.3 - Primary only)
+  Future<void> revokeFamilyMember(String elderId, String targetCaregiverId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .delete(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId/members/$targetCaregiverId'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return;
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền thu hồi thành viên.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Thu hồi quyền thành viên thất bại (${response.statusCode})');
+    }
+  }
+
+  // 18. Hủy ghép nối thiết bị an toàn (NV 3.5 - Primary only, Wipe Credentials)
+  Future<UnpairDeviceResponse> unpairDevice(String deviceId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/devices/$deviceId/unpair'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return UnpairDeviceResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền hủy ghép nối thiết bị.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Hủy ghép nối thiết bị thất bại (${response.statusCode})');
+    }
+  }
+
+  // 19. Xóa hồ sơ Người cao tuổi & Ẩn danh hóa PII (NV 3.5 - Primary only, Password cấp 2)
+  Future<DeleteElderResponse> deleteElder(String elderId, String password) async {
+    final token = await getToken();
+    final body = jsonEncode({
+      'password': password,
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .delete(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return DeleteElderResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 400) {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Mật khẩu xác nhận cấp 2 không chính xác.');
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền xóa hồ sơ người cao tuổi.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Xóa hồ sơ thất bại (${response.statusCode})');
     }
   }
 

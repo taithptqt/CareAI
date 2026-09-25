@@ -64,6 +64,152 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final resetEmailCtrl = TextEditingController(text: _emailController.text.trim());
+    final otpCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    int currentStep = 1; // 1: Email, 2: OTP + New Password
+    bool isProcessing = false;
+    String? dialogError;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.lock_reset, color: Color(0xFF0284C7)),
+              const SizedBox(width: 8),
+              Text(currentStep == 1 ? 'Quên Mật Khẩu' : 'Đặt Lại Mật Khẩu', style: const TextStyle(fontSize: 16)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (currentStep == 1) ...[
+                  const Text(
+                    'Nhập địa chỉ email đăng ký để nhận mã OTP 6 số (TTL 10 phút):',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: resetEmailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email của bạn',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    'Mã OTP đã được gửi tới email ${resetEmailCtrl.text.trim()}. Vui lòng kiểm tra hộp thư:',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: otpCtrl,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Mã OTP 6 số',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.pin_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: newPassCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Mật khẩu mới',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                  ),
+                ],
+                if (dialogError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(dialogError!, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
+              onPressed: isProcessing
+                  ? null
+                  : () async {
+                      final email = resetEmailCtrl.text.trim();
+                      if (email.isEmpty) return;
+
+                      if (currentStep == 1) {
+                        setDState(() {
+                          isProcessing = true;
+                          dialogError = null;
+                        });
+                        try {
+                          await CaregiverApiService.instance.forgotPassword(email);
+                          setDState(() {
+                            isProcessing = false;
+                            currentStep = 2;
+                          });
+                        } catch (e) {
+                          setDState(() {
+                            isProcessing = false;
+                            dialogError = e.toString().replaceAll('Exception:', '').trim();
+                          });
+                        }
+                      } else {
+                        final otp = otpCtrl.text.trim();
+                        final newPass = newPassCtrl.text.trim();
+                        if (otp.isEmpty || newPass.isEmpty) {
+                          setDState(() => dialogError = 'Vui lòng điền đủ OTP và mật khẩu mới.');
+                          return;
+                        }
+
+                        setDState(() {
+                          isProcessing = true;
+                          dialogError = null;
+                        });
+                        try {
+                          await CaregiverApiService.instance.resetPassword(
+                            email: email,
+                            otpCode: otp,
+                            newPassword: newPass,
+                          );
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _passwordController.text = newPass;
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay.'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setDState(() {
+                            isProcessing = false;
+                            dialogError = e.toString().replaceAll('Exception:', '').trim();
+                          });
+                        }
+                      }
+                    },
+              child: isProcessing
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(currentStep == 1 ? 'Gửi Mã OTP' : 'Xác Nhận Đổi Mật Khẩu'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -246,7 +392,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             border: OutlineInputBorder(),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        if (_isLogin)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(50, 30),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: _showForgotPasswordDialog,
+                              child: const Text(
+                                'Quên mật khẩu?',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF0284C7), fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 12),
 
                         // Báo lỗi nếu có
                         if (_errorMessage != null)

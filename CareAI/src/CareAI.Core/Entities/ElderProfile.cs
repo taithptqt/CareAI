@@ -8,7 +8,9 @@ public class ElderProfile
     public string? MedicalNotes { get; set; }
     public string? EmergencyContact { get; set; }
     public string? PairingPin { get; set; }
+    public string? PairingPinHash { get; set; }
     public DateTime? PinExpiresAt { get; set; }
+    public bool IsDeleted { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
