@@ -170,12 +170,12 @@ class ApiService {
     for (final url in endpoints) {
       try {
         final response = await http.post(
-          Uri.parse('$url/api/v1/telemetry/ingest'),
+          Uri.parse('$url/api/v1/telemetry/batch'),
           headers: headers,
           body: jsonEncode(payload),
         ).timeout(const Duration(seconds: 6));
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
           _activeServerUrl = url;
           return true;
         }

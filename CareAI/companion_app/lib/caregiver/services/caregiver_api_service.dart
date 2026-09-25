@@ -266,6 +266,91 @@ class CaregiverApiService {
     }
   }
 
+  // 7.1. Lấy dữ liệu biến thiên nhịp tim 24h phục vụ biểu đồ (Nhiệm vụ 1.4)
+  Future<HeartRate24hData> getHeartRate24h(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/heart-rate-24h'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return HeartRate24hData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải chuỗi nhịp tim 24h (${response.statusCode})');
+    }
+  }
+
+  // 7.2. Lấy dữ liệu lịch sử biến thiên huyết áp 14 ngày (Gói A)
+  Future<BloodPressureHistoryData> getBloodPressureHistory(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/blood-pressure-history'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return BloodPressureHistoryData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải lịch sử huyết áp (${response.statusCode})');
+    }
+  }
+
+  // 7.3. Lấy dữ liệu SpO2 24h & đếm số cơn tụt oxy (Gói A)
+  Future<Spo224hData> getSpo224h(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/spo2-24h'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return Spo224hData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải chuỗi SpO2 24h (${response.statusCode})');
+    }
+  }
+
+  // 7.4. Lấy phân bố số bước vận động theo 24 giờ trong ngày (Gói A)
+  Future<HourlyStepsData> getHourlySteps24h(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/hourly-steps-24h'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return HourlyStepsData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải dữ liệu vận động 24h (${response.statusCode})');
+    }
+  }
+
+  // 7.5. Lấy tổng kết giấc ngủ đêm & thời lượng sâu/nông (Gói B)
+  Future<SleepSummaryData> getElderSleepSummary(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/sleep-summary'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return SleepSummaryData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải tổng kết giấc ngủ (${response.statusCode})');
+    }
+  }
+
   // 8. Danh sách Sự cố Đang mở / Đã tiếp nhận (UC-08 Quorum Alerting)
   Future<List<Incident>> getActiveIncidents() async {
     final token = await getToken();
@@ -332,6 +417,80 @@ class CaregiverApiService {
     }
   }
 
+  // 11. Lấy ngưỡng nhịp tim an toàn hiện tại (Nhiệm vụ 1.5)
+  Future<ThresholdData> getElderThresholds(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/elders/$elderProfileId/thresholds'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return ThresholdData.fromJson(jsonDecode(response.body));
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể lấy thông tin ngưỡng (${response.statusCode})');
+    }
+  }
+
+  // 12. Phân tích gợi ý dải ngưỡng thích nghi 14 ngày (Nhiệm vụ 1.5)
+  Future<ThresholdRecommendation> getThresholdRecommendation(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/elders/$elderProfileId/thresholds/recommendation'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 15)));
+
+    if (response.statusCode == 200) {
+      return ThresholdRecommendation.fromJson(jsonDecode(response.body));
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể phân tích ngưỡng thích nghi (${response.statusCode})');
+    }
+  }
+
+  // 13. Cập nhật dải ngưỡng thích nghi mới & làm mới cache tức thì (Nhiệm vụ 1.5 & Gói B)
+  Future<ThresholdData> updateElderThresholds(
+    String elderProfileId,
+    double minBpm,
+    double maxBpm, {
+    double? nightMinBpm,
+    double? nightMaxBpm,
+    String? sleepStart,
+    String? sleepEnd,
+  }) async {
+    final token = await getToken();
+    final Map<String, dynamic> payload = {
+      'restingHeartRateMin': minBpm,
+      'restingHeartRateMax': maxBpm,
+    };
+    if (nightMinBpm != null) payload['nightHeartRateMin'] = nightMinBpm;
+    if (nightMaxBpm != null) payload['nightHeartRateMax'] = nightMaxBpm;
+    if (sleepStart != null && sleepStart.isNotEmpty) payload['sleepWindowStart'] = sleepStart;
+    if (sleepEnd != null && sleepEnd.isNotEmpty) payload['sleepWindowEnd'] = sleepEnd;
+
+    final body = jsonEncode(payload);
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .put(
+          Uri.parse('$baseUrl/api/v1/elders/$elderProfileId/thresholds'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return ThresholdData.fromJson(jsonDecode(response.body));
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Cập nhật ngưỡng thất bại (${response.statusCode})');
+    }
+  }
+
   String _extractError(String responseBody) {
     try {
       final data = jsonDecode(responseBody);
@@ -341,3 +500,4 @@ class CaregiverApiService {
     }
   }
 }
+

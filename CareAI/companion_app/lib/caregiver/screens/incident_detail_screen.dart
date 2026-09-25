@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../../services/location_service.dart';
+import '../../services/voice_guidance_service.dart';
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 
@@ -27,6 +30,10 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     setState(() => _isLoading = true);
     try {
       await CaregiverApiService.instance.acknowledgeIncident(_incident.id, 'Người thân đang đến hỗ trợ');
+
+      // Phát âm thanh giọng nói trấn an y tế cho cụ qua loa ngoài (Gói C)
+      VoiceGuidanceService.instance.speakCaregiverAcknowledged('Người thân');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -121,11 +128,14 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
         backgroundColor: isOpen ? const Color(0xFFDC2626) : const Color(0xFFD97706),
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Thẻ Tiêu đề khẩn cấp
             Container(
               padding: const EdgeInsets.all(16),
@@ -203,6 +213,136 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
+            // Vị Trí Cứu Hộ Google Maps (Nếu sự cố có kèm tọa độ GPS)
+            if (_incident.gpsLocation != null) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF0284C7), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.location_on, color: Color(0xFF38BDF8), size: 18),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Vị Trí Cấp Cứu Nạn Nhân (GPS)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('Google Maps', style: TextStyle(fontSize: 10, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Tọa độ: ${_incident.gpsLocation}',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFFE2E8F0), fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy, size: 16, color: Color(0xFF94A3B8)),
+                          tooltip: 'Sao chép link Google Maps',
+                          onPressed: () {
+                            final link = 'https://www.google.com/maps/search/?api=1&query=${_incident.gpsLocation}';
+                            Clipboard.setData(ClipboardData(text: link));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã sao chép liên kết Google Maps vào bộ nhớ tạm!'),
+                                backgroundColor: Color(0xFF0284C7),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0284C7),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.map_rounded, size: 18),
+                            label: const Text('Mở Google Maps', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            onPressed: () {
+                              final parts = _incident.gpsLocation!.split(',');
+                              if (parts.length == 2) {
+                                final lat = double.tryParse(parts[0].trim());
+                                final lng = double.tryParse(parts[1].trim());
+                                if (lat != null && lng != null) {
+                                  LocationService.instance.openGoogleMaps(lat, lng, label: 'Nạn nhân ${_incident.elderName}');
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF38BDF8),
+                              side: const BorderSide(color: Color(0xFF38BDF8)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.directions_rounded, size: 18),
+                            label: const Text('Chỉ Đường Cấp Cứu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            onPressed: () {
+                              final parts = _incident.gpsLocation!.split(',');
+                              if (parts.length == 2) {
+                                final lat = double.tryParse(parts[0].trim());
+                                final lng = double.tryParse(parts[1].trim());
+                                if (lat != null && lng != null) {
+                                  LocationService.instance.openGoogleMapsDirections(lat, lng);
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Dòng thời gian Timeline cứu trợ (UC-14)
             const Text(
@@ -285,21 +425,23 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFFDC2626),
                 side: const BorderSide(color: Color(0xFFDC2626)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.phone_in_talk, color: Color(0xFFDC2626)),
-              label: const Text('GỌI CẤP CỨU 115', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text('GỌI CẤP CỨU 115', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Đang mô phỏng kết nối cuộc gọi khẩn cấp 115...')),
                 );
               },
             ),
+            const SizedBox(height: 28),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildInfoRow(String label, String value) {

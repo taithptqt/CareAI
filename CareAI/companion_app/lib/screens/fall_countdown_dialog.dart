@@ -8,6 +8,7 @@ import '../models/telemetry_sample.dart';
 import '../services/api_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
+import '../services/voice_guidance_service.dart';
 
 class FallCountdownDialog extends StatefulWidget {
   final FallEvent event;
@@ -40,6 +41,9 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
       duration: const Duration(milliseconds: 600),
     )..repeat(reverse: true);
 
+    // Kích hoạt hướng dẫn y tế bằng giọng nói tiếng Việt (Gói C - TTS 0ms offline)
+    VoiceGuidanceService.instance.speakFallDetected();
+
     _startCountdown();
   }
 
@@ -62,6 +66,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     _timer?.cancel();
     _pulseController.dispose();
     FallService.instance.stopEmergencySound(widget.event.eventId);
+    VoiceGuidanceService.instance.stop();
     super.dispose();
   }
 
@@ -69,6 +74,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     if (_isActionTaken) return;
     _isActionTaken = true;
     _timer?.cancel();
+    VoiceGuidanceService.instance.stop();
 
     await FallService.instance.cancelFallAlarm(widget.event.eventId);
 
@@ -88,6 +94,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     if (_isActionTaken) return;
     _isActionTaken = true;
     _timer?.cancel();
+    VoiceGuidanceService.instance.stop();
     await FallService.instance.stopEmergencySound(widget.event.eventId);
 
     final canonicalPacketId = 'FALL_${widget.event.eventId}';
