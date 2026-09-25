@@ -3,6 +3,10 @@
 
     <!-- PERMISSIONS CHO CẤP CỨU & SINH HIỆU -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -11,6 +15,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:label="CareAI"
@@ -37,6 +42,27 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".CaregiverAlarmActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/NormalTheme"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
+        <receiver
+            android:name=".CaregiverAlertReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="vn.careai.companion.ACTION_CAREGIVER_ALERT" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".CaregiverAlertService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- DIRECT BOOT & LOCK SCREEN RECEIVER (LOCKED_BOOT_COMPLETED & BOOT_COMPLETED) -->
         <receiver

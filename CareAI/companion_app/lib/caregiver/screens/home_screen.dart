@@ -4,8 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
+import '../services/caregiver_push_service.dart';
+import '../services/place_search_service.dart';
+import '../widgets/home_address_field.dart';
 import 'elder_dashboard_screen.dart';
 import 'incident_detail_screen.dart';
+import 'incident_history_screen.dart';
 import 'login_screen.dart';
 import 'server_config_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +25,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  static const _alarm = MethodChannel('vn.careai.companion/caregiver_alarm');
   int _currentIndex = 0;
   String _caregiverName = 'Người Thân';
   String _caregiverEmail = '';
@@ -35,42 +40,38 @@ class _HomeScreenState extends State<HomeScreen> {
   // Polling sự cố
   Timer? _alertPollingTimer;
   Incident? _currentEmergency;
+  final Map<String, int> _alarmCycles = {};
+  bool _refreshingIncidents = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserInfo();
     _loadElders();
     _loadActiveIncidents();
     _startAlertPolling();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      CaregiverPushService.instance.registerCurrentToken();
+      CaregiverPushService.instance.openPendingIncident();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _alertPollingTimer?.cancel();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_loadActiveIncidents());
+  }
+
   void _startAlertPolling() {
-    _alertPollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      if (!mounted) return;
-      try {
-        final incidents = await CaregiverApiService.instance.getActiveIncidents();
-        if (mounted) {
-          final openInc = incidents.where((i) => i.isOpen).toList();
-          setState(() {
-            _activeIncidents = incidents;
-            if (openInc.isNotEmpty) {
-              if (_currentEmergency?.id != openInc.first.id) {
-                HapticFeedback.heavyImpact();
-              }
-              _currentEmergency = openInc.first;
-            } else {
-              _currentEmergency = null;
-            }
-          });
-        }
-      } catch (e) { debugPrint("[CAREGIVER-APP] Polling error: `$e"); }
+    _alertPollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_loadActiveIncidents());
     });
   }
 
@@ -107,25 +108,75 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadActiveIncidents() async {
-    setState(() => _isLoadingIncidents = true);
+    if (_refreshingIncidents) return;
+    _refreshingIncidents = true;
     try {
       final list = await CaregiverApiService.instance.getActiveIncidents();
       debugPrint("[CAREGIVER-APP] Loaded `${list.length} incidents.");
       if (mounted) {
+        final emergencies = list.where((i) => i.isOpen && i.severity == 'Critical').toList();
+        final first = emergencies.isEmpty ? null : emergencies.first;
+        if (first != null && _currentEmergency?.id != first.id) {
+          HapticFeedback.heavyImpact();
+        }
         setState(() {
           _activeIncidents = list;
+          _currentEmergency = first;
           _isLoadingIncidents = false;
         });
+        await _syncEmergencyAlarms(emergencies);
       }
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[CAREGIVER-APP] Không thể tải sự cố: $error');
       if (mounted) setState(() => _isLoadingIncidents = false);
+    } finally {
+      _refreshingIncidents = false;
     }
   }
+
+  Future<void> _syncEmergencyAlarms(List<Incident> emergencies) async {
+    final currentIds = emergencies.map((i) => i.id).toSet();
+    for (final id in _alarmCycles.keys.toList()) {
+      if (currentIds.contains(id)) continue;
+      final cycle = _alarmCycles.remove(id)!;
+      try {
+        await _alarm.invokeMethod<void>('stop', {
+          'incidentId': id, 'alertCycleNumber': cycle,
+        });
+      } catch (error) {
+        debugPrint('[CAREGIVER-APP] Không thể dừng còi: $error');
+      }
+    }
+    for (final incident in emergencies) {
+      final cycle = incident.alertState?.cycleNumber ?? 1;
+      if ((_alarmCycles[incident.id] ?? -1) >= cycle) continue;
+      try {
+        await _alarm.invokeMethod<void>('start', {
+          'incidentId': incident.id,
+          'alertCycleNumber': cycle,
+          'title': 'CẤP CỨU: ${incident.elderName}',
+          'body': _emergencyDescription(incident),
+          'emergencyType': incident.emergencyType,
+        });
+        _alarmCycles[incident.id] = cycle;
+      } on MissingPluginException {
+        // Flutter widget tests and platforms other than Android have no native siren.
+      } catch (error) {
+        debugPrint('[CAREGIVER-APP] Không thể bật còi: $error');
+      }
+    }
+  }
+
+  String _emergencyDescription(Incident incident) => incident.emergencyType == 'FALL'
+      ? '${incident.elderName} vừa bị ngã. Cần kiểm tra và tiếp nhận ngay.'
+      : '${incident.elderName} đang cần trợ giúp khẩn cấp. Hãy tiếp nhận ngay.';
 
   Future<void> _showAddElderDialog() async {
     final nameCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
+    var homeAddress = '';
+    PlaceSuggestion? homePlace;
     DateTime selectedDob = DateTime(1950, 1, 1);
 
     await showDialog(
@@ -169,6 +220,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(labelText: 'SĐT khẩn cấp (tùy chọn)', border: OutlineInputBorder()),
                 ),
+                const SizedBox(height: 12),
+                HomeAddressField(
+                  onChanged: (value) => homeAddress = value,
+                  onPlaceSelected: (place) => homePlace = place,
+                ),
               ],
             ),
           ),
@@ -185,6 +241,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     dateOfBirth: selectedDob,
                     medicalNotes: notesCtrl.text.trim(),
                     emergencyContact: phoneCtrl.text.trim(),
+                    homeAddress: homeAddress.trim(),
+                    homeLatitude: homePlace?.latitude,
+                    homeLongitude: homePlace?.longitude,
                   );
                   _loadElders();
                   if (mounted) {
@@ -206,6 +265,43 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _editHomeAddress(ElderItem elder) async {
+    var editedAddress = elder.homeAddress ?? '';
+    PlaceSuggestion? editedPlace = elder.homeLatitude != null &&
+            elder.homeLongitude != null
+        ? PlaceSuggestion(editedAddress,
+            latitude: elder.homeLatitude, longitude: elder.homeLongitude)
+        : null;
+    final address = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: Text('Địa chỉ nhà của ${elder.fullName}'),
+      content: SingleChildScrollView(
+        child: HomeAddressField(
+          initialValue: editedAddress,
+          initialLatitude: elder.homeLatitude,
+          initialLongitude: elder.homeLongitude,
+          onChanged: (value) => editedAddress = value,
+          onPlaceSelected: (place) => editedPlace = place,
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, editedAddress.trim()),
+          child: const Text('Lưu địa chỉ')),
+      ],
+    ));
+    if (address == null || !mounted) return;
+    try {
+      await CaregiverApiService.instance.updateElderHomeAddress(elder.id, address,
+        latitude: editedPlace?.latitude, longitude: editedPlace?.longitude);
+      if (mounted) await _loadElders();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể lưu địa chỉ: $error')));
+      }
+    }
   }
 
   Future<void> _generatePinForElder(ElderItem elder) async {
@@ -262,6 +358,14 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF0284C7),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Lịch sử sự cố',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -335,41 +439,51 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStickyEmergencyAlert() {
     final inc = _currentEmergency!;
-    final isFall = inc.emergencyType == 'FALL_DETECTED';
-
-    return GestureDetector(
-      onTap: () async {
-        final changed = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => IncidentDetailScreen(incident: inc)),
-        );
-        if (changed == true) {
-          _loadActiveIncidents();
-        }
-      },
-      child: Container(
-        width: double.infinity,
-        color: const Color(0xFFDC2626),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            const Icon(Icons.warning, color: Colors.white, size: 24),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isFall ? '🚨 CỤ ${inc.elderName.toUpperCase()} BỊ TÉ NGÃ!' : '🚨 CỤ ${inc.elderName.toUpperCase()} PHÁT SOS!',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const Text('Chạm vào để xem chi tiết và tiếp nhận cứu hộ ngay', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                ],
-              ),
+    final isFall = inc.emergencyType == 'FALL';
+    final count = _activeIncidents.where((i) => i.isOpen && i.severity == 'Critical').length;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: const BoxDecoration(color: Color(0xFFB91C1C)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(children: [
+            Icon(Icons.notification_important, color: Colors.white, size: 22),
+            SizedBox(width: 8),
+            Text('BÁO ĐỘNG KHẨN CẤP', style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            '${inc.elderName} ${isFall ? 'vừa bị ngã' : 'cần trợ giúp ngay'}',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Chưa ai tiếp nhận • ${DateFormat('HH:mm, dd/MM').format(inc.triggeredAt.toLocal())}'
+            '${count > 1 ? ' • $count sự cố khẩn' : ''}',
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF991B1B),
+              padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
-          ],
-        ),
+            onPressed: () async {
+              final changed = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => IncidentDetailScreen(incident: inc)),
+              );
+              if (changed == true) unawaited(_loadActiveIncidents());
+            },
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('XEM VÀ TIẾP NHẬN SỰ CỐ',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
@@ -484,6 +598,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const Divider(height: 20),
+                    Row(children: [
+                      const Icon(Icons.home_outlined, size: 17, color: Color(0xFF475569)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                        elder.homeAddress?.isNotEmpty == true
+                            ? elder.homeAddress! : 'Chưa có địa chỉ nhà để cứu hộ',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                      )),
+                      TextButton(onPressed: () => _editHomeAddress(elder),
+                        child: const Text('Sửa')),
+                    ]),
+                    const Divider(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -525,6 +651,15 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text('Hệ Thống An Toàn', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
             const SizedBox(height: 4),
             const Text('Hiện không có sự cố khẩn cấp nào đang mở.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.history),
+              label: const Text('Tra cứu lịch sử sự cố'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
+              ),
+            ),
           ],
         ),
       );
@@ -534,9 +669,28 @@ class _HomeScreenState extends State<HomeScreen> {
       onRefresh: _loadActiveIncidents,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _activeIncidents.length,
+        itemCount: _activeIncidents.length + 1,
         itemBuilder: (ctx, idx) {
-          final inc = _activeIncidents[idx];
+          if (idx == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Sự cố đang xử lý', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                  TextButton.icon(
+                    icon: const Icon(Icons.history, size: 16, color: Color(0xFF0284C7)),
+                    label: const Text('Xem lịch sử', style: TextStyle(fontSize: 12, color: Color(0xFF0284C7))),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          final inc = _activeIncidents[idx - 1];
           final isOpen = inc.isOpen;
 
           return Card(
@@ -549,13 +703,13 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: CircleAvatar(
                 backgroundColor: isOpen ? const Color(0xFFDC2626) : Colors.amber[700],
                 child: Icon(
-                  inc.emergencyType == 'FALL_DETECTED' ? Icons.personal_injury : Icons.warning,
+                  inc.emergencyType == 'FALL' ? Icons.personal_injury : Icons.warning,
                   color: Colors.white,
                   size: 20,
                 ),
               ),
               title: Text(
-                inc.emergencyType == 'FALL_DETECTED' ? 'Té Ngã - ${inc.elderName}' : 'SOS - ${inc.elderName}',
+                inc.emergencyType == 'FALL' ? 'Té Ngã - ${inc.elderName}' : 'Khẩn cấp - ${inc.elderName}',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               subtitle: Column(
@@ -661,6 +815,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.logout),
               label: const Text('ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
               onPressed: () async {
+                await CaregiverPushService.instance.unregisterCurrentToken();
                 await CaregiverApiService.instance.logout();
                 if (mounted) {
                   Navigator.pushReplacement(
@@ -696,6 +851,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirm == true && mounted) {
+      await CaregiverPushService.instance.unregisterCurrentToken();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(RoleSelectionScreen.prefSelectedRole, 'elder');
       final isPaired = await ApiService.instance.isPaired();
@@ -710,6 +866,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _goToRoleSelection() async {
+    await CaregiverPushService.instance.unregisterCurrentToken();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(RoleSelectionScreen.prefSelectedRole);
     if (!mounted) return;

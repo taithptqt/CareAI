@@ -4,6 +4,7 @@ import 'package:workmanager/workmanager.dart';
 import 'caregiver/screens/home_screen.dart';
 import 'caregiver/screens/login_screen.dart';
 import 'caregiver/services/caregiver_api_service.dart';
+import 'caregiver/services/caregiver_push_service.dart';
 import 'screens/device_pairing_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/sos_button_screen.dart';
@@ -73,6 +74,9 @@ void main() async {
   }
 
   runApp(CareAiUnifiedApp(initialScreen: initialScreen));
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    CaregiverPushService.instance.initialize();
+  });
 }
 
 class CareAiUnifiedApp extends StatelessWidget {
@@ -83,6 +87,7 @@ class CareAiUnifiedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: CaregiverPushService.instance.navigatorKey,
       title: 'CareAI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

@@ -2,16 +2,20 @@ package vn.careai.companion
 
 import android.app.AlarmManager
 import android.app.NotificationManager
+import android.app.NotificationChannel
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -22,6 +26,8 @@ class MainActivity : FlutterActivity() {
 
     private var pendingFallPayload: HashMap<String, Any?>? = null
     private var lastHandledEventId: String? = null
+    private var caregiverAlertChannel: MethodChannel? = null
+    private var pendingCaregiverIncidentId: String? = null
 
     private val fallEventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -53,6 +59,18 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel("careai_critical", "Cảnh báo cấp cứu",
+                NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Sự cố khẩn cấp của người cao tuổi"
+                enableVibration(true)
+                val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                setSound(alarmUri, AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM).build())
+            }
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .createNotificationChannel(channel)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -69,12 +87,21 @@ class MainActivity : FlutterActivity() {
         EmergencySoundPlayer.preload(this)
 
         checkFallFromIntent(intent)
+        checkCaregiverAlertFromIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         checkFallFromIntent(intent)
+        checkCaregiverAlertFromIntent(intent)
+    }
+
+    private fun checkCaregiverAlertFromIntent(intent: Intent?) {
+        val id = intent?.getStringExtra("caregiver_incident_id")?.takeIf { it.isNotBlank() } ?: return
+        intent.removeExtra("caregiver_incident_id")
+        if (caregiverAlertChannel == null) pendingCaregiverIncidentId = id
+        else caregiverAlertChannel?.invokeMethod("openIncident", id)
     }
 
     private fun checkFallFromIntent(intent: Intent?) {
@@ -185,6 +212,73 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "vn.careai.companion/location_source").setMethodCallHandler { call, result ->
+            if (call.method == "isEmulator") result.success(DeviceLocationSource.isEmulator())
+            else result.notImplemented()
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "vn.careai.companion/caregiver_alarm").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start", "stop" -> {
+                    val id = call.argument<String>("incidentId")
+                    if (id.isNullOrBlank()) {
+                        result.error("INVALID_ARGS", "Thiếu incidentId", null)
+                    } else {
+                        val command = Intent(this, CaregiverAlertService::class.java).apply {
+                            action = if (call.method == "start")
+                                CaregiverAlertService.ACTION_START else CaregiverAlertService.ACTION_STOP
+                            putExtra("incidentId", id)
+                            putExtra("alertCycleNumber", call.argument<Int>("alertCycleNumber") ?: 1)
+                            putExtra("title", call.argument<String>("title"))
+                            putExtra("body", call.argument<String>("body"))
+                            putExtra("emergencyType", call.argument<String>("emergencyType"))
+                        }
+                        try {
+                            if (call.method == "start") {
+                                ContextCompat.startForegroundService(this, command)
+                            } else {
+                                startService(command)
+                            }
+                            result.success(null)
+                        } catch (ex: Exception) {
+                            result.error("ALARM_START_FAILED", ex.message, null)
+                        }
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        caregiverAlertChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "vn.careai.companion/caregiver_alert")
+        caregiverAlertChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "showAlarmScreen" -> {
+                    val id = call.argument<String>("incidentId")
+                    if (id.isNullOrBlank()) {
+                        result.error("INVALID_ARGS", "Thiếu incidentId", null)
+                    } else {
+                        startActivity(Intent(this, CaregiverAlarmActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("incidentId", id)
+                            putExtra("alertCycleNumber", call.argument<Int>("alertCycleNumber") ?: 1)
+                            putExtra("title", call.argument<String>("title"))
+                            putExtra("body", call.argument<String>("body"))
+                            putExtra("emergencyType", call.argument<String>("emergencyType"))
+                        })
+                        result.success(null)
+                    }
+                }
+                "getPendingIncident" -> {
+                    result.success(pendingCaregiverIncidentId)
+                    pendingCaregiverIncidentId = null
+                }
+                else -> result.notImplemented()
+            }
+        }
 
         fallMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FALL_BRIDGE_CHANNEL)
         pendingFallPayload?.let {

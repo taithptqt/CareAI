@@ -19,6 +19,9 @@ public static class DatabaseMigrationHelper
             DateOfBirth DATETIME2 NOT NULL,
             MedicalNotes NVARCHAR(MAX) NULL,
             EmergencyContact NVARCHAR(50) NULL,
+            HomeAddress NVARCHAR(500) NULL,
+            HomeLatitude FLOAT NULL,
+            HomeLongitude FLOAT NULL,
             PairingPin NVARCHAR(10) NULL,
             PinExpiresAt DATETIME2 NULL,
             CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -100,15 +103,37 @@ public static class DatabaseMigrationHelper
             Severity INT NOT NULL,
             Status INT NOT NULL DEFAULT 1, -- Open = 1, Acknowledged = 2, Resolved = 3
             TriggeredAt DATETIME2 NOT NULL,
+            HeartRateBpm FLOAT NULL,
+            SpO2Percent FLOAT NULL,
+            BpSystolic FLOAT NULL,
+            BpDiastolic FLOAT NULL,
+            VitalsMeasuredAt DATETIME2 NULL,
+            GpsLocation NVARCHAR(100) NULL,
+            CurrentGpsLocation NVARCHAR(100) NULL,
+            CurrentGpsMeasuredAt DATETIME2 NULL,
+            CurrentGpsIsSimulated BIT NULL,
+            CurrentGpsAccuracyMeters FLOAT NULL,
+            HomeAddressSnapshot NVARCHAR(500) NULL,
+            AlertCycleNumber INT NOT NULL DEFAULT 1,
+            AlertStartedAt DATETIME2 NULL,
+            AlertDeadlineAt DATETIME2 NULL,
+            SlaBreachedAt DATETIME2 NULL,
+            ReminderCount INT NOT NULL DEFAULT 0,
+            NextReminderAt DATETIME2 NULL,
             AcknowledgedAt DATETIME2 NULL,
             AcknowledgedByCaregiverId NVARCHAR(50) NULL,
             ResolvedAt DATETIME2 NULL,
             ResolvedByCaregiverId NVARCHAR(50) NULL,
             ResolutionNotes NVARCHAR(MAX) NULL,
+            ConnectivityLostAt DATETIME2 NULL,
+            LatestCriticalHeartRateBpm FLOAT NULL,
+            LatestCriticalRuleCode NVARCHAR(50) NULL,
+            AcknowledgedCriticalHeartRateBpm FLOAT NULL,
+            AcknowledgedCriticalRuleCode NVARCHAR(50) NULL,
             CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
             UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
             RowVersion ROWVERSION,
-            CONSTRAINT FK_Incidents_Elder FOREIGN KEY (ElderProfileId) REFERENCES ElderProfiles(Id) ON DELETE CASCADE
+            CONSTRAINT FK_Incidents_Elder FOREIGN KEY (ElderProfileId) REFERENCES ElderProfiles(Id) ON DELETE NO ACTION
         );
         CREATE UNIQUE NONCLUSTERED INDEX UIX_Incidents_SingleActiveElder 
         ON Incidents (ElderProfileId) 
@@ -123,9 +148,25 @@ public static class DatabaseMigrationHelper
             EventType NVARCHAR(50) NOT NULL,
             Description NVARCHAR(MAX) NOT NULL,
             RecordedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-            CONSTRAINT FK_Timeline_Incident FOREIGN KEY (IncidentId) REFERENCES Incidents(Id) ON DELETE CASCADE
+            ActorCaregiverId NVARCHAR(50) NULL,
+            AlertCycleNumber INT NULL,
+            CONSTRAINT FK_Timeline_Incident FOREIGN KEY (IncidentId) REFERENCES Incidents(Id) ON DELETE NO ACTION
         );
         CREATE INDEX IX_Timeline_IncidentId ON IncidentTimelineEvents(IncidentId);
+    END;
+
+    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'IncidentPhotos')
+    BEGIN
+        CREATE TABLE IncidentPhotos (
+            IncidentId NVARCHAR(50) NOT NULL PRIMARY KEY,
+            DeviceId NVARCHAR(50) NOT NULL,
+            JpegBytes VARBINARY(MAX) NOT NULL,
+            Sha256 NVARCHAR(64) NOT NULL,
+            CapturedAt DATETIME2 NOT NULL,
+            ReceivedAt DATETIME2 NOT NULL,
+            CONSTRAINT FK_IncidentPhotos_Incident FOREIGN KEY (IncidentId)
+                REFERENCES Incidents(Id) ON DELETE NO ACTION
+        );
     END;
 
     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ProcessedTelemetryLedgers')
@@ -133,6 +174,7 @@ public static class DatabaseMigrationHelper
         CREATE TABLE ProcessedTelemetryLedgers (
             DeviceId NVARCHAR(50) NOT NULL,
             PacketId NVARCHAR(100) NOT NULL,
+            IncidentId NVARCHAR(50) NULL,
             ReceivedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
             CONSTRAINT PK_ProcessedTelemetryLedgers PRIMARY KEY (DeviceId, PacketId)
         );
@@ -165,6 +207,7 @@ public static class DatabaseMigrationHelper
             Id NVARCHAR(50) NOT NULL PRIMARY KEY,
             IncidentId NVARCHAR(50) NOT NULL,
             RecipientCaregiverId NVARCHAR(50) NULL,
+            AlertCycleNumber INT NOT NULL DEFAULT 1,
             PushToken NVARCHAR(500) NOT NULL,
             Title NVARCHAR(200) NOT NULL,
             Body NVARCHAR(MAX) NOT NULL,
@@ -174,10 +217,153 @@ public static class DatabaseMigrationHelper
             NextRetryAt DATETIME2 NULL,
             CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
             SentAt DATETIME2 NULL,
+            LeaseExpiresAt DATETIME2 NULL,
+            ProviderMessageId NVARCHAR(200) NULL,
+            LastErrorCode NVARCHAR(100) NULL,
+            RowVersion ROWVERSION,
             CONSTRAINT FK_NotificationOutboxes_Incident FOREIGN KEY (IncidentId) REFERENCES Incidents(Id) ON DELETE CASCADE
         );
         CREATE INDEX IX_NotificationOutbox_Pending ON NotificationOutboxes(Status, NextRetryAt);
     END;
+    -- Existing v111 databases need additive changes; nullable snapshots preserve old incidents.
+    IF COL_LENGTH('dbo.ProcessedTelemetryLedgers', 'IncidentId') IS NULL
+        ALTER TABLE dbo.ProcessedTelemetryLedgers ADD IncidentId NVARCHAR(50) NULL;
+    IF COL_LENGTH('dbo.ElderProfiles', 'HomeAddress') IS NULL
+        ALTER TABLE dbo.ElderProfiles ADD HomeAddress NVARCHAR(500) NULL;
+    IF COL_LENGTH('dbo.ElderProfiles', 'HomeLatitude') IS NULL
+        ALTER TABLE dbo.ElderProfiles ADD HomeLatitude FLOAT NULL;
+    IF COL_LENGTH('dbo.ElderProfiles', 'HomeLongitude') IS NULL
+        ALTER TABLE dbo.ElderProfiles ADD HomeLongitude FLOAT NULL;
+
+    IF COL_LENGTH('dbo.Incidents', 'HeartRateBpm') IS NULL
+        ALTER TABLE dbo.Incidents ADD HeartRateBpm FLOAT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'SpO2Percent') IS NULL
+        ALTER TABLE dbo.Incidents ADD SpO2Percent FLOAT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'BpSystolic') IS NULL
+        ALTER TABLE dbo.Incidents ADD BpSystolic FLOAT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'BpDiastolic') IS NULL
+        ALTER TABLE dbo.Incidents ADD BpDiastolic FLOAT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'VitalsMeasuredAt') IS NULL
+        ALTER TABLE dbo.Incidents ADD VitalsMeasuredAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.Incidents', 'GpsLocation') IS NULL
+        ALTER TABLE dbo.Incidents ADD GpsLocation NVARCHAR(100) NULL;
+    IF COL_LENGTH('dbo.Incidents', 'CurrentGpsLocation') IS NULL
+        ALTER TABLE dbo.Incidents ADD CurrentGpsLocation NVARCHAR(100) NULL;
+    IF COL_LENGTH('dbo.Incidents', 'CurrentGpsMeasuredAt') IS NULL
+        ALTER TABLE dbo.Incidents ADD CurrentGpsMeasuredAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.Incidents', 'CurrentGpsIsSimulated') IS NULL
+        ALTER TABLE dbo.Incidents ADD CurrentGpsIsSimulated BIT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'CurrentGpsAccuracyMeters') IS NULL
+        ALTER TABLE dbo.Incidents ADD CurrentGpsAccuracyMeters FLOAT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'HomeAddressSnapshot') IS NULL
+        ALTER TABLE dbo.Incidents ADD HomeAddressSnapshot NVARCHAR(500) NULL;
+    IF COL_LENGTH('dbo.Incidents', 'AlertCycleNumber') IS NULL
+        ALTER TABLE dbo.Incidents ADD AlertCycleNumber INT NOT NULL CONSTRAINT DF_Incidents_AlertCycleNumber DEFAULT 1;
+    IF COL_LENGTH('dbo.Incidents', 'AlertStartedAt') IS NULL
+        ALTER TABLE dbo.Incidents ADD AlertStartedAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.Incidents', 'AlertDeadlineAt') IS NULL
+        ALTER TABLE dbo.Incidents ADD AlertDeadlineAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.Incidents', 'SlaBreachedAt') IS NULL
+        ALTER TABLE dbo.Incidents ADD SlaBreachedAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.Incidents', 'ReminderCount') IS NULL
+        ALTER TABLE dbo.Incidents ADD ReminderCount INT NOT NULL CONSTRAINT DF_Incidents_ReminderCount DEFAULT 0;
+    IF COL_LENGTH('dbo.Incidents', 'NextReminderAt') IS NULL
+        ALTER TABLE dbo.Incidents ADD NextReminderAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.Incidents', 'ConnectivityLostAt') IS NULL
+        ALTER TABLE dbo.Incidents ADD ConnectivityLostAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.Incidents', 'LatestCriticalHeartRateBpm') IS NULL
+        ALTER TABLE dbo.Incidents ADD LatestCriticalHeartRateBpm FLOAT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'LatestCriticalRuleCode') IS NULL
+        ALTER TABLE dbo.Incidents ADD LatestCriticalRuleCode NVARCHAR(50) NULL;
+    IF COL_LENGTH('dbo.Incidents', 'AcknowledgedCriticalHeartRateBpm') IS NULL
+        ALTER TABLE dbo.Incidents ADD AcknowledgedCriticalHeartRateBpm FLOAT NULL;
+    IF COL_LENGTH('dbo.Incidents', 'AcknowledgedCriticalRuleCode') IS NULL
+        ALTER TABLE dbo.Incidents ADD AcknowledgedCriticalRuleCode NVARCHAR(50) NULL;
+
+    IF OBJECT_ID('dbo.ClinicalRuleCooldowns', 'U') IS NULL
+        CREATE TABLE dbo.ClinicalRuleCooldowns (
+            ElderProfileId NVARCHAR(50) NOT NULL,
+            RuleCode NVARCHAR(50) NOT NULL,
+            LastAlertAt DATETIME2 NOT NULL,
+            LastIncidentId NVARCHAR(50) NOT NULL,
+            CONSTRAINT PK_ClinicalRuleCooldowns PRIMARY KEY (ElderProfileId, RuleCode),
+            CONSTRAINT FK_ClinicalRuleCooldowns_Elder FOREIGN KEY (ElderProfileId)
+                REFERENCES dbo.ElderProfiles(Id) ON DELETE CASCADE
+        );
+
+    IF COL_LENGTH('dbo.IncidentTimelineEvents', 'ActorCaregiverId') IS NULL
+        ALTER TABLE dbo.IncidentTimelineEvents ADD ActorCaregiverId NVARCHAR(50) NULL;
+    IF COL_LENGTH('dbo.IncidentTimelineEvents', 'AlertCycleNumber') IS NULL
+        ALTER TABLE dbo.IncidentTimelineEvents ADD AlertCycleNumber INT NULL;
+
+    IF COL_LENGTH('dbo.NotificationOutboxes', 'AlertCycleNumber') IS NULL
+        ALTER TABLE dbo.NotificationOutboxes ADD AlertCycleNumber INT NOT NULL CONSTRAINT DF_NotificationOutboxes_AlertCycleNumber DEFAULT 1;
+    IF COL_LENGTH('dbo.NotificationOutboxes', 'LeaseExpiresAt') IS NULL
+        ALTER TABLE dbo.NotificationOutboxes ADD LeaseExpiresAt DATETIME2 NULL;
+    IF COL_LENGTH('dbo.NotificationOutboxes', 'ProviderMessageId') IS NULL
+        ALTER TABLE dbo.NotificationOutboxes ADD ProviderMessageId NVARCHAR(200) NULL;
+    IF COL_LENGTH('dbo.NotificationOutboxes', 'LastErrorCode') IS NULL
+        ALTER TABLE dbo.NotificationOutboxes ADD LastErrorCode NVARCHAR(100) NULL;
+    IF COL_LENGTH('dbo.NotificationOutboxes', 'RowVersion') IS NULL
+        ALTER TABLE dbo.NotificationOutboxes ADD RowVersion ROWVERSION;
+
+    -- Bỏ đường cascade có thể xóa lịch sử sự cố và timeline (Task 8 / Bước 8)
+    IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Incidents_Elder' AND delete_referential_action = 1)
+    BEGIN
+        ALTER TABLE dbo.Incidents DROP CONSTRAINT FK_Incidents_Elder;
+        ALTER TABLE dbo.Incidents ADD CONSTRAINT FK_Incidents_Elder FOREIGN KEY (ElderProfileId) REFERENCES dbo.ElderProfiles(Id) ON DELETE NO ACTION;
+    END;
+
+    IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Timeline_Incident' AND delete_referential_action = 1)
+    BEGIN
+        ALTER TABLE dbo.IncidentTimelineEvents DROP CONSTRAINT FK_Timeline_Incident;
+        ALTER TABLE dbo.IncidentTimelineEvents ADD CONSTRAINT FK_Timeline_Incident FOREIGN KEY (IncidentId) REFERENCES dbo.Incidents(Id) ON DELETE NO ACTION;
+    END;
+
+    -- Triggers bảo vệ lịch sử bất biến tại mức CSDL SQL Server (Task 8 / Bước 8)
+    EXEC('
+    CREATE OR ALTER TRIGGER dbo.TR_Incidents_PreventResolvedModification
+    ON dbo.Incidents
+    AFTER UPDATE, DELETE
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        IF CAST(SESSION_CONTEXT(N''ALLOW_ADMIN_HISTORICAL_OVERRIDE'') AS NVARCHAR(10)) = N''TRUE''
+            RETURN;
+
+        IF EXISTS (SELECT 1 FROM deleted WHERE [Status] = 3)
+        BEGIN
+            RAISERROR(''Incident history is immutable. Cannot update or delete a resolved incident.'', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+    END;');
+
+    EXEC('
+    CREATE OR ALTER TRIGGER dbo.TR_IncidentTimelineEvents_PreventModification
+    ON dbo.IncidentTimelineEvents
+    AFTER UPDATE, DELETE
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        IF CAST(SESSION_CONTEXT(N''ALLOW_ADMIN_HISTORICAL_OVERRIDE'') AS NVARCHAR(10)) = N''TRUE''
+            RETURN;
+
+        RAISERROR(''Incident timeline events are append-only and cannot be updated or deleted.'', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;');
+
+    EXEC('
+    CREATE OR ALTER TRIGGER dbo.TR_IncidentPhotos_PreventModification
+    ON dbo.IncidentPhotos
+    AFTER UPDATE, DELETE
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        RAISERROR(''Incident photos are append-only.'', 16, 1);
+        ROLLBACK TRANSACTION;
+    END;');
     """;
 
     public static async Task InitializeDatabaseAsync(string connectionString, ILogger? logger = null, CancellationToken ct = default)

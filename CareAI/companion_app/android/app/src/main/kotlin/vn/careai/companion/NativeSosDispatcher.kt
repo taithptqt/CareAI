@@ -1,18 +1,27 @@
 package vn.careai.companion
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
 import android.os.Build
+import android.os.CancellationSignal
 import android.util.Log
 import androidx.work.*
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
+import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 object NativeSosDispatcher {
 
@@ -22,6 +31,11 @@ object NativeSosDispatcher {
         val serverUrl = appPrefs.getString("flutter.server_base_url", "http://10.0.2.2:5097") ?: "http://10.0.2.2:5097"
         val deviceId = appPrefs.getString("flutter.device_id", "") ?: ""
         val deviceToken = appPrefs.getString("flutter.device_token", "") ?: ""
+        val gpsAt = appPrefs.getLong("flutter.careai_recent_gps_at", 0L)
+        val recentGps = appPrefs.getString("flutter.careai_recent_gps", null)
+        val recentGpsSimulated = appPrefs.getBoolean("flutter.careai_recent_gps_simulated", false)
+        val hadFreshGps = recentGps != null && gpsAt > 0 &&
+            kotlin.math.abs(System.currentTimeMillis() - gpsAt) <= 15_000L
 
         // [BẤT BIẾN P0-4]: ĐỒNG NHẤT CANONICAL PACKETID (CHỐNG DUPLICATE RACE CONDITION VỚI FLUTTER)
         val canonicalPacketId = "FALL_${record.eventId}"
@@ -31,6 +45,10 @@ object NativeSosDispatcher {
             put("packetId", canonicalPacketId)
             put("eventId", record.eventId)
             put("emergencyType", "FALL")
+            if (hadFreshGps) {
+                put("gpsLocation", recentGps)
+                put("gpsIsSimulated", recentGpsSimulated || DeviceLocationSource.isEmulator())
+            }
             put("notes", "CẢNH BÁO TÉ NGÃ NATIVE FAIL-SAFE: Cảm biến Galaxy Watch xác nhận ngã phần cứng. Watchdog OS kích hoạt Outbox-First SOS.")
             put("samples", JSONArray().apply {
                 put(JSONObject().apply {
@@ -81,16 +99,71 @@ object NativeSosDispatcher {
 
                 val responseCode = conn.responseCode
                 if (responseCode in 200..299) {
+                    val responseBody = conn.inputStream.bufferedReader().use { it.readText() }
                     Log.w("CareAI-Dispatcher", "[OUTBOX-FIRST SUCCESS] Máy chủ xác nhận HTTP $responseCode! Cập nhật SOS_SENT và xóa Outbox.")
                     CareAiFallStore.updateStatus(context, record.eventId, "SOS_SENT")
                     outboxPrefs.edit().remove("outbox_${record.eventId}").commit()
                     WorkManager.getInstance(context).cancelUniqueWork("native_sos_retry_${record.eventId}")
+                    val incidentId = JSONObject(responseBody).optString("incidentId")
+                    if (incidentId.isNotBlank() && !hadFreshGps) {
+                        attachCurrentLocation(context, serverUrl, deviceId, deviceToken, incidentId)
+                    }
                 } else {
                     Log.e("CareAI-Dispatcher", "[FAST-PATH FAILED] HTTP $responseCode. Sự cố vẫn nằm an toàn trong Outbox cho WorkManager!")
                 }
             } catch (e: Exception) {
                 Log.e("CareAI-Dispatcher", "[FAST-PATH EXCEPTION] Lỗi kết nối mạng: ${e.message}. Sự cố vẫn nằm an toàn trong Outbox cho WorkManager!")
             }
+        }
+    }
+
+    suspend fun attachCurrentLocation(context: Context, serverUrl: String,
+                                      deviceId: String, deviceToken: String, incidentId: String) {
+        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED) return
+        val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val provider = when {
+            manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+            manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+            else -> return
+        }
+        try {
+            val location = withTimeoutOrNull(15_000L) {
+                suspendCancellableCoroutine<Location?> { continuation ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        val cancellation = CancellationSignal()
+                        continuation.invokeOnCancellation { cancellation.cancel() }
+                        manager.getCurrentLocation(provider, cancellation, context.mainExecutor) {
+                            if (continuation.isActive) continuation.resume(it)
+                        }
+                    } else {
+                        continuation.resume(manager.getLastKnownLocation(provider))
+                    }
+                }
+            } ?: return
+            if (kotlin.math.abs(System.currentTimeMillis() - location.time) > 30_000L) return
+            val coordinates = String.format(Locale.US, "%.6f, %.6f", location.latitude, location.longitude)
+            val body = JSONObject().apply {
+                put("coordinates", coordinates)
+                put("capturedAt", Instant.ofEpochMilli(location.time).toString())
+                put("isSimulated", DeviceLocationSource.isEmulator() ||
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) location.isMock
+                    else location.isFromMockProvider)
+                if (location.hasAccuracy()) put("accuracyMeters", location.accuracy.toDouble())
+            }.toString()
+            val conn = URL("$serverUrl/api/v1/incidents/$incidentId/location").openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("X-DeviceId", deviceId)
+            conn.setRequestProperty("X-Device-Token", deviceToken)
+            conn.doOutput = true
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
+            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            Log.i("CareAI-Dispatcher", "Đã gửi GPS hiện tại của sự cố $incidentId: HTTP ${conn.responseCode}")
+            conn.disconnect()
+        } catch (e: Exception) {
+            Log.w("CareAI-Dispatcher", "Không lấy/gửi được GPS hiện tại: ${e.javaClass.simpleName}")
         }
     }
 
@@ -147,9 +220,15 @@ class NativeSosRetryWorker(appContext: Context, workerParams: WorkerParameters) 
 
             val responseCode = conn.responseCode
             if (responseCode in 200..299) {
+                val responseBody = conn.inputStream.bufferedReader().use { it.readText() }
                 Log.w("CareAI-RetryWorker", "[RETRY SUCCESS] WorkManager đã gửi thành công SOS sự cố $eventId! HTTP $responseCode")
                 CareAiFallStore.updateStatus(applicationContext, eventId, "SOS_SENT")
                 outboxPrefs.edit().remove("outbox_$eventId").commit()
+                val incidentId = JSONObject(responseBody).optString("incidentId")
+                if (incidentId.isNotBlank()) {
+                    NativeSosDispatcher.attachCurrentLocation(applicationContext, serverUrl,
+                        deviceId, deviceToken, incidentId)
+                }
                 Result.success()
             } else {
                 Log.e("CareAI-RetryWorker", "[RETRY FAILED] HTTP $responseCode. WorkManager sẽ thử lại với Exponential Backoff...")
