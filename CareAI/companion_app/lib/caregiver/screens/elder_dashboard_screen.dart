@@ -9,6 +9,7 @@ import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 import 'incident_detail_screen.dart';
 import 'incident_history_screen.dart';
+import 'health_corner_screen.dart';
 
 class ElderDashboardScreen extends StatefulWidget {
   final String elderProfileId;
@@ -179,6 +180,15 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
             ),
           ),
           IconButton(
+            tooltip: 'Góc Sức Khỏe AI',
+            icon: const Icon(Icons.auto_awesome, color: Color(0xFF38BDF8)),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => HealthCornerScreen(elderId: widget.elderProfileId),
+              ),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Color(0xFF38BDF8)),
             tooltip: 'Làm mới dữ liệu',
             onPressed: _loadDashboard,
@@ -247,6 +257,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
 
               // 1. THẺ HỒ SƠ NGƯỜI CAO TUỔI & TRẠNG THÁI THIẾT BỊ
               _buildElderProfileCard(d, isOnline),
+              const SizedBox(height: 14),
+
+              // 1.1 GÓC SỨC KHỎE AI (PHẦN 4: NHẬN ĐỊNH SỨC KHỎE & BÁO CÁO TUẦN)
+              _buildHealthCornerCard(),
               const SizedBox(height: 14),
 
               // 2. LƯỚI CHỈ SỐ SINH HIỆU THỜI GIAN THỰC (4 CARDS)
@@ -403,6 +417,41 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // --- GÓC SỨC KHỎE AI (PHẦN 4) ---
+  Widget _buildHealthCornerCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.auto_awesome, color: Color(0xFF38BDF8), size: 22),
+        ),
+        title: const Text(
+          'Góc Sức Khỏe AI',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+        ),
+        subtitle: const Text(
+          'Nhận định xu hướng & Báo cáo tổng kết tuần',
+          style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => HealthCornerScreen(elderId: widget.elderProfileId),
+          ),
+        ),
       ),
     );
   }
