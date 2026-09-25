@@ -22,6 +22,8 @@ public class CareAiDbContext : DbContext
     public DbSet<NotificationOutbox> NotificationOutboxes => Set<NotificationOutbox>();
     public DbSet<ProcessedTelemetryLedger> ProcessedTelemetryLedgers => Set<ProcessedTelemetryLedger>();
     public DbSet<ClinicalRuleCooldown> ClinicalRuleCooldowns => Set<ClinicalRuleCooldown>();
+    public DbSet<FamilyInvitation> FamilyInvitations => Set<FamilyInvitation>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     /// <summary>
     /// Cho phép ngoại lệ quản trị ghi đè hoặc bảo trì lịch sử nếu có yêu cầu pháp lý/tuân thủ đặc biệt.
@@ -107,6 +109,9 @@ public class CareAiDbContext : DbContext
             b.Property(e => e.NightHeartRateMax).HasDefaultValue(90.0);
             b.Property(e => e.SleepWindowStart).HasMaxLength(10).HasDefaultValue("22:00");
             b.Property(e => e.SleepWindowEnd).HasMaxLength(10).HasDefaultValue("06:00");
+            b.Property(e => e.PairingPinHash).HasMaxLength(128);
+            b.Property(e => e.IsDeleted).HasDefaultValue(false);
+            b.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // 2. DeviceRegistration
@@ -131,6 +136,8 @@ public class CareAiDbContext : DbContext
             b.Property(c => c.FullName).HasMaxLength(100).IsRequired();
             b.Property(c => c.PhoneNumber).HasMaxLength(20).IsRequired();
             b.Property(c => c.Email).HasMaxLength(100).IsRequired();
+            b.Property(c => c.PasswordHash).HasMaxLength(256).IsRequired();
+            b.Property(c => c.FailedLoginAttempts).HasDefaultValue(0);
             b.HasIndex(c => c.Email).IsUnique();
         });
 
@@ -280,6 +287,38 @@ public class CareAiDbContext : DbContext
             b.Property(c => c.ElderProfileId).HasMaxLength(50);
             b.Property(c => c.RuleCode).HasMaxLength(50);
             b.Property(c => c.LastIncidentId).HasMaxLength(50).IsRequired();
+        });
+
+        // 11. FamilyInvitation (Mã mời gia đình 6 ký tự, TTL 24h)
+        modelBuilder.Entity<FamilyInvitation>(b =>
+        {
+            b.HasKey(f => f.Id);
+            b.Property(f => f.InvitationCode).HasMaxLength(10).IsRequired();
+            b.Property(f => f.InvitationCodeHash).HasMaxLength(128).IsRequired();
+            b.HasOne(f => f.ElderProfile)
+                .WithMany()
+                .HasForeignKey(f => f.ElderProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(f => f.InvitedByCaregiver)
+                .WithMany()
+                .HasForeignKey(f => f.InvitedByCaregiverId)
+                .OnDelete(DeleteBehavior.NoAction);
+            b.HasIndex(f => f.InvitationCodeHash);
+            b.HasIndex(f => f.ExpiresAt);
+        });
+
+        // 12. PasswordResetToken (OTP 6 số qua Email, TTL 10 phút)
+        modelBuilder.Entity<PasswordResetToken>(b =>
+        {
+            b.HasKey(p => p.Id);
+            b.Property(p => p.OtpCode).HasMaxLength(10).IsRequired();
+            b.Property(p => p.OtpHash).HasMaxLength(128).IsRequired();
+            b.HasOne(p => p.Caregiver)
+                .WithMany()
+                .HasForeignKey(p => p.CaregiverId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(p => p.OtpHash);
+            b.HasIndex(p => p.ExpiresAt);
         });
     }
 }

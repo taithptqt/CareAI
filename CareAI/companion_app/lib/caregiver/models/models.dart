@@ -736,3 +736,116 @@ class PagedIncidents {
     );
   }
 }
+
+// ===== PHẦN 3: MODELS CHO QUẢN TRỊ NHÓM GIA ĐÌNH & VÒNG ĐỜI THIẾT BỊ =====
+
+class FamilyInvitationResponse {
+  final String invitationCode;
+  final DateTime expiresAt;
+
+  FamilyInvitationResponse({
+    required this.invitationCode,
+    required this.expiresAt,
+  });
+
+  factory FamilyInvitationResponse.fromJson(Map<String, dynamic> json) {
+    return FamilyInvitationResponse(
+      invitationCode: json['invitationCode'] ?? '',
+      expiresAt: DateTime.tryParse(json['expiresAt'] ?? '') ?? DateTime.now().add(const Duration(hours: 24)),
+    );
+  }
+}
+
+class AcceptInvitationResponse {
+  final String elderProfileId;
+  final String elderName;
+  final String role;
+
+  AcceptInvitationResponse({
+    required this.elderProfileId,
+    required this.elderName,
+    required this.role,
+  });
+
+  factory AcceptInvitationResponse.fromJson(Map<String, dynamic> json) {
+    return AcceptInvitationResponse(
+      elderProfileId: json['elderProfileId'] ?? '',
+      elderName: json['elderName'] ?? '',
+      role: json['role'] ?? 'Secondary',
+    );
+  }
+}
+
+class FamilyMember {
+  final String caregiverId;
+  final String fullName;
+  final String email;
+  final String phoneNumber;
+  final String role;
+  final bool isActive;
+  final DateTime assignedAt;
+
+  FamilyMember({
+    required this.caregiverId,
+    required this.fullName,
+    required this.email,
+    required this.phoneNumber,
+    required this.role,
+    required this.isActive,
+    required this.assignedAt,
+  });
+
+  bool get isPrimary => role.toUpperCase() == 'PRIMARY';
+
+  factory FamilyMember.fromJson(Map<String, dynamic> json) {
+    return FamilyMember(
+      caregiverId: json['caregiverId'] ?? '',
+      fullName: json['fullName'] ?? '',
+      email: json['email'] ?? '',
+      phoneNumber: json['phoneNumber'] ?? '',
+      role: json['role'] ?? 'Secondary',
+      isActive: json['isActive'] ?? true,
+      assignedAt: DateTime.tryParse(json['assignedAt'] ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
+class UnpairDeviceResponse {
+  final String deviceId;
+  final String status;
+  final String message;
+
+  UnpairDeviceResponse({
+    required this.deviceId,
+    required this.status,
+    required this.message,
+  });
+
+  factory UnpairDeviceResponse.fromJson(Map<String, dynamic> json) {
+    return UnpairDeviceResponse(
+      deviceId: json['deviceId'] ?? '',
+      status: json['status'] ?? '',
+      message: json['message'] ?? '',
+    );
+  }
+}
+
+class DeleteElderResponse {
+  final String elderProfileId;
+  final String status;
+  final String message;
+
+  DeleteElderResponse({
+    required this.elderProfileId,
+    required this.status,
+    required this.message,
+  });
+
+  factory DeleteElderResponse.fromJson(Map<String, dynamic> json) {
+    return DeleteElderResponse(
+      elderProfileId: json['elderProfileId'] ?? '',
+      status: json['status'] ?? '',
+      message: json['message'] ?? '',
+    );
+  }
+}

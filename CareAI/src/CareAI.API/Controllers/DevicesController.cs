@@ -26,7 +26,8 @@ public class DevicesController : ControllerBase
     }
 
     /// <summary>
-    /// Tạo mã PIN 6 số để ghép nối thiết bị phần cứng (Hiệu lực 10 phút)
+    /// Tạo mã PIN 6 số để ghép nối thiết bị phần cứng (Hiệu lực 15 phút, lưu băm SHA-256) (UC-02)
+    /// RBAC: Chỉ Primary Caregiver mới có quyền tạo mã ghép nối.
     /// </summary>
     [HttpPost("generate-pin/{elderProfileId}")]
     [Authorize]
@@ -39,36 +40,46 @@ public class DevicesController : ControllerBase
         if (string.IsNullOrEmpty(caregiverId))
             return Unauthorized();
 
-        var isAuthorized = await _db.ElderCaregivers
-            .AnyAsync(ec => ec.CaregiverId == caregiverId && ec.ElderProfileId == elderProfileId && ec.IsActive, ct);
+        var relation = await _db.ElderCaregivers
+            .FirstOrDefaultAsync(ec => ec.CaregiverId == caregiverId && ec.ElderProfileId == elderProfileId && ec.IsActive, ct);
 
-        if (!isAuthorized)
+        if (relation == null)
         {
             _logger.LogWarning("[DEVICE-PIN-FORBIDDEN] Caregiver {CaregiverId} không có quyền trên Elder {ElderId}", caregiverId, elderProfileId);
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền quản lý người cao tuổi này." });
         }
 
-        var elder = await _db.ElderProfiles.FirstOrDefaultAsync(e => e.Id == elderProfileId, ct);
+        if (relation.Role != CareAI.Core.Enums.CaregiverRole.Primary)
+        {
+            _logger.LogWarning("[DEVICE-PIN-FORBIDDEN] Secondary Caregiver {CaregiverId} cố gắng tạo PIN cho Elder {ElderId}", caregiverId, elderProfileId);
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Chỉ người bảo hộ chính (Primary) mới có quyền tạo mã ghép nối thiết bị." });
+        }
+
+        var elder = await _db.ElderProfiles.FirstOrDefaultAsync(e => e.Id == elderProfileId && !e.IsDeleted, ct);
         if (elder == null)
         {
             return NotFound(new { error = "Không tìm thấy hồ sơ người cao tuổi." });
         }
 
         var pin = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
-        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+        var expiresAt = DateTime.UtcNow.AddMinutes(15);
+
+        using var sha = SHA256.Create();
+        var pinHash = Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(pin))).ToLowerInvariant();
 
         elder.PairingPin = pin;
+        elder.PairingPinHash = pinHash;
         elder.PinExpiresAt = expiresAt;
         elder.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("[DEVICE-PIN] Đã tạo mã PIN ghép nối cho Cụ {ElderId}: {Pin}", elderProfileId, pin);
+        _logger.LogInformation("[DEVICE-PIN] Đã tạo mã PIN ghép nối 15 phút cho Cụ {ElderId}: {Pin}", elderProfileId, pin);
 
         return Ok(new GeneratePinResponse(pin, expiresAt));
     }
 
     /// <summary>
-    /// Ghép nối thiết bị phần cứng mới bằng mã PIN (Tự sinh Token mật mã ngẫu nhiên 256-bit)
+    /// Ghép nối thiết bị phần cứng mới bằng mã PIN (Tự sinh Token mật mã ngẫu nhiên 256-bit) (UC-02)
     /// </summary>
     [HttpPost("pair")]
     [AllowAnonymous]
@@ -82,9 +93,13 @@ public class DevicesController : ControllerBase
             return BadRequest(new { error = "DeviceId và PairingPin không được để trống." });
         }
 
+        var normalizedPin = request.PairingPin.Trim();
+        using var shaPin = SHA256.Create();
+        var pinHash = Convert.ToHexString(shaPin.ComputeHash(Encoding.UTF8.GetBytes(normalizedPin))).ToLowerInvariant();
+
         var now = DateTime.UtcNow;
         var elder = await _db.ElderProfiles
-            .FirstOrDefaultAsync(e => e.PairingPin == request.PairingPin && e.PinExpiresAt >= now, ct);
+            .FirstOrDefaultAsync(e => !e.IsDeleted && (e.PairingPinHash == pinHash || e.PairingPin == normalizedPin) && e.PinExpiresAt >= now, ct);
 
         if (elder == null)
         {
@@ -134,6 +149,7 @@ public class DevicesController : ControllerBase
 
         // Vô hiệu hóa PIN sau khi sử dụng thành công (One-Time PIN)
         elder.PairingPin = null;
+        elder.PairingPinHash = null;
         elder.PinExpiresAt = null;
         elder.UpdatedAt = now;
 
@@ -180,6 +196,59 @@ public class DevicesController : ControllerBase
         _logger.LogWarning("[REVOKE-DEVICE] Thiết bị {DeviceId} đã bị thu hồi quyền truy cập tức thì!", deviceId);
 
         return Ok(new { message = $"Thiết bị {deviceId} đã bị thu hồi quyền truy cập tức thì.", deviceId });
+    }
+
+    /// <summary>
+    /// Hủy ghép nối thiết bị an toàn, đưa vào Blacklist và phát tín hiệu WIPE_DEVICE_CREDENTIALS (UC-12)
+    /// RBAC: Chỉ Primary Caregiver mới có quyền hủy ghép nối. Secondary Caregiver -> 403 Forbidden.
+    /// </summary>
+    [HttpPost("{deviceId}/unpair")]
+    [Authorize]
+    [ProducesResponseType(typeof(UnpairDeviceResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnpairDevice(string deviceId, [FromServices] IMemoryCache cache, CancellationToken ct)
+    {
+        var caregiverId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(caregiverId))
+            return Unauthorized();
+
+        var device = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == deviceId, ct);
+        if (device == null)
+        {
+            return NotFound(new { error = "Thiết bị không tồn tại." });
+        }
+
+        var relation = await _db.ElderCaregivers
+            .FirstOrDefaultAsync(ec => ec.CaregiverId == caregiverId && ec.ElderProfileId == device.ElderProfileId && ec.IsActive, ct);
+
+        if (relation == null)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền quản lý thiết bị của người cao tuổi này." });
+        }
+
+        if (relation.Role != CareAI.Core.Enums.CaregiverRole.Primary)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Chỉ người bảo hộ chính (Primary) mới có quyền hủy ghép nối thiết bị." });
+        }
+
+        device.IsActive = false;
+        device.DeviceTokenHash = string.Empty;
+        device.UpdatedAt = DateTime.UtcNow;
+
+        // Xóa cache và ghi nhận vào Blacklist 30 ngày
+        DeviceTokenAuthMiddleware.InvalidateDevice(cache, deviceId);
+        cache.Set($"blacklist:dev:{deviceId}", true, TimeSpan.FromDays(30));
+
+        await _db.SaveChangesAsync(ct);
+        _logger.LogWarning("[DEVICE-UNPAIR] Thiết bị {DeviceId} của Cụ {ElderId} đã bị hủy ghép nối bởi Primary Caregiver {CaregiverId}. Phát tín hiệu WIPE_DEVICE_CREDENTIALS.",
+            deviceId, device.ElderProfileId, caregiverId);
+
+        return Ok(new UnpairDeviceResponse(
+            deviceId,
+            "WIPE_DEVICE_CREDENTIALS",
+            "Thiết bị đã được hủy ghép nối thành công. Lệnh xóa thông tin đăng nhập trên thiết bị (Wipe) đã được kích hoạt."
+        ));
     }
 
     /// <summary>
