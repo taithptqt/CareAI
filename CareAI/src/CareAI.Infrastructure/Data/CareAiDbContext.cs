@@ -17,9 +17,75 @@ public class CareAiDbContext : DbContext
     public DbSet<CaregiverPushToken> CaregiverPushTokens => Set<CaregiverPushToken>();
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<IncidentTimelineEvent> IncidentTimelineEvents => Set<IncidentTimelineEvent>();
+    public DbSet<IncidentPhoto> IncidentPhotos => Set<IncidentPhoto>();
     public DbSet<HealthMeasurement> HealthMeasurements => Set<HealthMeasurement>();
     public DbSet<NotificationOutbox> NotificationOutboxes => Set<NotificationOutbox>();
     public DbSet<ProcessedTelemetryLedger> ProcessedTelemetryLedgers => Set<ProcessedTelemetryLedger>();
+    public DbSet<ClinicalRuleCooldown> ClinicalRuleCooldowns => Set<ClinicalRuleCooldown>();
+
+    /// <summary>
+    /// Cho phép ngoại lệ quản trị ghi đè hoặc bảo trì lịch sử nếu có yêu cầu pháp lý/tuân thủ đặc biệt.
+    /// Mặc định: false (nghiêm cấm sửa/xóa Incident đã đóng hoặc TimelineEvents).
+    /// </summary>
+    public bool AllowAdminHistoricalOverride { get; set; } = false;
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        if (!AllowAdminHistoricalOverride)
+        {
+            EnforceHistoryImmutability();
+        }
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        if (!AllowAdminHistoricalOverride)
+        {
+            EnforceHistoryImmutability();
+        }
+        return base.SaveChanges();
+    }
+
+    private void EnforceHistoryImmutability()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.Entity is Incident incident)
+            {
+                if (entry.State == EntityState.Deleted)
+                {
+                    if (incident.Status == IncidentStatus.Resolved)
+                    {
+                        throw new InvalidOperationException("Cannot delete a resolved incident. Incident history is immutable.");
+                    }
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    var originalStatus = entry.OriginalValues.GetValue<IncidentStatus>(nameof(Incident.Status));
+                    if (originalStatus == IncidentStatus.Resolved)
+                    {
+                        throw new InvalidOperationException("Cannot update an already resolved incident. Incident history is immutable.");
+                    }
+                }
+            }
+            else if (entry.Entity is IncidentTimelineEvent)
+            {
+                if (entry.State == EntityState.Deleted)
+                {
+                    throw new InvalidOperationException("Incident timeline events are append-only and cannot be deleted.");
+                }
+                if (entry.State == EntityState.Modified)
+                {
+                    throw new InvalidOperationException("Incident timeline events are append-only and cannot be updated.");
+                }
+            }
+            else if (entry.Entity is IncidentPhoto && entry.State is EntityState.Modified or EntityState.Deleted)
+            {
+                throw new InvalidOperationException("Incident photos are append-only.");
+            }
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +97,9 @@ public class CareAiDbContext : DbContext
             b.HasKey(e => e.Id);
             b.Property(e => e.FullName).HasMaxLength(100).IsRequired();
             b.Property(e => e.EmergencyContact).HasMaxLength(50);
+            b.Property(e => e.HomeAddress).HasMaxLength(500);
+            b.Property(e => e.HomeLatitude);
+            b.Property(e => e.HomeLongitude);
             b.Property(e => e.PairingPin).HasMaxLength(10);
         });
 
@@ -89,16 +158,25 @@ public class CareAiDbContext : DbContext
         // 6. Incident & Filtered Unique Index UIX_Incidents_SingleActiveElder
         modelBuilder.Entity<Incident>(b =>
         {
+            b.ToTable(tb => tb.HasTrigger("TR_Incidents_PreventResolvedModification"));
             b.HasKey(i => i.Id);
             b.Property(i => i.EmergencyType).HasMaxLength(50).IsRequired();
             b.Property(i => i.Severity).HasConversion<int>().IsRequired();
             b.Property(i => i.Status).HasConversion<int>().IsRequired();
             b.Property(i => i.RowVersion).IsRowVersion();
+            b.Property(i => i.GpsLocation).HasMaxLength(100);
+            b.Property(i => i.CurrentGpsLocation).HasMaxLength(100);
+            b.Property(i => i.HomeAddressSnapshot).HasMaxLength(500);
+            b.Property(i => i.AlertCycleNumber).HasDefaultValue(1);
+            b.Property(i => i.ReminderCount).HasDefaultValue(0);
+            b.Property(i => i.LatestCriticalRuleCode).HasMaxLength(50);
+            b.Property(i => i.AcknowledgedCriticalRuleCode).HasMaxLength(50);
 
+            // Bỏ cascade delete để bảo vệ vĩnh viễn lịch sử sự cố
             b.HasOne(i => i.ElderProfile)
                 .WithMany(e => e.Incidents)
                 .HasForeignKey(i => i.ElderProfileId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             // BẤT BIẾN KỸ THUẬT: Filtered Unique Index chỉ cho phép duy nhất 1 sự cố Active (Open hoặc Acknowledged)
             b.HasIndex(i => i.ElderProfileId)
@@ -110,13 +188,30 @@ public class CareAiDbContext : DbContext
         // 7. IncidentTimelineEvent
         modelBuilder.Entity<IncidentTimelineEvent>(b =>
         {
+            b.ToTable(tb => tb.HasTrigger("TR_IncidentTimelineEvents_PreventModification"));
             b.HasKey(t => t.Id);
             b.Property(t => t.EventType).HasMaxLength(50).IsRequired();
+            b.Property(t => t.ActorCaregiverId).HasMaxLength(50);
+
+            // Bỏ cascade delete để bảo vệ vĩnh viễn dấu vết pháp y y tế (Timeline append-only)
             b.HasOne(t => t.Incident)
                 .WithMany(i => i.TimelineEvents)
                 .HasForeignKey(t => t.IncidentId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
             b.HasIndex(t => t.IncidentId);
+        });
+
+        // 8. HealthMeasurement & Deduplication Index
+        modelBuilder.Entity<IncidentPhoto>(b =>
+        {
+            b.ToTable(tb => tb.HasTrigger("TR_IncidentPhotos_PreventModification"));
+            b.HasKey(p => p.IncidentId);
+            b.Property(p => p.DeviceId).HasMaxLength(50).IsRequired();
+            b.Property(p => p.Sha256).HasMaxLength(64).IsRequired();
+            b.Property(p => p.JpegBytes).IsRequired();
+            b.HasOne(p => p.Incident).WithOne()
+                .HasForeignKey<IncidentPhoto>(p => p.IncidentId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // 8. HealthMeasurement & Deduplication Index
@@ -145,6 +240,10 @@ public class CareAiDbContext : DbContext
         {
             b.HasKey(n => n.Id);
             b.Property(n => n.Status).HasMaxLength(20).HasDefaultValue("PENDING");
+            b.Property(n => n.AlertCycleNumber).HasDefaultValue(1);
+            b.Property(n => n.RowVersion).IsRowVersion();
+            b.Property(n => n.ProviderMessageId).HasMaxLength(200);
+            b.Property(n => n.LastErrorCode).HasMaxLength(100);
             b.HasOne(n => n.Incident)
                 .WithMany()
                 .HasForeignKey(n => n.IncidentId)
@@ -158,6 +257,14 @@ public class CareAiDbContext : DbContext
             b.HasKey(p => new { p.DeviceId, p.PacketId })
                 .HasName("PK_ProcessedTelemetryLedgers");
             b.HasIndex(p => p.ReceivedAt);
+        });
+
+        modelBuilder.Entity<ClinicalRuleCooldown>(b =>
+        {
+            b.HasKey(c => new { c.ElderProfileId, c.RuleCode });
+            b.Property(c => c.ElderProfileId).HasMaxLength(50);
+            b.Property(c => c.RuleCode).HasMaxLength(50);
+            b.Property(c => c.LastIncidentId).HasMaxLength(50).IsRequired();
         });
     }
 }

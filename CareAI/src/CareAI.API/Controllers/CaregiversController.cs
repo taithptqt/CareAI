@@ -6,6 +6,7 @@ using CareAI.Core.DTOs;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
+using CareAI.Infrastructure.Engines;
 
 namespace CareAI.API.Controllers;
 
@@ -75,6 +76,21 @@ public class CaregiversController : ControllerBase
         return Ok(new { status = "TOKEN_REGISTERED", caregiverId });
     }
 
+    [HttpDelete("push-token")]
+    public async Task<IActionResult> UnregisterPushToken([FromBody] RegisterPushTokenRequest request, CancellationToken ct)
+    {
+        var caregiverId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(caregiverId)) return Unauthorized();
+        var token = await _db.CaregiverPushTokens.FirstOrDefaultAsync(t =>
+            t.CaregiverId == caregiverId && t.PushToken == request.PushToken, ct);
+        if (token == null) return NoContent();
+        token.IsActive = false;
+        token.DeactivatedAt = DateTime.UtcNow;
+        token.DeactivationReason = "LOGOUT";
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /// <summary>
     /// Danh sách Người cao tuổi mà Người thân này đang chăm sóc (UC-02 / UC-10)
     /// </summary>
@@ -101,7 +117,7 @@ public class CaregiversController : ControllerBase
             {
                 var elder = ec.ElderProfile!;
                 var activeDevices = elder.Devices.Where(d => d.IsActive).ToList();
-                var isOnline = activeDevices.Any(d => d.LastHeartbeat >= now.AddMinutes(-15));
+                var isOnline = activeDevices.Any(d => d.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfter));
                 var deviceStatus = isOnline ? "ONLINE" : "OFFLINE";
 
                 return new ElderItemDto(
@@ -113,7 +129,10 @@ public class CaregiversController : ControllerBase
                     elder.PairingPin,
                     elder.PinExpiresAt,
                     activeDevices.Count,
-                    deviceStatus
+                    deviceStatus,
+                    elder.HomeAddress,
+                    elder.HomeLatitude,
+                    elder.HomeLongitude
                 );
             })
             .ToList();
@@ -136,6 +155,10 @@ public class CaregiversController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(request.FullName))
             return BadRequest(new { error = "Họ tên người cao tuổi không được để trống." });
+        if (request.HomeAddress?.Trim().Length > 500)
+            return BadRequest(new { error = "Địa chỉ nhà không được vượt quá 500 ký tự." });
+        if (!IsValidHomeCoordinates(request.HomeLatitude, request.HomeLongitude))
+            return BadRequest(new { error = "Tọa độ nhà không hợp lệ." });
 
         var elder = new ElderProfile
         {
@@ -144,6 +167,9 @@ public class CaregiversController : ControllerBase
             DateOfBirth = request.DateOfBirth,
             MedicalNotes = request.MedicalNotes?.Trim(),
             EmergencyContact = request.EmergencyContact?.Trim(),
+            HomeAddress = string.IsNullOrWhiteSpace(request.HomeAddress) ? null : request.HomeAddress.Trim(),
+            HomeLatitude = request.HomeLatitude,
+            HomeLongitude = request.HomeLongitude,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -173,9 +199,53 @@ public class CaregiversController : ControllerBase
             elder.PairingPin,
             elder.PinExpiresAt,
             0,
-            "OFFLINE"
+            "OFFLINE",
+            elder.HomeAddress,
+            elder.HomeLatitude,
+            elder.HomeLongitude
         );
 
         return StatusCode(StatusCodes.Status201Created, dto);
     }
+
+    [HttpPut("elders/{id}/home-address")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateElderHomeAddress(string id, [FromBody] UpdateElderHomeAddressRequest request, CancellationToken ct)
+    {
+        var caregiverId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(caregiverId))
+            return Unauthorized();
+
+        var isAuthorized = await _db.ElderCaregivers.AnyAsync(ec =>
+            ec.ElderProfileId == id && ec.CaregiverId == caregiverId && ec.IsActive, ct);
+        if (!isAuthorized)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền sửa hồ sơ người cao tuổi này." });
+
+        var address = request.HomeAddress?.Trim();
+        if (address?.Length > 500)
+            return BadRequest(new { error = "Địa chỉ nhà không được vượt quá 500 ký tự." });
+        if (!IsValidHomeCoordinates(request.HomeLatitude, request.HomeLongitude))
+            return BadRequest(new { error = "Tọa độ nhà không hợp lệ." });
+
+        var elder = await _db.ElderProfiles.FirstOrDefaultAsync(e => e.Id == id, ct);
+        if (elder == null)
+            return NotFound(new { error = "Không tìm thấy hồ sơ người cao tuổi." });
+
+        elder.HomeAddress = string.IsNullOrWhiteSpace(address) ? null : address;
+        elder.HomeLatitude = request.HomeLatitude;
+        elder.HomeLongitude = request.HomeLongitude;
+        elder.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { elderId = id, homeAddress = elder.HomeAddress,
+            homeLatitude = elder.HomeLatitude, homeLongitude = elder.HomeLongitude });
+    }
+
+    private static bool IsValidHomeCoordinates(double? latitude, double? longitude) =>
+        latitude.HasValue == longitude.HasValue &&
+        (!latitude.HasValue ||
+         (double.IsFinite(latitude.Value) && latitude.Value is >= -90 and <= 90 &&
+          double.IsFinite(longitude!.Value) && longitude.Value is >= -180 and <= 180));
 }

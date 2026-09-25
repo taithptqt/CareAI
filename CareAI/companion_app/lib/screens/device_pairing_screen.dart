@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import 'role_selection_screen.dart';
 import 'sos_button_screen.dart';
 
 class DevicePairingScreen extends StatefulWidget {
@@ -77,17 +79,37 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
     }
   }
 
+  Future<void> _goBackToRoleSelection() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(RoleSelectionScreen.prefSelectedRole);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text('Ghép Nối Thiết Bị CareAI', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF1E293B),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _goBackToRoleSelection();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+            tooltip: 'Quay lại Chọn vai trò',
+            onPressed: _goBackToRoleSelection,
+          ),
+          title: const Text('Ghép Nối Thiết Bị CareAI', style: TextStyle(fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          backgroundColor: const Color(0xFF1E293B),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -214,12 +236,26 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: _isLoading ? null : _goBackToRoleSelection,
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 20, color: Color(0xFF64748B)),
+                    label: const Text(
+                      'Quay lại: Tôi là Người thân chăm sóc (Con cái)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

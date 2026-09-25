@@ -7,6 +7,7 @@ using CareAI.API.Middlewares;
 using CareAI.Infrastructure.BackgroundWorkers;
 using CareAI.Infrastructure.Data;
 using CareAI.Infrastructure.Engines;
+using CareAI.Infrastructure.Notifications;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,9 +31,16 @@ builder.Services.AddMemoryCache(options =>
 // 3. ĐĂNG KÝ CORE ENGINES
 builder.Services.AddScoped<TelemetryEngine>();
 builder.Services.AddScoped<ClinicalDiagnosticEngine>();
+builder.Services.AddScoped<DeviceStaleEngine>();
+builder.Services.AddScoped<NotificationDispatchEngine>();
+builder.Services.Configure<AlertingOptions>(builder.Configuration.GetSection(AlertingOptions.SectionName));
+builder.Services.AddScoped<AlertSlaEngine>();
+builder.Services.AddScoped<UrgentTelemetryEngine>();
+builder.Services.AddSingleton<IPushSender, FirebasePushSender>();
 
 // 4. ĐĂNG KÝ HỆ THỐNG BACKGROUND WORKERS
 builder.Services.AddHostedService<NotificationDispatcherWorker>();
+builder.Services.AddHostedService<AlertSlaWorker>();
 builder.Services.AddHostedService<WatchdogBackgroundWorker>();
 builder.Services.AddHostedService<DataRetentionBackgroundWorker>();
 
