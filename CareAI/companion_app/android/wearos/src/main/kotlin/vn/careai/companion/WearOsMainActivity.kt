@@ -25,6 +25,12 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private lateinit var btnSimulateFall: Button
     private lateinit var btnManualSos: Button
 
+    // 4 Nút thử nghiệm trực tiếp trên màn hình đồng hồ
+    private lateinit var btnTestTachycardia: Button
+    private lateinit var btnTestBradycardia: Button
+    private lateinit var btnTestHypoxia: Button
+    private lateinit var btnTestNormal: Button
+
     private var sensorManager: SensorManager? = null
     private var heartRateSensor: Sensor? = null
 
@@ -49,7 +55,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     if (spo2 > 0) currentSpo2 = spo2
                     if (steps > 0) currentSteps = steps
 
-                    updateVitalsUI(source = "Google/ADB Injection", customAlert = alertType)
+                    updateVitalsUI(source = "Google/ADB", customAlert = alertType)
                 }
                 "whs.synthetic.user.SET_HEART_RATE" -> {
                     val hr = intent.getFloatExtra("heart_rate", 0f).toInt()
@@ -87,19 +93,51 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         btnSimulateFall = findViewById(R.id.btnSimulateFall)
         btnManualSos = findViewById(R.id.btnManualSos)
 
+        btnTestTachycardia = findViewById(R.id.btnTestTachycardia)
+        btnTestBradycardia = findViewById(R.id.btnTestBradycardia)
+        btnTestHypoxia = findViewById(R.id.btnTestHypoxia)
+        btnTestNormal = findViewById(R.id.btnTestNormal)
+
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         heartRateSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_HEART_RATE)
 
         updateVitalsUI(source = "Cảm biến sẵn sàng")
 
+        // Kích hoạt mô phỏng té ngã
         btnSimulateFall.setOnClickListener {
             val eventId = "FALL_WEAR_${System.currentTimeMillis()}"
             triggerSimulateFall(eventId)
         }
 
+        // Kích hoạt SOS bằng tay
         btnManualSos.setOnClickListener {
             val eventId = "SOS_WATCH_${System.currentTimeMillis()}"
             triggerManualSos(eventId)
+        }
+
+        // 1. Nút test Nhịp nhanh 155 BPM trực tiếp trên mặt đồng hồ
+        btnTestTachycardia.setOnClickListener {
+            currentHeartRate = 155
+            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "TACHYCARDIA")
+        }
+
+        // 2. Nút test Nhịp chậm 38 BPM trực tiếp trên mặt đồng hồ
+        btnTestBradycardia.setOnClickListener {
+            currentHeartRate = 38
+            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "BRADYCARDIA")
+        }
+
+        // 3. Nút test Thiếu oxy SpO2 88% trực tiếp trên mặt đồng hồ
+        btnTestHypoxia.setOnClickListener {
+            currentSpo2 = 88.0
+            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "HYPOXIA")
+        }
+
+        // 4. Nút test Khôi phục bình thường 75 BPM trực tiếp trên mặt đồng hồ
+        btnTestNormal.setOnClickListener {
+            currentHeartRate = 75
+            currentSpo2 = 98.5
+            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "NORMAL")
         }
     }
 
@@ -163,7 +201,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                 }
                 customAlert == "HYPOXIA" || currentSpo2 <= 90.0 -> {
                     tvStatus.text = "🫁 THIẾU OXY: ${String.format(java.util.Locale.US, "%.1f", currentSpo2)}%"
-                    tvStatus.setTextColor(0xFFA855F7.toInt()) // Purple / Cyan
+                    tvStatus.setTextColor(0xFFA855F7.toInt()) // Purple
                     tvLogResult.text = "⚡ $source: Nồng độ SpO2 giảm sâu!"
                 }
                 else -> {
