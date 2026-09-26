@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using CareAI.API.Middlewares;
 using CareAI.Core.DTOs;
 using CareAI.Core.Enums;
@@ -21,6 +22,7 @@ public class EldersController : ControllerBase
     private readonly IAdaptiveThresholdService _thresholdService;
     private readonly ILogger<EldersController> _logger;
 
+    [ActivatorUtilitiesConstructor]
     public EldersController(
         CareAiDbContext db,
         IAdaptiveThresholdService thresholdService,

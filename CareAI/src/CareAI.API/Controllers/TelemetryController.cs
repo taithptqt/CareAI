@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using CareAI.Core.DTOs;
 using CareAI.Infrastructure.Channels;
 using CareAI.Core.Entities;
@@ -21,6 +22,7 @@ public class TelemetryController : ControllerBase
     private readonly UrgentTelemetryEngine _urgentEngine;
     private readonly ILogger<TelemetryController> _logger;
 
+    [ActivatorUtilitiesConstructor]
     public TelemetryController(
         CareAiDbContext db,
         ITelemetryBatchQueue? queue,
