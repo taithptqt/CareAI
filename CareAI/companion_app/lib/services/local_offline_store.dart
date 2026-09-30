@@ -21,8 +21,15 @@ class LocalOfflineStore {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
+      onConfigure: (db) async {
+        // Chế độ WAL (Write-Ahead Logging) cho tốc độ ghi cao và đọc song song
+        // Lưu ý: PRAGMA journal_mode trả về kết quả ('wal') nên trên Android bắt buộc dùng rawQuery thay vì execute
+        await db.rawQuery('PRAGMA journal_mode = WAL');
+        await db.execute('PRAGMA synchronous = NORMAL');
+      },
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -34,6 +41,7 @@ class LocalOfflineStore {
         packet_type TEXT NOT NULL,
         payload TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'PENDING',
+        synced INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         synced_at INTEGER,
         retry_count INTEGER DEFAULT 0
@@ -52,6 +60,20 @@ class LocalOfflineStore {
       CREATE INDEX idx_client_packets_status_created 
       ON client_packets (status, created_at)
     ''');
+
+    await db.execute('''
+      CREATE INDEX idx_client_packets_synced 
+      ON client_packets (synced, created_at)
+    ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      try {
+        await db.execute("ALTER TABLE client_packets ADD COLUMN synced INTEGER NOT NULL DEFAULT 0");
+        await db.execute("UPDATE client_packets SET synced = CASE WHEN status = 'SYNCED' THEN 1 ELSE 0 END");
+      } catch (_) {}
+    }
   }
 
   /// Ghi gói tin vào Outbox đĩa (Outbox-First Pattern)
@@ -71,6 +93,7 @@ class LocalOfflineStore {
         'packet_type': packetType,
         'payload': payload,
         'status': 'PENDING',
+        'synced': 0,
         'created_at': now,
         'retry_count': 0,
       },
@@ -85,9 +108,9 @@ class LocalOfflineStore {
     final db = await database;
     final maps = await db.query(
       'client_packets',
-      where: 'status = ?',
+      where: 'status = ? OR synced = 0',
       whereArgs: ['PENDING'],
-      orderBy: 'created_at ASC',
+      orderBy: "CASE WHEN packet_type IN ('SOS_ALERT', 'FALL_ALERT', 'URGENT_HEART_RATE') THEN 0 ELSE 1 END, created_at ASC",
       limit: limit,
     );
 
@@ -102,6 +125,7 @@ class LocalOfflineStore {
       'client_packets',
       {
         'status': 'SYNCED',
+        'synced': 1,
         'synced_at': now,
       },
       where: 'packet_id = ?',
@@ -123,7 +147,7 @@ class LocalOfflineStore {
   Future<int> getPendingCount() async {
     final db = await database;
     final result = await db.rawQuery(
-      "SELECT COUNT(*) as count FROM client_packets WHERE status = 'PENDING'"
+      "SELECT COUNT(*) as count FROM client_packets WHERE status = 'PENDING' OR synced = 0"
     );
     if (result.isNotEmpty) {
       return (result.first['count'] as num?)?.toInt() ?? 0;
@@ -161,9 +185,9 @@ class LocalOfflineStore {
     return null;
   }
 
-  /// Dọn dẹp các gói tin đã SYNCED cũ hơn 7 ngày để tránh phình dung lượng.
-  /// LƯU Ý BẤT BIẾN: TUYỆT ĐỐI KHÔNG GỌI db.execute('VACUUM') ĐỂ TRÁNH MÒN BỘ NHỚ FLASH.
-  Future<int> pruneOldSyncedPackets({int retentionDays = 7}) async {
+  /// Dọn dẹp các gói tin đã đồng bộ (Synced = 1) cũ hơn 7 ngày để tránh phình dung lượng.
+  /// BẤT BIẾN FACT 33 & 34: TUYỆT ĐỐI KHÔNG GỌI db.execute('VACUUM') ĐỂ TRÁNH MÒN BỘ NHỚ FLASH.
+  Future<int> purgeOldSyncedPackets({int retentionDays = 7}) async {
     final db = await database;
     final cutoffMillis = DateTime.now()
         .subtract(Duration(days: retentionDays))
@@ -171,8 +195,12 @@ class LocalOfflineStore {
 
     return await db.delete(
       'client_packets',
-      where: 'status = ? AND synced_at < ?',
-      whereArgs: ['SYNCED', cutoffMillis],
+      where: '(status = ? OR synced = 1) AND (synced_at < ? OR (synced_at IS NULL AND created_at < ?))',
+      whereArgs: ['SYNCED', cutoffMillis, cutoffMillis],
     );
   }
+
+  /// Alias tương thích ngược
+  Future<int> pruneOldSyncedPackets({int retentionDays = 7}) =>
+      purgeOldSyncedPackets(retentionDays: retentionDays);
 }

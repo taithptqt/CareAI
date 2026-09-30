@@ -38,6 +38,8 @@ public class DeviceTokenAuthMiddleware
             path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/caregivers", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/elders", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/invitations", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/dashboard", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase))
         {
@@ -46,16 +48,22 @@ public class DeviceTokenAuthMiddleware
         }
 
         // Bỏ qua nếu là endpoint của Incidents dành cho Caregiver (active, ack, resolve, call)
+        var deviceEvidenceUpload = path.StartsWith("/api/v1/incidents/", StringComparison.OrdinalIgnoreCase) &&
+            (path.EndsWith("/photo", StringComparison.OrdinalIgnoreCase) ||
+             path.EndsWith("/location", StringComparison.OrdinalIgnoreCase)) &&
+            HttpMethods.IsPost(context.Request.Method);
         if (path.StartsWith("/api/v1/incidents", StringComparison.OrdinalIgnoreCase) &&
-            !path.Equals("/api/v1/incidents/sos", StringComparison.OrdinalIgnoreCase))
+            !path.Equals("/api/v1/incidents/sos", StringComparison.OrdinalIgnoreCase) && !deviceEvidenceUpload)
         {
             await _next(context);
             return;
         }
 
-        // Bỏ qua nếu là endpoint của Devices dành cho Caregiver (pair, revoke)
+        // Bỏ qua nếu là endpoint của Devices dành cho Caregiver (pair, revoke, unpair, generate-pin)
         if (path.StartsWith("/api/v1/devices/pair", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("/revoke", StringComparison.OrdinalIgnoreCase))
+            path.Contains("/revoke", StringComparison.OrdinalIgnoreCase) ||
+            path.Contains("/unpair", StringComparison.OrdinalIgnoreCase) ||
+            path.Contains("/generate-pin", StringComparison.OrdinalIgnoreCase))
         {
             await _next(context);
             return;
@@ -64,6 +72,7 @@ public class DeviceTokenAuthMiddleware
         // Các endpoint thiết bị phần cứng bắt buộc xác thực:
         if (path.StartsWith("/api/v1/telemetry", StringComparison.OrdinalIgnoreCase) ||
             path.Equals("/api/v1/incidents/sos", StringComparison.OrdinalIgnoreCase) ||
+            deviceEvidenceUpload ||
             path.StartsWith("/api/v1/devices/heartbeat", StringComparison.OrdinalIgnoreCase))
         {
             if (!context.Request.Headers.TryGetValue("X-DeviceId", out var deviceIdHeader) ||

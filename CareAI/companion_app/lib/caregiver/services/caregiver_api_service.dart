@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
@@ -172,9 +173,230 @@ class CaregiverApiService {
       final auth = AuthResponse.fromJson(data);
       await saveAuth(auth);
       return auth;
+    } else if (response.statusCode == 423) {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Tài khoản đã bị tạm khóa 15 phút do nhập sai mật khẩu quá 5 lần.');
     } else {
       final err = _extractError(response.body);
       throw Exception(err.isNotEmpty ? err : 'Email hoặc mật khẩu không chính xác');
+    }
+  }
+
+  // 11. Quên mật khẩu - Gửi mã OTP qua Email (NV 3.1)
+  Future<void> forgotPassword(String email) async {
+    final body = jsonEncode({
+      'email': email.trim().toLowerCase(),
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/auth/forgot-password'),
+          headers: _buildHeaders(null),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return;
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể gửi yêu cầu đặt lại mật khẩu');
+    }
+  }
+
+  // 12. Xác nhận OTP & Đổi mật khẩu mới (NV 3.1)
+  Future<void> resetPassword({
+    required String email,
+    required String otpCode,
+    required String newPassword,
+  }) async {
+    final body = jsonEncode({
+      'email': email.trim().toLowerCase(),
+      'otpCode': otpCode.trim(),
+      'newPassword': newPassword,
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/auth/reset-password'),
+          headers: _buildHeaders(null),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return;
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Đặt lại mật khẩu thất bại');
+    }
+  }
+
+  // 13. Chỉnh sửa hồ sơ Người cao tuổi (NV 3.2 - Primary only)
+  Future<ElderItem> updateElder(
+    String elderId, {
+    String? fullName,
+    DateTime? dateOfBirth,
+    String? medicalNotes,
+    String? emergencyContact,
+  }) async {
+    final token = await getToken();
+    final body = jsonEncode({
+      'fullName': fullName?.trim(),
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'medicalNotes': medicalNotes?.trim(),
+      'emergencyContact': emergencyContact?.trim(),
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .put(
+          Uri.parse('$baseUrl/api/v1/caregivers/elders/$elderId'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return ElderItem.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền chỉnh sửa hồ sơ.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Cập nhật hồ sơ thất bại (${response.statusCode})');
+    }
+  }
+
+  // 14. Tạo mã mời gia đình 6 ký tự (NV 3.3 - Primary only, TTL 24h)
+  Future<FamilyInvitationResponse> createFamilyInvitation(String elderId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId/invitations'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 201) {
+      return FamilyInvitationResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền tạo mã mời gia đình.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể tạo mã mời gia đình (${response.statusCode})');
+    }
+  }
+
+  // 15. Chấp nhận mã mời gia đình 6 ký tự (NV 3.3)
+  Future<AcceptInvitationResponse> acceptFamilyInvitation(String invitationCode) async {
+    final token = await getToken();
+    final body = jsonEncode({
+      'invitationCode': invitationCode.trim().toUpperCase(),
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/invitations/accept'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return AcceptInvitationResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 409) {
+      throw Exception('Bạn đã là thành viên trong nhóm chăm sóc của người cao tuổi này.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Mã mời không chính xác hoặc đã hết hạn (24 giờ).');
+    }
+  }
+
+  // 16. Lấy danh sách thành viên nhóm chăm sóc (NV 3.3)
+  Future<List<FamilyMember>> getFamilyMembers(String elderId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId/members'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> list = jsonDecode(response.body);
+      return list.map((e) => FamilyMember.fromJson(e as Map<String, dynamic>)).toList();
+    } else if (response.statusCode == 403) {
+      throw Exception('Bạn không có quyền xem nhóm gia đình này.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể tải danh sách thành viên (${response.statusCode})');
+    }
+  }
+
+  // 17. Thu hồi quyền thành viên khỏi nhóm gia đình (NV 3.3 - Primary only)
+  Future<void> revokeFamilyMember(String elderId, String targetCaregiverId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .delete(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId/members/$targetCaregiverId'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return;
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền thu hồi thành viên.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Thu hồi quyền thành viên thất bại (${response.statusCode})');
+    }
+  }
+
+  // 18. Hủy ghép nối thiết bị an toàn (NV 3.5 - Primary only, Wipe Credentials)
+  Future<UnpairDeviceResponse> unpairDevice(String deviceId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/devices/$deviceId/unpair'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return UnpairDeviceResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền hủy ghép nối thiết bị.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Hủy ghép nối thiết bị thất bại (${response.statusCode})');
+    }
+  }
+
+  // 19. Xóa hồ sơ Người cao tuổi & Ẩn danh hóa PII (NV 3.5 - Primary only, Password cấp 2)
+  Future<DeleteElderResponse> deleteElder(String elderId, String password) async {
+    final token = await getToken();
+    final body = jsonEncode({
+      'password': password,
+    });
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .delete(
+          Uri.parse('$baseUrl/api/v1/elders/$elderId'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return DeleteElderResponse.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 400) {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Mật khẩu xác nhận cấp 2 không chính xác.');
+    } else if (response.statusCode == 403) {
+      throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền xóa hồ sơ người cao tuổi.');
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Xóa hồ sơ thất bại (${response.statusCode})');
     }
   }
 
@@ -205,6 +427,9 @@ class CaregiverApiService {
     required DateTime dateOfBirth,
     String? medicalNotes,
     String? emergencyContact,
+    String? homeAddress,
+    double? homeLatitude,
+    double? homeLongitude,
   }) async {
     final token = await getToken();
     final body = jsonEncode({
@@ -212,6 +437,9 @@ class CaregiverApiService {
       'dateOfBirth': dateOfBirth.toIso8601String(),
       'medicalNotes': medicalNotes?.trim(),
       'emergencyContact': emergencyContact?.trim(),
+      'homeAddress': homeAddress?.trim(),
+      'homeLatitude': homeLatitude,
+      'homeLongitude': homeLongitude,
     });
 
     final response = await _executeWithFailover((baseUrl) => http
@@ -266,6 +494,91 @@ class CaregiverApiService {
     }
   }
 
+  // 7.1. Lấy dữ liệu biến thiên nhịp tim 24h phục vụ biểu đồ (Nhiệm vụ 1.4)
+  Future<HeartRate24hData> getHeartRate24h(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/heart-rate-24h'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return HeartRate24hData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải chuỗi nhịp tim 24h (${response.statusCode})');
+    }
+  }
+
+  // 7.2. Lấy dữ liệu lịch sử biến thiên huyết áp 14 ngày (Gói A)
+  Future<BloodPressureHistoryData> getBloodPressureHistory(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/blood-pressure-history'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return BloodPressureHistoryData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải lịch sử huyết áp (${response.statusCode})');
+    }
+  }
+
+  // 7.3. Lấy dữ liệu SpO2 24h & đếm số cơn tụt oxy (Gói A)
+  Future<Spo224hData> getSpo224h(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/spo2-24h'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return Spo224hData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải chuỗi SpO2 24h (${response.statusCode})');
+    }
+  }
+
+  // 7.4. Lấy phân bố số bước vận động theo 24 giờ trong ngày (Gói A)
+  Future<HourlyStepsData> getHourlySteps24h(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/hourly-steps-24h'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return HourlyStepsData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải dữ liệu vận động 24h (${response.statusCode})');
+    }
+  }
+
+  // 7.5. Lấy tổng kết giấc ngủ đêm & thời lượng sâu/nông (Gói B)
+  Future<SleepSummaryData> getElderSleepSummary(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/vitals/sleep-summary'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return SleepSummaryData.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Không thể tải tổng kết giấc ngủ (${response.statusCode})');
+    }
+  }
+
   // 8. Danh sách Sự cố Đang mở / Đã tiếp nhận (UC-08 Quorum Alerting)
   Future<List<Incident>> getActiveIncidents() async {
     final token = await getToken();
@@ -284,16 +597,90 @@ class CaregiverApiService {
     }
   }
 
+  Future<void> updateElderHomeAddress(String elderId, String address,
+      {double? latitude, double? longitude}) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http.put(
+      Uri.parse('$baseUrl/api/v1/caregivers/elders/${Uri.encodeComponent(elderId)}/home-address'),
+      headers: _buildHeaders(token),
+      body: jsonEncode({
+        'homeAddress': address.trim(),
+        'homeLatitude': latitude,
+        'homeLongitude': longitude,
+      }),
+    ).timeout(const Duration(seconds: 10)));
+    if (response.statusCode != 200) {
+      throw Exception('Không thể lưu địa chỉ nhà (${response.statusCode})');
+    }
+  }
+
+  Future<Incident> getIncident(String id) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http.get(
+      Uri.parse('$baseUrl/api/v1/incidents/${Uri.encodeComponent(id)}'),
+      headers: _buildHeaders(token),
+    ).timeout(const Duration(seconds: 8)));
+    if (response.statusCode == 200) {
+      return Incident.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    }
+    throw Exception(_extractError(response.body).isNotEmpty
+        ? _extractError(response.body) : 'Không thể tải sự cố (${response.statusCode})');
+  }
+
+  Future<Uint8List?> getIncidentPhoto(String id) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http.get(
+      Uri.parse('$baseUrl/api/v1/incidents/${Uri.encodeComponent(id)}/photo'),
+      headers: _buildHeaders(token),
+    ).timeout(const Duration(seconds: 8)));
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw Exception('Không thể tải ảnh sự cố (${response.statusCode})');
+    }
+    return response.bodyBytes;
+  }
+
+  Future<void> registerPushToken(String pushToken) async {
+    final token = await getToken();
+    if (token == null || token.isEmpty) return;
+    final response = await _executeWithFailover((baseUrl) => http.post(
+      Uri.parse('$baseUrl/api/v1/caregivers/push-token'),
+      headers: _buildHeaders(token),
+      body: jsonEncode({'pushToken': pushToken, 'deviceModel': 'Android caregiver app'}),
+    ).timeout(const Duration(seconds: 8)));
+    if (response.statusCode != 200) {
+      throw Exception('Không thể đăng ký thông báo (${response.statusCode})');
+    }
+  }
+
+  Future<void> unregisterPushToken(String pushToken) async {
+    final token = await getToken();
+    if (token == null || token.isEmpty) return;
+    final response = await _executeWithFailover((baseUrl) => http.delete(
+      Uri.parse('$baseUrl/api/v1/caregivers/push-token'),
+      headers: _buildHeaders(token),
+      body: jsonEncode({'pushToken': pushToken}),
+    ).timeout(const Duration(seconds: 8)));
+    if (response.statusCode != 204) {
+      throw Exception('Không thể hủy đăng ký thông báo (${response.statusCode})');
+    }
+  }
+
   // 9. Tiếp nhận Cứu hộ (UC-08 Human-in-the-Loop Acknowledge)
-  Future<void> acknowledgeIncident(String incidentId, [String? notes]) async {
+  Future<void> acknowledgeIncident(Incident incident, [String? notes]) async {
+    final rowVersion = incident.rowVersion;
+    if (rowVersion == null || rowVersion.isEmpty) {
+      throw Exception('Thiếu phiên bản sự cố. Vui lòng tải lại danh sách trước khi tiếp nhận.');
+    }
     final token = await getToken();
     final body = jsonEncode({
       'notes': notes ?? 'Đang trên đường đến hỗ trợ',
+      'rowVersion': rowVersion,
     });
 
     final response = await _executeWithFailover((baseUrl) => http
         .post(
-          Uri.parse('$baseUrl/api/v1/incidents/$incidentId/ack'),
+          Uri.parse('$baseUrl/api/v1/incidents/${incident.id}/acknowledge'),
           headers: _buildHeaders(token),
           body: body,
         )
@@ -302,7 +689,7 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return;
     } else if (response.statusCode == 409) {
-      throw Exception('Sự cố vừa được cập nhật bởi một người thân khác.');
+      throw Exception(_extractError(response.body));
     } else {
       final err = _extractError(response.body);
       throw Exception(err.isNotEmpty ? err : 'Tiếp nhận sự cố thất bại (${response.statusCode})');
@@ -310,15 +697,20 @@ class CaregiverApiService {
   }
 
   // 10. Đóng sự cố Cứu hộ An toàn (UC-08 Resolve)
-  Future<void> resolveIncident(String incidentId, String resolutionNotes) async {
+  Future<void> resolveIncident(Incident incident, String resolutionNotes) async {
+    final rowVersion = incident.rowVersion;
+    if (rowVersion == null || rowVersion.isEmpty) {
+      throw Exception('Thiếu phiên bản sự cố. Vui lòng tải lại danh sách trước khi đóng.');
+    }
     final token = await getToken();
     final body = jsonEncode({
       'resolutionNotes': resolutionNotes.trim(),
+      'rowVersion': rowVersion,
     });
 
     final response = await _executeWithFailover((baseUrl) => http
         .post(
-          Uri.parse('$baseUrl/api/v1/incidents/$incidentId/resolve'),
+          Uri.parse('$baseUrl/api/v1/incidents/${incident.id}/resolve'),
           headers: _buildHeaders(token),
           body: body,
         )
@@ -332,6 +724,142 @@ class CaregiverApiService {
     }
   }
 
+  // 11. Lấy ngưỡng nhịp tim an toàn hiện tại (Nhiệm vụ 1.5)
+  Future<ThresholdData> getElderThresholds(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/elders/$elderProfileId/thresholds'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return ThresholdData.fromJson(jsonDecode(response.body));
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể lấy thông tin ngưỡng (${response.statusCode})');
+    }
+  }
+
+  // 12. Phân tích gợi ý dải ngưỡng thích nghi 14 ngày (Nhiệm vụ 1.5)
+  Future<ThresholdRecommendation> getThresholdRecommendation(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/elders/$elderProfileId/thresholds/recommendation'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 15)));
+
+    if (response.statusCode == 200) {
+      return ThresholdRecommendation.fromJson(jsonDecode(response.body));
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể phân tích ngưỡng thích nghi (${response.statusCode})');
+    }
+  }
+
+  // 13. Cập nhật dải ngưỡng thích nghi mới & làm mới cache tức thì (Nhiệm vụ 1.5 & Gói B)
+  Future<ThresholdData> updateElderThresholds(
+    String elderProfileId,
+    double minBpm,
+    double maxBpm, {
+    double? nightMinBpm,
+    double? nightMaxBpm,
+    String? sleepStart,
+    String? sleepEnd,
+  }) async {
+    final token = await getToken();
+    final Map<String, dynamic> payload = {
+      'restingHeartRateMin': minBpm,
+      'restingHeartRateMax': maxBpm,
+    };
+    if (nightMinBpm != null) payload['nightHeartRateMin'] = nightMinBpm;
+    if (nightMaxBpm != null) payload['nightHeartRateMax'] = nightMaxBpm;
+    if (sleepStart != null && sleepStart.isNotEmpty) payload['sleepWindowStart'] = sleepStart;
+    if (sleepEnd != null && sleepEnd.isNotEmpty) payload['sleepWindowEnd'] = sleepEnd;
+
+    final body = jsonEncode(payload);
+
+    final response = await _executeWithFailover((baseUrl) => http
+        .put(
+          Uri.parse('$baseUrl/api/v1/elders/$elderProfileId/thresholds'),
+          headers: _buildHeaders(token),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return ThresholdData.fromJson(jsonDecode(response.body));
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Cập nhật ngưỡng thất bại (${response.statusCode})');
+    }
+  }
+
+  // 14. Lịch sử sự cố và phân trang an toàn (BOLA + Pagination + Multi-field Filter)
+  Future<PagedIncidents> getElderIncidentHistory(
+    String elderProfileId, {
+    int page = 1,
+    int pageSize = 20,
+    String? emergencyType,
+    int? severity,
+    int? status,
+    DateTime? fromUtc,
+    DateTime? toUtc,
+  }) async {
+    final token = await getToken();
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'pageSize': pageSize.toString(),
+    };
+    if (emergencyType != null && emergencyType.isNotEmpty) {
+      queryParams['emergencyType'] = emergencyType;
+    }
+    if (severity != null) {
+      queryParams['severity'] = severity.toString();
+    }
+    if (status != null) {
+      queryParams['status'] = status.toString();
+    }
+    if (fromUtc != null) {
+      queryParams['fromUtc'] = fromUtc.toIso8601String();
+    }
+    if (toUtc != null) {
+      queryParams['toUtc'] = toUtc.toIso8601String();
+    }
+
+    final response = await _executeWithFailover((baseUrl) {
+      final requestUri = Uri.parse('$baseUrl/api/v1/elders/${Uri.encodeComponent(elderProfileId)}/incidents')
+          .replace(queryParameters: queryParams);
+      return http.get(requestUri, headers: _buildHeaders(token)).timeout(const Duration(seconds: 10));
+    });
+
+    if (response.statusCode == 200) {
+      return PagedIncidents.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể tải lịch sử sự cố (${response.statusCode})');
+    }
+  }
+
+  // 15. Chuỗi nhịp tim T-15..T+15 phút quanh sự cố
+  Future<IncidentHeartRateWindow> getIncidentHeartRateSeries(String incidentId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http.get(
+      Uri.parse('$baseUrl/api/v1/incidents/${Uri.encodeComponent(incidentId)}/heart-rate-series'),
+      headers: _buildHeaders(token),
+    ).timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return IncidentHeartRateWindow.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    } else {
+      final err = _extractError(response.body);
+      throw Exception(err.isNotEmpty ? err : 'Không thể tải chuỗi nhịp tim sự cố (${response.statusCode})');
+    }
+  }
+
   String _extractError(String responseBody) {
     try {
       final data = jsonDecode(responseBody);
@@ -341,3 +869,4 @@ class CaregiverApiService {
     }
   }
 }
+

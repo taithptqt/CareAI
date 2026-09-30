@@ -6,8 +6,10 @@ import '../models/fall_event.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
 import '../services/api_service.dart';
+import '../services/emergency_evidence_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
+import '../services/voice_guidance_service.dart';
 
 class FallCountdownDialog extends StatefulWidget {
   final FallEvent event;
@@ -29,16 +31,21 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
   Timer? _timer;
   late AnimationController _pulseController;
   bool _isActionTaken = false;
+  late final Future<CurrentGpsFix?> _locationTask;
 
   @override
   void initState() {
     super.initState();
     _remainingSeconds = widget.event.secondsRemaining;
+    _locationTask = EmergencyEvidenceService.captureCurrentLocation();
 
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     )..repeat(reverse: true);
+
+    // Kích hoạt hướng dẫn y tế bằng giọng nói tiếng Việt (Gói C - TTS 0ms offline)
+    VoiceGuidanceService.instance.speakFallDetected();
 
     _startCountdown();
   }
@@ -62,6 +69,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     _timer?.cancel();
     _pulseController.dispose();
     FallService.instance.stopEmergencySound(widget.event.eventId);
+    VoiceGuidanceService.instance.stop();
     super.dispose();
   }
 
@@ -69,6 +77,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     if (_isActionTaken) return;
     _isActionTaken = true;
     _timer?.cancel();
+    VoiceGuidanceService.instance.stop();
 
     await FallService.instance.cancelFallAlarm(widget.event.eventId);
 
@@ -88,16 +97,22 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     if (_isActionTaken) return;
     _isActionTaken = true;
     _timer?.cancel();
+    VoiceGuidanceService.instance.stop();
     await FallService.instance.stopEmergencySound(widget.event.eventId);
 
     final canonicalPacketId = 'FALL_${widget.event.eventId}';
 
+    final recentFix = EmergencyEvidenceService.recentFix;
+    final initialGps = recentFix?.coordinates;
     final request = SosPacketRequest(
       packetId: canonicalPacketId,
       eventId: widget.event.eventId,
       emergencyType: 'FALL',
       severity: 'CRITICAL',
       triggeredAt: DateTime.now().toUtc(),
+      gpsLocation: initialGps,
+      gpsIsSimulated: recentFix?.isSimulated,
+      gpsAccuracyMeters: recentFix?.accuracyMeters,
       samples: [
         TelemetrySample(
           metricType: 'FALL',
@@ -117,8 +132,15 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
 
     // Bắn Fast-Lane SOS
     try {
-      await ApiService.instance.sendFastLaneSos(request);
-      await LocalOfflineStore.instance.markPacketSynced(canonicalPacketId);
+      final result = await ApiService.instance.sendFastLaneSosWithResult(request);
+      if (result.accepted) {
+        await LocalOfflineStore.instance.markPacketSynced(canonicalPacketId);
+        if (result.incidentId != null) {
+          unawaited(EmergencyEvidenceService.attachLocationWhenReady(
+              result.incidentId!, _locationTask, initiallySentGps: initialGps));
+          unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
+        }
+      }
     } catch (_) {
       // Ngoại tuyến: Vẫn nằm an toàn trong SQLite Outbox
     }

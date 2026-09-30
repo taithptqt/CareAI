@@ -4,11 +4,26 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using CareAI.API.Middlewares;
+using CareAI.Core.Interfaces;
 using CareAI.Infrastructure.BackgroundWorkers;
+using CareAI.Infrastructure.Channels;
 using CareAI.Infrastructure.Data;
 using CareAI.Infrastructure.Engines;
+using CareAI.Infrastructure.Services;
+using CareAI.Infrastructure.Notifications;
+using CareAI.Infrastructure.AnomalyDetection;
+using CareAI.Infrastructure.WeeklyReports;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Local Flutter web development only; production origins require explicit configuration.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddCors(options => options.AddPolicy("FlutterLocal", policy =>
+        policy.WithOrigins("http://localhost:8080", "http://127.0.0.1:8080")
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
+}
 
 // 1. CẤU HÌNH CƠ SỞ DỮ LIỆU SQL SERVER
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
@@ -27,14 +42,58 @@ builder.Services.AddMemoryCache(options =>
     options.CompactionPercentage = 0.20;
 });
 
-// 3. ĐĂNG KÝ CORE ENGINES
+// 2.1 HÀNG ĐỢI PHI KHÓA NON-BLOCKING MEMORY CHANNEL (NHIỆM VỤ 1.2)
+builder.Services.AddSingleton<ITelemetryBatchQueue, TelemetryBatchQueue>();
+
+// 3. ĐĂNG KÝ CORE ENGINES & SERVICES
 builder.Services.AddScoped<TelemetryEngine>();
+builder.Services.AddScoped<IAdaptiveThresholdService, AdaptiveThresholdService>();
 builder.Services.AddScoped<ClinicalDiagnosticEngine>();
+builder.Services.AddScoped<DeviceStaleEngine>();
+builder.Services.AddScoped<NotificationDispatchEngine>();
+builder.Services.Configure<AlertingOptions>(builder.Configuration.GetSection(AlertingOptions.SectionName));
+builder.Services.AddScoped<AlertSlaEngine>();
+builder.Services.AddScoped<UrgentTelemetryEngine>();
+builder.Services.AddSingleton<IPushSender, FirebasePushSender>();
 
 // 4. ĐĂNG KÝ HỆ THỐNG BACKGROUND WORKERS
+builder.Services.AddHostedService<TelemetryBatchProcessorWorker>();
 builder.Services.AddHostedService<NotificationDispatcherWorker>();
+builder.Services.AddHostedService<AlertSlaWorker>();
 builder.Services.AddHostedService<WatchdogBackgroundWorker>();
 builder.Services.AddHostedService<DataRetentionBackgroundWorker>();
+
+// 4.1 ĐĂNG KÝ HỆ THỐNG ANOMALY DETECTION & GEMINI WEEKLY REPORTS (PHẦN 4)
+builder.Services.AddOptions<AnomalyDetectionOptions>()
+    .Bind(builder.Configuration.GetSection("AnomalyDetection"))
+    .Validate(o => o.Confidence > 0 && o.Confidence < 100, "Confidence must be between 0 and 100")
+    .Validate(o => o.MinimumBaselineDays >= 2 && o.MinimumBaselineDays <= 13, "Baseline days must be 2–13")
+    .Validate(o => double.IsFinite(o.MinimumUsualMorningSteps) && o.MinimumUsualMorningSteps > 0,
+        "MinimumUsualMorningSteps must be positive")
+    .Validate(o => TimeZoneInfo.TryFindSystemTimeZoneById(o.TimeZoneId, out _), "Invalid anomaly time zone")
+    .ValidateOnStart();
+builder.Services.AddSingleton<TimeSeriesAnomalyDetector>();
+builder.Services.AddHostedService<AnomalyDetectionWorker>();
+
+builder.Services.AddOptions<WeeklyReportOptions>()
+    .Bind(builder.Configuration.GetSection("WeeklyReports"))
+    .Validate(o => TimeZoneInfo.TryFindSystemTimeZoneById(o.TimeZoneId, out _), "Invalid weekly report time zone")
+    .Validate(o => !string.IsNullOrWhiteSpace(o.GeminiModel), "GeminiModel is required")
+    .ValidateOnStart();
+builder.Services.AddOptions<ReportPushOptions>().Bind(builder.Configuration.GetSection("ReportPush"))
+    .Validate(o => !o.Enabled || !string.IsNullOrWhiteSpace(o.ProjectId), "ReportPush ProjectId required when enabled")
+    .ValidateOnStart();
+builder.Services.AddSingleton<PiiAnonymizerService>();
+builder.Services.AddSingleton<RuleBasedWeeklyReportFallbackEngine>();
+builder.Services.AddHttpClient<GeminiWeeklyReportClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+    client.MaxResponseContentBufferSize = 128 * 1024;
+});
+builder.Services.AddScoped<WeeklyReportService>();
+builder.Services.AddSingleton<IWeeklyReportPushSender, WeeklyReportPushSender>();
+builder.Services.AddHostedService<WeeklyReportWorker>();
+builder.Services.AddHostedService<WeeklyReportNotificationWorker>();
 
 // 5. CẤU HÌNH XÁC THỰC JWT CHO NGƯỜI THÂN
 var jwtSecret = builder.Configuration["Jwt:SecretKey"] ?? "CareAiSuperSecretKeyForDevelopment20261234567890!";
@@ -93,6 +152,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+app.UseRouting();
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("FlutterLocal");
+}
 
 // 6. PIPELINE XỬ LÝ HTTP & SWAGGER
 if (app.Environment.IsDevelopment())

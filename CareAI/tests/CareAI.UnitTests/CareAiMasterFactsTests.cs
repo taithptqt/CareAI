@@ -124,19 +124,24 @@ public class CareAiMasterFactsTests : IDisposable
             Severity: "Critical",
             TriggeredAt: DateTime.UtcNow,
             GPSLocation: "10.762622, 106.660172",
-            Samples: null
+            Samples: null,
+            GpsIsSimulated: true,
+            GpsAccuracyMeters: 5
         );
 
         var (success1, incidentId1, _) = await _telemetryEngine.ProcessFastLaneAsync(_testDeviceId, packet);
         Assert.True(success1);
         Assert.NotNull(incidentId1);
+        var createdIncident = await _db.Incidents.FindAsync(incidentId1);
+        Assert.True(createdIncident!.CurrentGpsIsSimulated);
+        Assert.Equal(5, createdIncident.CurrentGpsAccuracyMeters);
 
         // Gọi lại 5 lần với cùng PacketId
         for (int i = 2; i <= 6; i++)
         {
             var (successRetry, incidentIdRetry, _) = await _telemetryEngine.ProcessFastLaneAsync(_testDeviceId, packet);
             Assert.True(successRetry);
-            Assert.Null(incidentIdRetry); // Idempotent: không tạo thêm incident mới
+            Assert.Equal(incidentId1, incidentIdRetry); // Idempotent: trả lại incident cũ để gửi ảnh sau khi thử lại
         }
 
         var incidentCount = await _db.Incidents.CountAsync(i => i.ElderProfileId == _testElderId);
@@ -285,7 +290,7 @@ public class CareAiMasterFactsTests : IDisposable
             }
         };
 
-        var result = await controller.AcknowledgeIncident(incident.Id, new AcknowledgeIncidentRequest("Tiếp nhận"), CancellationToken.None);
+        var result = await controller.AcknowledgeIncident(incident.Id, new AcknowledgeIncidentRequest("Tiếp nhận", null), CancellationToken.None);
         var statusResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, statusResult.StatusCode);
     }
@@ -302,6 +307,7 @@ public class CareAiMasterFactsTests : IDisposable
             EmergencyType = "MANUAL_SOS",
             Severity = IncidentSeverity.Critical,
             Status = IncidentStatus.Open,
+            RowVersion = [1, 2, 3, 4, 5, 6, 7, 8],
             TriggeredAt = DateTime.UtcNow
         };
         _db.Incidents.Add(incident);
@@ -319,7 +325,8 @@ public class CareAiMasterFactsTests : IDisposable
             }
         };
 
-        var result = await controller.AcknowledgeIncident(incident.Id, new AcknowledgeIncidentRequest("Đang chạy qua"), CancellationToken.None);
+        var result = await controller.AcknowledgeIncident(incident.Id,
+            new AcknowledgeIncidentRequest("Đang chạy qua", Convert.ToBase64String(incident.RowVersion!)), CancellationToken.None);
         var okResult = Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(okResult.Value);
 
@@ -554,7 +561,8 @@ public class CareAiMasterFactsTests : IDisposable
             TriggeredByDeviceId = _testDeviceId,
             EmergencyType = "FALL",
             Severity = IncidentSeverity.Critical,
-            Status = IncidentStatus.Open,
+            Status = IncidentStatus.Acknowledged,
+            RowVersion = [1, 2, 3, 4, 5, 6, 7, 8],
             TriggeredAt = DateTime.UtcNow
         };
         _db.Incidents.Add(incident);
@@ -572,7 +580,8 @@ public class CareAiMasterFactsTests : IDisposable
             }
         };
 
-        var result = await controller.ResolveIncident(incident.Id, new ResolveIncidentRequest("Cụ đã đứng dậy an toàn, không chấn thương"), CancellationToken.None);
+        var result = await controller.ResolveIncident(incident.Id,
+            new ResolveIncidentRequest("Cụ đã đứng dậy an toàn, không chấn thương", Convert.ToBase64String(incident.RowVersion!)), CancellationToken.None);
         var okResult = Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(okResult.Value);
 
