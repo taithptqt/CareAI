@@ -7,7 +7,21 @@ public record TelemetryBatchRequest(
     List<TelemetrySampleDto> Samples
 );
 
+public record UrgentHeartRateRequest(
+    string PacketId,
+    double HeartRateBpm,
+    DateTime Timestamp
+);
+
 public record HeartbeatRequest(
     int? BatteryPercentage,
     bool? OnBody
+);
+
+public record TelemetryBatchMessage(
+    string DeviceId,
+    string ElderProfileId,
+    string BatchId,
+    List<TelemetrySampleDto> Samples,
+    DateTime ReceivedAt
 );

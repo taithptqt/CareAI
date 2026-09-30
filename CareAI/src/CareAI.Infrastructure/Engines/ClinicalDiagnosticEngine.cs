@@ -1,179 +1,259 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
+using CareAI.Core.Interfaces;
 using CareAI.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CareAI.Infrastructure.Engines;
 
 public class ClinicalDiagnosticEngine
 {
+    private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(10);
     private readonly CareAiDbContext _db;
     private readonly ILogger<ClinicalDiagnosticEngine> _logger;
+    private readonly IAdaptiveThresholdService? _thresholdService;
 
-    public ClinicalDiagnosticEngine(CareAiDbContext db, ILogger<ClinicalDiagnosticEngine> logger)
+    public ClinicalDiagnosticEngine(
+        CareAiDbContext db,
+        ILogger<ClinicalDiagnosticEngine> logger,
+        IAdaptiveThresholdService? thresholdService = null)
     {
         _db = db;
         _logger = logger;
+        _thresholdService = thresholdService;
     }
 
-    /// <summary>
-    /// Thẩm định luật lâm sàng đối với từng mẫu đo nhịp tim mới nạp.
-    /// </summary>
     public async Task<Incident?> EvaluateHeartRateSampleAsync(
-        string elderProfileId,
-        string deviceId,
-        double heartRate,
-        int recentSteps = 0,
-        CancellationToken ct = default)
+        string elderProfileId, string deviceId, double heartRate, int? recentSteps = null,
+        CancellationToken ct = default, bool saveChanges = true, DateTime? measuredAtUtc = null)
     {
+        if (!double.IsFinite(heartRate) || heartRate <= 0 || heartRate > 300) return null;
         var now = DateTime.UtcNow;
+        var measuredAt = measuredAtUtc ?? now;
+        measuredAt = measuredAt.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(measuredAt, DateTimeKind.Utc) : measuredAt.ToUniversalTime();
 
-        // 1. Phân loại mức độ vi phạm quy tắc lâm sàng
+        // Lấy ngưỡng thích nghi cá nhân hóa cho từng cụ (tự động phân tách Ngày và Đêm theo Khung giờ ngủ)
+        double minBpm = 40.0;
+        double maxBpm = 120.0;
+        bool isNight = false;
+        if (_thresholdService != null)
+        {
+            var thresholds = await _thresholdService.GetEffectiveThresholdsForTimeAsync(elderProfileId, now, ct);
+            minBpm = thresholds.Min;
+            maxBpm = thresholds.Max;
+            isNight = thresholds.IsNight;
+        }
+
+        string? rule = null;
         string? emergencyType = null;
-        IncidentSeverity severity = IncidentSeverity.Low;
-        string clinicalReason = string.Empty;
-
+        var severity = IncidentSeverity.Low;
+        string reason = string.Empty;
         if (heartRate >= 180)
         {
+            rule = "HR_CRITICAL_HIGH";
             emergencyType = EmergencyType.Tachycardia;
             severity = IncidentSeverity.Critical;
-            clinicalReason = $"CẢNH BÁO NGUY KỊCH: Nhịp tim đạt {heartRate} bpm (nguy cơ rung thất / nhịp nhanh thất kịch phát)!";
+            reason = $"Cảnh báo nhịp tim nguy kịch: {heartRate} bpm. Cần kiểm tra người cao tuổi ngay.";
         }
         else if (heartRate <= 35)
         {
+            rule = "HR_CRITICAL_LOW";
             emergencyType = EmergencyType.Bradycardia;
             severity = IncidentSeverity.Critical;
-            clinicalReason = $"CẢNH BÁO NGUY KỊCH: Nhịp tim tụt xuống {heartRate} bpm (nguy cơ vô tâm thu / ngừng tuần hoàn)!";
+            reason = $"Cảnh báo nhịp tim nguy kịch: {heartRate} bpm. Cần kiểm tra người cao tuổi ngay.";
         }
-        else if (heartRate > 120 && recentSteps <= 10)
+        else
         {
-            emergencyType = EmergencyType.Tachycardia;
-            severity = IncidentSeverity.High;
-            clinicalReason = $"Cảnh báo: Nhịp tim tăng cao {heartRate} bpm trong trạng thái nghỉ ngơi.";
-        }
-        else if (heartRate < 40)
-        {
-            emergencyType = EmergencyType.Bradycardia;
-            severity = IncidentSeverity.High;
-            clinicalReason = $"Cảnh báo: Nhịp tim chậm kéo dài {heartRate} bpm.";
-        }
-
-        if (emergencyType == null)
-        {
-            // Nhịp tim an toàn
-            return null;
-        }
-
-        // 2. Kiểm tra sự cố hiện hữu để bảo vệ Filtered Unique Index UIX_Incidents_SingleActiveElder
-        var activeIncident = await _db.Incidents
-            .FirstOrDefaultAsync(i => i.ElderProfileId == elderProfileId && 
-                                     (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged), ct);
-
-        if (activeIncident != null)
-        {
-            // Leo thang lâm sàng: Nếu đang Warning mà chuyển thành Critical -> Nâng mức nghiêm trọng
-            if (severity == IncidentSeverity.Critical && activeIncident.Severity != IncidentSeverity.Critical)
+            var resting = recentSteps.HasValue
+                ? recentSteps.Value is >= 0 and <= 10
+                : await IsRestingAsync(elderProfileId, measuredAt, ct);
+            if (resting && await HasSuddenRiseAsync(elderProfileId, measuredAt, heartRate, ct))
             {
-                activeIncident.Severity = IncidentSeverity.Critical;
-                activeIncident.Status = IncidentStatus.Open; // Mở lại để yêu cầu chú ý khẩn
-                activeIncident.UpdatedAt = now;
+                rule = "HR_RESTING_SURGE";
+                emergencyType = EmergencyType.Surge;
+                severity = IncidentSeverity.High;
+                reason = $"Nhịp tim tăng ít nhất 15 bpm so với trung vị 5 phút lúc ít vận động: {heartRate} bpm.";
+            }
+            else if (heartRate > maxBpm && resting)
+            {
+                rule = "HR_RESTING_HIGH";
+                emergencyType = EmergencyType.Tachycardia;
+                severity = IncidentSeverity.High;
+                var periodDesc = isNight ? "ban đêm (lúc ngủ)" : "lúc nghỉ";
+                reason = $"Nhịp tim cao {periodDesc}: {heartRate} bpm (ngưỡng: {maxBpm} bpm).";
+            }
+            else if (heartRate < minBpm)
+            {
+                rule = "HR_LOW";
+                emergencyType = EmergencyType.Bradycardia;
+                severity = IncidentSeverity.High;
+                var periodDesc = isNight ? "ban đêm (lúc ngủ)" : "ban ngày";
+                reason = $"Nhịp tim thấp {periodDesc}: {heartRate} bpm (ngưỡng: {minBpm} bpm).";
+            }
+        }
 
+        if (rule == null || emergencyType == null) return null;
+
+        var active = await _db.Incidents.FirstOrDefaultAsync(i => i.ElderProfileId == elderProfileId &&
+            (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged), ct);
+        var cooldown = await _db.ClinicalRuleCooldowns.FindAsync([elderProfileId, rule], ct);
+        var inCooldown = cooldown != null && now - cooldown.LastAlertAt < Cooldown;
+        var critical = severity == IncidentSeverity.Critical;
+        if (active != null)
+        {
+            var wasCritical = active.Severity == IncidentSeverity.Critical;
+            var previousRule = active.LatestCriticalRuleCode;
+            var reOpen = active.Status == IncidentStatus.Acknowledged && critical &&
+                (!active.AcknowledgedAt.HasValue || measuredAt > active.AcknowledgedAt.Value) &&
+                (active.AcknowledgedCriticalRuleCode != rule ||
+                 !active.AcknowledgedCriticalHeartRateBpm.HasValue ||
+                 (rule == "HR_CRITICAL_HIGH" && heartRate > active.AcknowledgedCriticalHeartRateBpm.Value) ||
+                 (rule == "HR_CRITICAL_LOW" && heartRate < active.AcknowledgedCriticalHeartRateBpm.Value));
+            var escalate = active.Status == IncidentStatus.Open && critical && !wasCritical;
+            var distinctCritical = active.Status == IncidentStatus.Open && critical && wasCritical &&
+                previousRule != rule && !inCooldown;
+
+            if (critical && (active.Status != IncidentStatus.Acknowledged ||
+                !active.AcknowledgedAt.HasValue || measuredAt > active.AcknowledgedAt.Value) &&
+                (active.LatestCriticalRuleCode != rule ||
+                (rule == "HR_CRITICAL_HIGH" && heartRate > active.LatestCriticalHeartRateBpm) ||
+                (rule == "HR_CRITICAL_LOW" && heartRate < active.LatestCriticalHeartRateBpm)))
+            {
+                active.LatestCriticalRuleCode = rule;
+                active.LatestCriticalHeartRateBpm = heartRate;
+            }
+            if (reOpen || escalate || distinctCritical)
+            {
+                active.Severity = IncidentSeverity.Critical;
+                active.UpdatedAt = now;
+                if (reOpen)
+                {
+                    active.AlertCycleNumber++;
+                    active.Status = IncidentStatus.Open;
+                    active.AcknowledgedAt = null;
+                    active.AcknowledgedByCaregiverId = null;
+                    active.AcknowledgedCriticalHeartRateBpm = null;
+                    active.AcknowledgedCriticalRuleCode = null;
+                    active.SlaBreachedAt = null;
+                    active.ReminderCount = 0;
+                    active.NextReminderAt = null;
+                }
+                if (reOpen || escalate)
+                {
+                    active.AlertStartedAt = now;
+                    active.AlertDeadlineAt = now.AddSeconds(60);
+                }
                 _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
                 {
-                    IncidentId = activeIncident.Id,
-                    EventType = "CLINICAL_ESCALATION",
-                    Description = $"LEO THANG LÂM SÀNG NGUY KỊCH: {clinicalReason}",
-                    RecordedAt = now
+                    IncidentId = active.Id, AlertCycleNumber = active.AlertCycleNumber,
+                    EventType = reOpen ? "CLINICAL_REESCALATION" : "CLINICAL_ESCALATION",
+                    Description = reason, RecordedAt = now
                 });
-
-                // Đẩy thông báo còi hú leo thang
-                await EnqueueQuorumAlertsAsync(activeIncident.Id, elderProfileId, emergencyType, clinicalReason, now, ct);
-                await _db.SaveChangesAsync(ct);
-                return activeIncident;
+                await EnqueueQuorumAlertsAsync(active.Id, elderProfileId, emergencyType, reason,
+                    active.AlertCycleNumber, now, true, ct);
+                TouchCooldown(elderProfileId, rule, active.Id, now, cooldown);
+                if (saveChanges) await _db.SaveChangesAsync(ct);
             }
-
-            // Ghi nhật ký timeline mà không tạo sự cố mới
-            _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
-            {
-                IncidentId = activeIncident.Id,
-                EventType = "CLINICAL_FOLLOWUP",
-                Description = $"Ghi nhận chỉ số nhịp tim bất thường liên tục: {heartRate} bpm. Lý do: {clinicalReason}",
-                RecordedAt = now
-            });
-            await _db.SaveChangesAsync(ct);
-            return activeIncident;
+            else if (critical && _db.Entry(active).State == EntityState.Modified && saveChanges)
+                await _db.SaveChangesAsync(ct);
+            return active;
         }
 
-        // 3. Khởi tạo Incident lâm sàng mới
+        // Repeated high warnings are suppressed after closure; new critical episodes always alert.
+        if (inCooldown && !critical) return null;
+        var homeAddress = await _db.ElderProfiles.Where(e => e.Id == elderProfileId)
+            .Select(e => e.HomeAddress).FirstOrDefaultAsync(ct);
         var incident = new Incident
         {
-            Id = Guid.NewGuid().ToString(),
-            ElderProfileId = elderProfileId,
-            TriggeredByDeviceId = deviceId,
-            EmergencyType = emergencyType,
-            Severity = severity,
-            Status = IncidentStatus.Open,
-            TriggeredAt = now,
-            CreatedAt = now,
-            UpdatedAt = now
+            Id = Guid.NewGuid().ToString(), ElderProfileId = elderProfileId,
+            TriggeredByDeviceId = deviceId, EmergencyType = emergencyType,
+            Severity = severity, Status = IncidentStatus.Open,
+            TriggeredAt = now, HeartRateBpm = heartRate, VitalsMeasuredAt = measuredAt,
+            HomeAddressSnapshot = homeAddress,
+            AlertStartedAt = critical ? now : null,
+            AlertDeadlineAt = critical ? now.AddSeconds(60) : null,
+            LatestCriticalHeartRateBpm = critical ? heartRate : null,
+            LatestCriticalRuleCode = critical ? rule : null,
+            CreatedAt = now, UpdatedAt = now
         };
-
         _db.Incidents.Add(incident);
-
         _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
         {
-            IncidentId = incident.Id,
-            EventType = "TRIGGERED",
-            Description = clinicalReason,
-            RecordedAt = now
+            IncidentId = incident.Id, AlertCycleNumber = incident.AlertCycleNumber,
+            EventType = "TRIGGERED", Description = reason, RecordedAt = now
         });
-
-        // 4. Kích hoạt còi hú Quorum
-        await EnqueueQuorumAlertsAsync(incident.Id, elderProfileId, emergencyType, clinicalReason, now, ct);
-
-        await _db.SaveChangesAsync(ct);
-        _logger.LogWarning("[CLINICAL-ALERT] Đã tạo sự cố lâm sàng {IncidentId} cho Cụ {ElderId}. Lý do: {Reason}", incident.Id, elderProfileId, clinicalReason);
+        await EnqueueQuorumAlertsAsync(incident.Id, elderProfileId, emergencyType, reason,
+            incident.AlertCycleNumber, now, critical, ct);
+        TouchCooldown(elderProfileId, rule, incident.Id, now, cooldown);
+        if (saveChanges) await _db.SaveChangesAsync(ct);
+        _logger.LogWarning("[CLINICAL-ALERT] Incident {IncidentId} for elder {ElderId}: {Reason}",
+            incident.Id, elderProfileId, reason);
         return incident;
     }
 
-    private async Task EnqueueQuorumAlertsAsync(
-        string incidentId,
-        string elderProfileId,
-        string emergencyType,
-        string reason,
-        DateTime now,
-        CancellationToken ct)
+    private async Task<bool> IsRestingAsync(string elderId, DateTime measuredAt, CancellationToken ct)
     {
-        var activeCaregiverTokens = await _db.ElderCaregivers
-            .Where(ec => ec.ElderProfileId == elderProfileId && ec.IsActive)
-            .Join(_db.CaregiverPushTokens.Where(t => t.IsActive),
-                ec => ec.CaregiverId,
-                t => t.CaregiverId,
-                (ec, t) => new { ec.CaregiverId, t.PushToken })
-            .ToListAsync(ct);
+        var steps = await _db.HealthMeasurements.AsNoTracking()
+            .Where(m => m.ElderProfileId == elderId && m.MetricType == "STEPS" &&
+                m.Timestamp >= measuredAt.AddMinutes(-5) && m.Timestamp <= measuredAt)
+            .OrderBy(m => m.Timestamp).Select(m => m.Value).ToListAsync(ct);
+        return steps.Count >= 2 && steps[0] >= 0 &&
+            steps.Zip(steps.Skip(1), (before, after) => after >= before).All(x => x) &&
+            steps[^1] - steps[0] <= 10;
+    }
 
-        foreach (var item in activeCaregiverTokens)
+    private async Task<bool> HasSuddenRiseAsync(string elderId, DateTime measuredAt,
+        double heartRate, CancellationToken ct)
+    {
+        var prior = await _db.HealthMeasurements.AsNoTracking()
+            .Where(m => m.ElderProfileId == elderId && m.MetricType == "HEART_RATE" &&
+                m.Timestamp >= measuredAt.AddMinutes(-5) && m.Timestamp < measuredAt &&
+                m.Value > 0 && m.Value <= 300)
+            .OrderBy(m => m.Value).Select(m => m.Value).ToListAsync(ct);
+        if (prior.Count < 3) return false;
+        var median = prior.Count % 2 == 1 ? prior[prior.Count / 2] :
+            (prior[prior.Count / 2 - 1] + prior[prior.Count / 2]) / 2;
+        return heartRate - median >= 15;
+    }
+
+    private void TouchCooldown(string elderId, string rule, string incidentId,
+        DateTime now, ClinicalRuleCooldown? existing)
+    {
+        if (existing == null)
+            _db.ClinicalRuleCooldowns.Add(new ClinicalRuleCooldown
+            {
+                ElderProfileId = elderId, RuleCode = rule,
+                LastIncidentId = incidentId, LastAlertAt = now
+            });
+        else
         {
+            existing.LastIncidentId = incidentId;
+            existing.LastAlertAt = now;
+        }
+    }
+
+    private async Task EnqueueQuorumAlertsAsync(string incidentId, string elderId,
+        string emergencyType, string reason, int alertCycleNumber, DateTime now,
+        bool critical, CancellationToken ct)
+    {
+        var tokens = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == elderId && ec.IsActive)
+            .Join(_db.CaregiverPushTokens.Where(t => t.IsActive), ec => ec.CaregiverId,
+                t => t.CaregiverId, (ec, t) => new { ec.CaregiverId, t.PushToken }).ToListAsync(ct);
+        foreach (var token in tokens)
             _db.NotificationOutboxes.Add(new NotificationOutbox
             {
-                IncidentId = incidentId,
-                RecipientCaregiverId = item.CaregiverId,
-                PushToken = item.PushToken,
-                Title = "CẢNH BÁO LÂM SÀNG BẤT THƯỜNG: TIM MẠCH NGUY HIỂM!",
-                Body = reason,
-                DataPayloadJson = System.Text.Json.JsonSerializer.Serialize(new
+                IncidentId = incidentId, AlertCycleNumber = alertCycleNumber,
+                RecipientCaregiverId = token.CaregiverId, PushToken = token.PushToken,
+                Title = critical ? "CẢNH BÁO NHỊP TIM NGUY KỊCH" : "CẢNH BÁO NHỊP TIM", Body = reason,
+                DataPayloadJson = JsonSerializer.Serialize(new
                 {
-                    incidentId,
-                    elderProfileId,
-                    emergencyType,
-                    priority = "HIGH",
-                    siren = true
+                    incidentId, elderProfileId = elderId, emergencyType,
+                    priority = critical ? "HIGH" : "NORMAL", siren = critical, alertCycleNumber
                 }),
-                Status = "PENDING",
-                RetryCount = 0,
-                CreatedAt = now
+                Status = "PENDING", RetryCount = 0, CreatedAt = now
             });
-        }
     }
 }

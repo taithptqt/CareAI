@@ -3,6 +3,10 @@
 
     <!-- PERMISSIONS CHO CẤP CỨU & SINH HIỆU -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -11,6 +15,16 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- PERMISSIONS CHO GOOGLE HEALTH CONNECT (NHIỆM VỤ 1.1) -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
+
+    <!-- PERMISSIONS CHO ĐỊNH VỊ GPS THẬT VÀ BẢN ĐỒ GOOGLE MAPS -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:label="CareAI"
@@ -36,7 +50,31 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+
+        <activity
+            android:name=".CaregiverAlarmActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/NormalTheme"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
+        <receiver
+            android:name=".CaregiverAlertReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="vn.careai.companion.ACTION_CAREGIVER_ALERT" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".CaregiverAlertService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- DIRECT BOOT & LOCK SCREEN RECEIVER (LOCKED_BOOT_COMPLETED & BOOT_COMPLETED) -->
         <receiver
@@ -89,6 +127,19 @@
     </application>
 
     <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <package android:name="com.google.android.apps.maps" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'caregiver/screens/home_screen.dart';
 import 'caregiver/screens/login_screen.dart';
 import 'caregiver/services/caregiver_api_service.dart';
+import 'caregiver/services/caregiver_push_service.dart';
 import 'screens/device_pairing_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/sos_button_screen.dart';
@@ -15,8 +17,8 @@ import 'services/sync_service.dart';
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
     try {
-      // Tác vụ đồng bộ nền định kỳ 15 phút (UC-03 Offline-to-Online Batch Sync)
-      final result = await SyncService.instance.syncOfflineSpool();
+      // Tác vụ gặt hái sinh hiệu Health Connect & đồng bộ nền định kỳ 15 phút (Nhiệm vụ 1.1)
+      final result = await SyncService.instance.harvestAndSyncCycle();
       debugPrint('[CareAI-Workmanager] Đã đồng bộ nền thành công: ${result.syncedCount} gói tin');
       return true;
     } catch (e) {
@@ -29,28 +31,32 @@ void callbackDispatcher() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Khởi tạo CSDL SQLite Outbox Spool
-  await LocalOfflineStore.instance.database;
+  // SQLite và Workmanager chỉ được hỗ trợ trên native platforms.
+  if (!kIsWeb) {
+    await LocalOfflineStore.instance.database;
+  }
 
   // 2. Khởi tạo Dịch vụ Người Thân (SharedPreferences & Server URL)
   await CaregiverApiService.instance.init();
 
   // 3. Khởi tạo Workmanager để đồng bộ nền thiết bị
-  try {
-    await Workmanager().initialize(
-      callbackDispatcher,
-    );
+  if (!kIsWeb) {
+    try {
+      await Workmanager().initialize(
+        callbackDispatcher,
+      );
 
-    await Workmanager().registerPeriodicTask(
-      'careai_periodic_sync_task',
-      'careai_periodic_sync',
-      frequency: const Duration(minutes: 15),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
-    );
-  } catch (e) {
-    debugPrint('Không thể khởi tạo Workmanager: $e');
+      await Workmanager().registerPeriodicTask(
+        'careai_periodic_sync_task',
+        'careai_periodic_sync',
+        frequency: const Duration(minutes: 15),
+        constraints: Constraints(
+          networkType: NetworkType.connected,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Không thể khởi tạo Workmanager: $e');
+    }
   }
 
   // 4. Kiểm tra vai trò đã chọn trước đó
@@ -73,6 +79,9 @@ void main() async {
   }
 
   runApp(CareAiUnifiedApp(initialScreen: initialScreen));
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    CaregiverPushService.instance.initialize();
+  });
 }
 
 class CareAiUnifiedApp extends StatelessWidget {
@@ -83,6 +92,7 @@ class CareAiUnifiedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: CaregiverPushService.instance.navigatorKey,
       title: 'CareAI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
