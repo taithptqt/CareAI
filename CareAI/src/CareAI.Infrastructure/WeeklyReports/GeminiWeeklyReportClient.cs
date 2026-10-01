@@ -25,6 +25,7 @@ public sealed class GeminiWeeklyReportClient(HttpClient http, IOptions<WeeklyRep
         Báo cáo phải có đúng ba phần: 1. Tổng quan sức khỏe tuần;
         2. Điểm tích cực & Cần lưu ý; 3. Lời khuyên sinh hoạt tuần tới.
         Lời khuyên chỉ gồm hỏi thăm giấc ngủ, sinh hoạt, và trao đổi với nhân viên y tế khi có lo ngại.
+        Nếu có SpO₂, nêu số liệu như phép đo ước tính; nhắc kiểm tra lại chỉ số thấp và hỏi thăm triệu chứng.
         Kết thúc bằng: Báo cáo hỗ trợ theo dõi, không phải chẩn đoán y khoa.
         Trả về JSON gồm ba chuỗi không rỗng: overview, observations, advice.
         """;

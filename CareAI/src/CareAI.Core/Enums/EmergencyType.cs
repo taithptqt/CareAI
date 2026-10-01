@@ -9,4 +9,5 @@ public static class EmergencyType
     public const string Surge = "SURGE";
     public const string Hypertension = "HYPERTENSION";
     public const string StaleOffline = "STALE_OFFLINE";
+    public const string LowOxygen = "LOW_OXYGEN";
 }

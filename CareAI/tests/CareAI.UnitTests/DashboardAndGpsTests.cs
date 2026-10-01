@@ -198,6 +198,40 @@ public class DashboardAndGpsTests : IDisposable
     }
 
     [Fact]
+    public async Task DemoVitals_AppearOnlyInDemoFields_AndDoNotReplaceRealReadings()
+    {
+        var measuredAt = DateTime.UtcNow.AddMinutes(-15);
+        _db.HealthMeasurements.AddRange(
+            new HealthMeasurement
+            {
+                ElderProfileId = _testElderId, DeviceId = "DEV_01", PacketId = "DEMO_HR",
+                MetricType = "DEMO_HEART_RATE", Value = 145, Unit = "bpm",
+                Timestamp = measuredAt, RecordedAt = DateTime.UtcNow
+            },
+            new HealthMeasurement
+            {
+                ElderProfileId = _testElderId, DeviceId = "DEV_01", PacketId = "DEMO_SPO2",
+                MetricType = "DEMO_SPO2", Value = 90, Unit = "%",
+                Timestamp = measuredAt, RecordedAt = DateTime.UtcNow
+            });
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var result = Assert.IsType<OkObjectResult>(
+            await controller.GetElderDashboard(_testElderId, CancellationToken.None));
+        var dashboard = Assert.IsType<ElderDashboardResponse>(result.Value);
+        Assert.Equal(65, dashboard.LatestHeartRate?.Value);
+        Assert.Equal(98, dashboard.LatestSpO2?.Value);
+        Assert.Equal(145, dashboard.DemoHeartRate?.Value);
+        Assert.Equal(90, dashboard.DemoSpO2?.Value);
+
+        var chartResult = Assert.IsType<OkObjectResult>(
+            await controller.GetElderHeartRate24h(_testElderId, CancellationToken.None));
+        var chart = Assert.IsType<HeartRate24hResponse>(chartResult.Value);
+        Assert.DoesNotContain(chart.Points, point => point.Value == 145);
+    }
+
+    [Fact]
     public async Task Fact_44_GetElderHeartRate24h_Returns_Series_And_Min_Max_Avg()
     {
         // Arrange
@@ -214,6 +248,23 @@ public class DashboardAndGpsTests : IDisposable
         Assert.Equal(88, response.MaxHeartRate);
         Assert.Equal(65, response.LatestHeartRate);
         Assert.True(response.AvgHeartRate > 0);
+    }
+
+    [Fact]
+    public async Task VitalsCharts_WithoutMeasurements_DoNotInventHealthKitSamples()
+    {
+        _db.HealthMeasurements.RemoveRange(_db.HealthMeasurements
+            .Where(m => m.MetricType == "HEART_RATE" || m.MetricType == "SPO2"));
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var heartRateResult = Assert.IsType<OkObjectResult>(
+            await controller.GetElderHeartRate24h(_testElderId, CancellationToken.None));
+        var oxygenResult = Assert.IsType<OkObjectResult>(
+            await controller.GetElderSpo224h(_testElderId, CancellationToken.None));
+
+        Assert.Empty(Assert.IsType<HeartRate24hResponse>(heartRateResult.Value).Points);
+        Assert.Empty(Assert.IsType<Spo224hResponse>(oxygenResult.Value).Points);
     }
 
     [Fact]

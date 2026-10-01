@@ -13,6 +13,23 @@ namespace CareAI.UnitTests;
 public class DeviceStaleTests
 {
     [Fact]
+    public async Task AppleWatchHealthKitDelivery_DoesNotCauseFiveMinuteFalseOfflineAlert()
+    {
+        await using var db = NewMemoryDb();
+        var now = DateTime.UtcNow;
+        await SeedAsync(db, now.AddMinutes(-10));
+        db.DeviceRegistrations.Single(d => d.Id == "device-a").DeviceType = "AppleWatch";
+        db.DeviceRegistrations.Single(d => d.Id == "device-b").IsActive = false;
+        await db.SaveChangesAsync();
+
+        await Engine(db).ScanAsync(now);
+        Assert.Empty(db.Incidents);
+
+        await Engine(db).ScanAsync(now.AddHours(3));
+        Assert.Equal(EmergencyType.StaleOffline, Assert.Single(db.Incidents).EmergencyType);
+    }
+
+    [Fact]
     public async Task OneOfTwoDevicesOnline_PreventsOfflineIncident_AtFiveMinuteBoundary()
     {
         await using var db = NewMemoryDb();

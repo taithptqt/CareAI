@@ -17,6 +17,29 @@ namespace CareAI.UnitTests;
 [Collection("SqlServerIntegration")]
 public class ClinicalDiagnosticTests
 {
+    [Fact]
+    public async Task LowSpO2_QueuesCaregiverAlert_WithoutRealertingBackfill()
+    {
+        await using var db = NewMemoryDb();
+        await SeedAsync(db);
+        var engine = Engine(db);
+        var now = DateTime.UtcNow;
+
+        Assert.Null(await engine.EvaluateSpO2SampleAsync("elder", "device", 91,
+            now.AddMinutes(-10)));
+        Assert.Empty(db.Incidents);
+
+        var incident = await engine.EvaluateSpO2SampleAsync("elder", "device", 91, now);
+        Assert.NotNull(incident);
+        Assert.Equal(EmergencyType.LowOxygen, incident.EmergencyType);
+        Assert.Equal(91, incident.SpO2Percent);
+        Assert.Single(db.NotificationOutboxes);
+        Assert.Contains("SpO₂", db.NotificationOutboxes.Single().Body);
+
+        Assert.Null(await engine.EvaluateSpO2SampleAsync("elder", "device", 90, now));
+        Assert.Single(db.NotificationOutboxes);
+    }
+
     [Theory]
     [InlineData(179, false)]
     [InlineData(180, true)]

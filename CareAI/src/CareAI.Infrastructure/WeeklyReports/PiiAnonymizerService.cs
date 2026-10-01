@@ -6,7 +6,8 @@ namespace CareAI.Infrastructure.WeeklyReports;
 // may cross the AI boundary. Aggregates remain sensitive health information.
 public sealed record AnonymousWeeklyStatistics(
     double? AverageHeartRate, double? AverageDailySteps,
-    int HeartRateDays, int StepDays, int AlertCount);
+    int HeartRateDays, int StepDays, int AlertCount,
+    double? AverageSpo2 = null, double? MinimumSpo2 = null, int Spo2Days = 0);
 
 public sealed class PiiAnonymizerService
 {
@@ -16,6 +17,7 @@ public sealed class PiiAnonymizerService
         var valid = measurements.Where(m => m.Timestamp >= startUtc && m.Timestamp < endUtc
             && double.IsFinite(m.Value)).ToArray();
         var heart = valid.Where(m => m.MetricType == "HEART_RATE" && m.Value > 0 && m.Value <= 300).ToArray();
+        var spo2 = valid.Where(m => m.MetricType == "SPO2" && m.Value > 0 && m.Value <= 100).ToArray();
         DateTime Day(HealthMeasurement m) => TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), zone).Date;
         // Select a consistent source for the entire week; never sum across devices.
@@ -26,6 +28,9 @@ public sealed class PiiAnonymizerService
         return new AnonymousWeeklyStatistics(
             heart.Length == 0 ? null : Math.Round(heart.Average(m => m.Value), 1),
             dailySteps.Length == 0 ? null : Math.Round(dailySteps.Average(), 0),
-            heart.Select(Day).Distinct().Count(), dailySteps.Length, Math.Max(0, alertCount));
+            heart.Select(Day).Distinct().Count(), dailySteps.Length, Math.Max(0, alertCount),
+            spo2.Length == 0 ? null : Math.Round(spo2.Average(m => m.Value), 1),
+            spo2.Length == 0 ? null : Math.Round(spo2.Min(m => m.Value), 1),
+            spo2.Select(Day).Distinct().Count());
     }
 }
