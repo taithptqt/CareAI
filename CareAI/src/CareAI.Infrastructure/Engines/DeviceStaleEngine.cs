@@ -11,6 +11,11 @@ namespace CareAI.Infrastructure.Engines;
 public class DeviceStaleEngine
 {
     public static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(5);
+    public static readonly TimeSpan AppleWatchStaleAfter = TimeSpan.FromHours(3);
+
+    public static TimeSpan StaleAfterFor(string? deviceType) =>
+        string.Equals(deviceType, "AppleWatch", StringComparison.OrdinalIgnoreCase)
+            ? AppleWatchStaleAfter : StaleAfter;
     private readonly CareAiDbContext _db;
     private readonly ILogger<DeviceStaleEngine> _logger;
 
@@ -53,11 +58,10 @@ public class DeviceStaleEngine
     {
         var devices = await _db.DeviceRegistrations.AsNoTracking()
             .Where(d => d.ElderProfileId == elderId && d.IsActive)
-            .Select(d => new { d.Id, d.LastHeartbeat }).ToListAsync(ct);
+            .Select(d => new { d.Id, d.DeviceType, d.LastHeartbeat }).ToListAsync(ct);
         if (devices.Count == 0) return;
 
-        var lastHeartbeat = devices.Max(d => d.LastHeartbeat);
-        var allStale = lastHeartbeat < now.Subtract(StaleAfter);
+        var allStale = devices.All(d => d.LastHeartbeat < now.Subtract(StaleAfterFor(d.DeviceType)));
         var active = await _db.Incidents.FirstOrDefaultAsync(i => i.ElderProfileId == elderId &&
             (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged), ct);
 

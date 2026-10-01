@@ -29,7 +29,7 @@ public sealed class WeeklyReportService(CareAiDbContext db, PiiAnonymizerService
         if (await db.WeeklyHealthReports.AnyAsync(r => r.ElderProfileId == elderId && r.WeekEndUtc == endUtc, ct)) return;
         var rows = await db.HealthMeasurements.AsNoTracking()
             .Where(m => m.ElderProfileId == elderId && m.Timestamp >= startUtc && m.Timestamp < endUtc
-                && (m.MetricType == "HEART_RATE" || m.MetricType == "STEPS"))
+                && (m.MetricType == "HEART_RATE" || m.MetricType == "STEPS" || m.MetricType == "SPO2"))
             .ToListAsync(ct);
         var alertCount = await db.HealthInsights.CountAsync(i => i.ElderProfileId == elderId
             && i.WindowEndUtc >= startUtc && i.WindowEndUtc < endUtc, ct);

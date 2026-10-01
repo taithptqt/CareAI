@@ -219,6 +219,29 @@ public class CareAiMasterFactsTests : IDisposable
         Assert.Equal(78.0, hr.Value);
     }
 
+    [Fact]
+    public async Task DemoTelemetry_ReplaysWithOriginalTime_AndDeduplicates()
+    {
+        var measuredAt = DateTime.UtcNow.AddMinutes(-15);
+        var batch = new TelemetryBatchRequest("DEMO_REPLAY_1", new List<TelemetrySampleDto>
+        {
+            new("DEMO_HEART_RATE", 145, "bpm", measuredAt),
+            new("DEMO_SPO2", 90, "%", measuredAt)
+        });
+
+        var (firstCount, _) = await _telemetryEngine.ProcessBatchLaneAsync(_testDeviceId, batch);
+        var (retryCount, _) = await _telemetryEngine.ProcessBatchLaneAsync(_testDeviceId, batch);
+
+        Assert.Equal(2, firstCount);
+        Assert.Equal(0, retryCount);
+        var stored = await _db.HealthMeasurements
+            .Where(m => m.ElderProfileId == _testElderId && m.MetricType.StartsWith("DEMO_"))
+            .ToListAsync();
+        Assert.Equal(2, stored.Count);
+        Assert.All(stored, sample => Assert.Equal(measuredAt, sample.Timestamp));
+        Assert.Empty(_db.Incidents);
+    }
+
     // FACT 04: ProcessedTelemetryLedgers ngăn chặn xử lý gói tin trùng lặp
     [Fact]
     public async Task Fact_04_ProcessedTelemetryLedgers_PreventsDuplicatePacketIngestion()

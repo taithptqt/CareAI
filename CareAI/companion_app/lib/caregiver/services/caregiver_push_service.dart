@@ -165,6 +165,11 @@ class CaregiverPushService {
     if (id == null || id.isEmpty || !await _isCaregiver()) return;
     await dispatchNativeCaregiverAlert(message);
     _events.add(id);
+    if (openedFromNotification && message.data['siren']?.toLowerCase() != 'true') {
+      _pendingIncidentId = id;
+      await openPendingIncident();
+      return;
+    }
     if (message.data['eventType'] == 'PHOTO_AVAILABLE') {
       if (openedFromNotification) {
         _pendingIncidentId = id;
@@ -172,7 +177,24 @@ class CaregiverPushService {
       }
       return;
     }
-    if (message.data['siren']?.toLowerCase() != 'true') return;
+    if (message.data['siren']?.toLowerCase() != 'true') {
+      if (openScreen) {
+        final context = navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+            content: Text(message.data['body'] ?? 'Có chỉ số sức khỏe cần kiểm tra.'),
+            action: SnackBarAction(
+              label: 'Xem',
+              onPressed: () {
+                _pendingIncidentId = id;
+                unawaited(openPendingIncident());
+              },
+            ),
+          ));
+        }
+      }
+      return;
+    }
     if (openScreen) {
       try {
         await _alertChannel.invokeMethod<void>('showAlarmScreen', <String, dynamic>{

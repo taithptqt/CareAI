@@ -55,7 +55,7 @@ void main() {
       expect(reconstructed.retryCount, 0);
     });
 
-    test('HealthConnectService fallback generates physiological vitals within safe medical bounds', () async {
+    test('HealthConnectService returns no invented measurements without a source', () async {
       final service = HealthConnectService.instance;
       final startTime = DateTime.now().toUtc().subtract(const Duration(minutes: 15));
       final endTime = DateTime.now().toUtc();
@@ -65,31 +65,7 @@ void main() {
         endTime: endTime,
       );
 
-      expect(samples.isNotEmpty, isTrue, reason: 'Phải sinh ít nhất một số mẫu sinh hiệu');
-
-      // Kiểm tra tất cả mẫu nhịp tim phải nằm trong dải sinh lý người già nghỉ ngơi (60-95 BPM)
-      final hrSamples = samples.where((s) => s.metricType == 'HEART_RATE').toList();
-      expect(hrSamples.isNotEmpty, isTrue);
-      for (final hr in hrSamples) {
-        expect(hr.value, greaterThanOrEqualTo(60.0));
-        expect(hr.value, lessThanOrEqualTo(95.0));
-        expect(hr.unit, 'BPM');
-      }
-
-      // Kiểm tra mẫu SpO2 nếu có phải từ 95.0% đến 100.0%
-      final spo2Samples = samples.where((s) => s.metricType == 'SPO2').toList();
-      for (final spo2 in spo2Samples) {
-        expect(spo2.value, greaterThanOrEqualTo(95.0));
-        expect(spo2.value, lessThanOrEqualTo(100.0));
-        expect(spo2.unit, '%');
-      }
-
-      // Kiểm tra mẫu bước chân nếu có phải >= 0
-      final stepsSamples = samples.where((s) => s.metricType == 'STEPS').toList();
-      for (final step in stepsSamples) {
-        expect(step.value, greaterThanOrEqualTo(0.0));
-        expect(step.unit, 'STEPS');
-      }
+      expect(samples, isEmpty);
     });
   });
 }

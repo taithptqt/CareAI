@@ -46,15 +46,17 @@ public class WeeklyReportTests
             new HealthMeasurement { ElderProfileId = "PRIVATE-ID", DeviceId = "PRIVATE-WATCH", PacketId = "PRIVATE-PACKET",
                 Unit = "PRIVATE-PHONE", MetricType = "HEART_RATE", Value = 70, Timestamp = Start,
                 ElderProfile = new ElderProfile { FullName = "PRIVATE-NAME", EmergencyContact = "PRIVATE-ADDRESS" } },
-            new HealthMeasurement { DeviceId = "PRIVATE-WATCH", MetricType = "STEPS", Value = 500, Timestamp = Start }
+            new HealthMeasurement { DeviceId = "PRIVATE-WATCH", MetricType = "STEPS", Value = 500, Timestamp = Start },
+            new HealthMeasurement { DeviceId = "PRIVATE-WATCH", MetricType = "SPO2", Value = 96, Timestamp = Start }
         };
         var result = new PiiAnonymizerService().Anonymize(samples, 2, Start, Start.AddDays(7), TimeZoneInfo.Utc);
         var json = JsonSerializer.Serialize(result);
         Assert.DoesNotContain("PRIVATE", json);
         Assert.Equal(70, result.AverageHeartRate);
         Assert.Equal(500, result.AverageDailySteps);
+        Assert.Equal(96, result.AverageSpo2);
         using var document = JsonDocument.Parse(json);
-        Assert.Equal(5, document.RootElement.EnumerateObject().Count());
+        Assert.Equal(8, document.RootElement.EnumerateObject().Count());
         Assert.All(document.RootElement.EnumerateObject(), p => Assert.Equal(JsonValueKind.Number, p.Value.ValueKind));
     }
 
@@ -65,11 +67,14 @@ public class WeeklyReportTests
         { MetricType = type, Value = value, DeviceId = device, Timestamp = Start.AddDays(day) };
         var result = new PiiAnonymizerService().Anonymize([
             M("HEART_RATE", double.NaN), M("HEART_RATE", 0), M("HEART_RATE", 400),
+            M("SPO2", 0), M("SPO2", 101), M("SPO2", 94), M("SPO2", 98),
             M("STEPS", -1), M("STEPS", 100001), M("STEPS", 100), M("STEPS", 200),
             M("STEPS", 900, "b"), M("STEPS", 10, day: 7), M("STEPS", 10, day: -1),
             M("OTHER", 1), M("STEPS", double.PositiveInfinity)
         ], -2, Start, Start.AddDays(7), TimeZoneInfo.Utc);
         Assert.Null(result.AverageHeartRate);
+        Assert.Equal(96, result.AverageSpo2);
+        Assert.Equal(94, result.MinimumSpo2);
         Assert.Equal(300, result.AverageDailySteps);
         Assert.Equal(1, result.StepDays);
         Assert.Equal(0, result.AlertCount);
