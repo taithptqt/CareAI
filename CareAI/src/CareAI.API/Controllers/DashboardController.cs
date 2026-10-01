@@ -60,7 +60,8 @@ public class DashboardController : ControllerBase
 
         // Trạng thái thiết bị
         var activeDevices = elder.Devices.Where(d => d.IsActive).ToList();
-        var isOnline = activeDevices.Any(d => d.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfter));
+        var isOnline = activeDevices.Any(d =>
+            d.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfterFor(d.DeviceType)));
         var deviceStatus = isOnline ? "ONLINE" : "OFFLINE";
         var lastSyncedAt = activeDevices.Count > 0 ? (DateTime?)activeDevices.Max(d => d.LastHeartbeat) : null;
 
@@ -73,6 +74,17 @@ public class DashboardController : ControllerBase
         var latestSpo2 = await _db.HealthMeasurements
             .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "SPO2")
             .OrderByDescending(m => m.Timestamp)
+            .FirstOrDefaultAsync(ct);
+
+        // Demo metrics remain separate from real vitals, charts and clinical alerts.
+        var demoSince = now.AddHours(-1);
+        var demoHr = await _db.HealthMeasurements
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "DEMO_HEART_RATE" && m.RecordedAt >= demoSince)
+            .OrderByDescending(m => m.RecordedAt)
+            .FirstOrDefaultAsync(ct);
+        var demoSpo2 = await _db.HealthMeasurements
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "DEMO_SPO2" && m.RecordedAt >= demoSince)
+            .OrderByDescending(m => m.RecordedAt)
             .FirstOrDefaultAsync(ct);
 
         var latestBp = await _db.HealthMeasurements
@@ -154,7 +166,9 @@ public class DashboardController : ControllerBase
             StepGoal: 6000,
             LastKnownGpsLocation: lastKnownGpsLocation,
             lastSyncedAt,
-            activeIncident != null ? IncidentDtoMapper.ToResponse(activeIncident, elder.FullName) : null
+            activeIncident != null ? IncidentDtoMapper.ToResponse(activeIncident, elder.FullName) : null,
+            DemoHeartRate: demoHr != null ? new VitalSignDto(demoHr.MetricType, demoHr.Value, demoHr.Unit, demoHr.Timestamp, "YELLOW") : null,
+            DemoSpO2: demoSpo2 != null ? new VitalSignDto(demoSpo2.MetricType, demoSpo2.Value, demoSpo2.Unit, demoSpo2.Timestamp, "YELLOW") : null
         );
 
         return Ok(response);
@@ -190,16 +204,7 @@ public class DashboardController : ControllerBase
 
         if (samples.Count == 0)
         {
-            var now = DateTime.UtcNow;
-            var syntheticPoints = new List<HeartRatePointDto>
-            {
-                new(now.AddHours(-18), 72),
-                new(now.AddHours(-12), 75),
-                new(now.AddHours(-6), 68),
-                new(now.AddHours(-2), 74),
-                new(now, 76)
-            };
-            return Ok(new HeartRate24hResponse(syntheticPoints, 68, 76, 73.0, 76));
+            return Ok(new HeartRate24hResponse([], 0, 0, 0, 0));
         }
 
         var min = samples.Min(s => s.Value);
@@ -319,16 +324,7 @@ public class DashboardController : ControllerBase
 
         if (samples.Count == 0)
         {
-            var now = DateTime.UtcNow;
-            var syntheticPoints = new List<Spo2PointDto>
-            {
-                new(now.AddHours(-18), 98),
-                new(now.AddHours(-12), 97),
-                new(now.AddHours(-6), 98),
-                new(now.AddHours(-2), 99),
-                new(now, 98)
-            };
-            return Ok(new Spo224hResponse(syntheticPoints, 97, 99, 98.0, 98, 0, "GREEN"));
+            return Ok(new Spo224hResponse([], 0, 0, 0, 0, 0, "UNKNOWN"));
         }
 
         var min = samples.Min(s => s.Value);

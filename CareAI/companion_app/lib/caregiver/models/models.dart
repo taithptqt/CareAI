@@ -296,6 +296,8 @@ class ElderDashboard {
   final VitalSign? latestHeartRate;
   final VitalSign? latestBloodPressure;
   final VitalSign? latestSpO2;
+  final VitalSign? demoHeartRate;
+  final VitalSign? demoSpO2;
   final int todaySteps;
   final int stepGoal;
   final String? lastKnownGpsLocation;
@@ -311,6 +313,8 @@ class ElderDashboard {
     this.latestHeartRate,
     this.latestBloodPressure,
     this.latestSpO2,
+    this.demoHeartRate,
+    this.demoSpO2,
     required this.todaySteps,
     required this.stepGoal,
     this.lastKnownGpsLocation,
@@ -328,6 +332,8 @@ class ElderDashboard {
       latestHeartRate: json['latestHeartRate'] != null ? VitalSign.fromJson(json['latestHeartRate']) : null,
       latestBloodPressure: json['latestBloodPressure'] != null ? VitalSign.fromJson(json['latestBloodPressure']) : null,
       latestSpO2: json['latestSpO2'] != null ? VitalSign.fromJson(json['latestSpO2']) : null,
+      demoHeartRate: json['demoHeartRate'] != null ? VitalSign.fromJson(json['demoHeartRate']) : null,
+      demoSpO2: json['demoSpO2'] != null ? VitalSign.fromJson(json['demoSpO2']) : null,
       todaySteps: json['todaySteps'] ?? 0,
       stepGoal: json['stepGoal'] ?? 6000,
       lastKnownGpsLocation: json['lastKnownGpsLocation'],

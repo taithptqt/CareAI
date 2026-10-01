@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -25,7 +26,7 @@ class ElderDashboardScreen extends StatefulWidget {
   State<ElderDashboardScreen> createState() => _ElderDashboardScreenState();
 }
 
-class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
+class _ElderDashboardScreenState extends State<ElderDashboardScreen> with WidgetsBindingObserver {
   ElderDashboard? _dashboard;
   HeartRate24hData? _heartRate24h;
   ThresholdData? _thresholdData;
@@ -36,6 +37,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
   int _selectedChartTab = 0; // 0: HeartRate, 1: BloodPressure, 2: SpO2, 3: HourlySteps
   bool _isLoading = true;
   String? _errorMessage;
+  Timer? _vitalsRefreshTimer;
+  bool _refreshingVitals = false;
 
   // Trạng thái mã PIN
   String? _generatedPin;
@@ -48,7 +51,48 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboard();
+    _vitalsRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshLiveVitals(),
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _vitalsRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshLiveVitals());
+    }
+  }
+
+  Future<void> _refreshLiveVitals() async {
+    if (!mounted || _isLoading || _refreshingVitals) return;
+    _refreshingVitals = true;
+    try {
+      final results = await Future.wait<Object>([
+        CaregiverApiService.instance.getElderDashboard(widget.elderProfileId),
+        CaregiverApiService.instance.getHeartRate24h(widget.elderProfileId),
+        CaregiverApiService.instance.getSpo224h(widget.elderProfileId),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _dashboard = results[0] as ElderDashboard;
+        _heartRate24h = results[1] as HeartRate24hData;
+        _spo224h = results[2] as Spo224hData;
+      });
+    } catch (_) {
+      // Keep the last received measurements and their timestamps visible.
+    } finally {
+      _refreshingVitals = false;
+    }
   }
 
   Future<void> _loadDashboard() async {
@@ -254,6 +298,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
                 _buildEmergencyAlertBanner(d.activeEmergency!),
                 const SizedBox(height: 14),
               ],
+              if (d.demoHeartRate != null || d.demoSpO2 != null) ...[
+                _buildDemoAlertBanner(d),
+                const SizedBox(height: 14),
+              ],
 
               // 1. THẺ HỒ SƠ NGƯỜI CAO TUỔI & TRẠNG THÁI THIẾT BỊ
               _buildElderProfileCard(d, isOnline),
@@ -267,6 +315,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
               _buildVitalsHeader(),
               const SizedBox(height: 10),
               _buildVitalsGrid(d),
+              const SizedBox(height: 12),
+              _buildCareAdviceCard(d),
               const SizedBox(height: 18),
 
               // 3. KHU VỰC PHÂN TÍCH BIỂU ĐỒ SINH HIỆU CHUYÊN SÂU (GÓI A: 4 BIỂU ĐỒ)
@@ -407,9 +457,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
                     const Text(' • ', style: TextStyle(color: Color(0xFF64748B))),
                     const Icon(Icons.watch_rounded, size: 14, color: Color(0xFF38BDF8)),
                     const SizedBox(width: 4),
-                    const Text(
-                      'Galaxy Watch BioActive',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF38BDF8), fontWeight: FontWeight.w500),
+                    Text(
+                      d.lastSyncedAt == null ? 'Chưa ghép đồng hồ' : 'Đồng hồ CareAI',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF38BDF8), fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -429,7 +479,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF334155)),
       ),
-      child: ListTile(
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -451,6 +503,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
           MaterialPageRoute(
             builder: (_) => HealthCornerScreen(elderId: widget.elderProfileId),
           ),
+        ),
         ),
       ),
     );
@@ -486,7 +539,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
           children: [
             Expanded(
               child: _buildVitalCard(
-                title: 'Nhịp Tim (PPG)',
+                title: 'Nhịp tim',
                 value: d.latestHeartRate != null ? '${d.latestHeartRate!.value.toInt()}' : '--',
                 unit: 'bpm',
                 icon: Icons.favorite_rounded,
@@ -523,13 +576,13 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
             Expanded(
               child: _buildVitalCard(
                 title: 'Huyết Áp',
-                value: d.latestBloodPressure != null ? '${d.latestBloodPressure!.value.toInt()}' : '120/80',
+                value: d.latestBloodPressure != null ? '${d.latestBloodPressure!.value.toInt()}' : '--',
                 unit: 'mmHg',
                 icon: Icons.speed_rounded,
                 iconColor: const Color(0xFFA855F7),
                 accentColor: const Color(0xFFA855F7),
                 timestamp: d.latestBloodPressure?.timestamp,
-                statusText: 'Ổn định',
+                statusText: d.latestBloodPressure == null ? 'Chưa có mẫu' : 'Đã cập nhật',
               ),
             ),
             const SizedBox(width: 12),
@@ -548,6 +601,85 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildDemoAlertBanner(ElderDashboard dashboard) {
+    final heartRate = dashboard.demoHeartRate;
+    final spo2 = dashboard.demoSpO2;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF422006),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF59E0B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('CẢNH BÁO TRÌNH DIỄN · DỮ LIỆU GIẢ LẬP',
+              style: TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.bold)),
+          if (heartRate != null)
+            Text('Nhịp tim tăng: ${heartRate.value.toStringAsFixed(0)} bpm · '
+                '${DateFormat('HH:mm:ss').format(heartRate.timestamp.toLocal())}',
+                style: const TextStyle(color: Colors.white)),
+          if (spo2 != null)
+            Text('SpO₂ giảm: ${spo2.value.toStringAsFixed(0)}% · '
+                '${DateFormat('HH:mm:ss').format(spo2.timestamp.toLocal())}',
+                style: const TextStyle(color: Colors.white)),
+          const Text('Chỉ dùng để thử luồng đồng bộ. Không phải số đo HealthKit.',
+              style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCareAdviceCard(ElderDashboard d) {
+    final now = DateTime.now();
+    final hr = d.latestHeartRate;
+    final oxygen = d.latestSpO2;
+    final messages = <String>[];
+    if (hr == null && oxygen == null) {
+      messages.add('Chưa có mẫu nhịp tim hoặc SpO₂. Kiểm tra đồng hồ, quyền HealthKit và kết nối mạng.');
+    } else {
+      if (hr == null) messages.add('Chưa có mẫu nhịp tim. Kiểm tra quyền HealthKit trên đồng hồ.');
+      if (oxygen == null) messages.add('Chưa có mẫu SpO₂. Kiểm tra quyền HealthKit và khả năng đo của đồng hồ.');
+      if (hr != null) {
+        if (now.difference(hr.timestamp).inHours >= 2) {
+          messages.add('Mẫu nhịp tim đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.');
+        } else if (hr.value < 50 || hr.value > 100) {
+          messages.add('Nhịp tim gần nhất nằm ngoài khoảng tham chiếu trên app. Hãy hỏi thăm cảm giác của người thân.');
+        }
+      }
+      if (oxygen != null) {
+        if (now.difference(oxygen.timestamp).inHours >= 2) {
+          messages.add('Mẫu SpO₂ đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.');
+        } else if (oxygen.value < 95) {
+          messages.add('SpO₂ gần nhất thấp: hỏi thăm triệu chứng, kiểm tra lại phép đo và liên hệ nhân viên y tế nếu mức thấp lặp lại.');
+        }
+      }
+      if (messages.isEmpty) {
+        messages.add('Chỉ số mới nhất đã được cập nhật. Tiếp tục theo dõi xu hướng và hỏi thăm người thân.');
+      }
+    }
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Nhận định cho gia đình',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        ...messages.map((message) => Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Text('• $message', style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12)),
+        )),
+        const Text('Chỉ hỗ trợ theo dõi, không thay thế đánh giá y tế.',
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+      ]),
     );
   }
 
@@ -733,6 +865,14 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
     final hrData = _heartRate24h;
     final points = hrData?.points ?? [];
 
+    if (points.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 36),
+        child: Center(child: Text('Chưa có mẫu nhịp tim trong 24 giờ qua',
+            style: TextStyle(color: Color(0xFF94A3B8)))),
+      );
+    }
+
     List<FlSpot> spots = [];
     if (points.isNotEmpty) {
       final now = DateTime.now();
@@ -743,19 +883,6 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
         spots.add(FlSpot(clampedX, points[i].value));
       }
       spots.sort((a, b) => a.x.compareTo(b.x));
-      if (spots.length == 1) {
-        spots.add(FlSpot((spots.first.x + 1.0).clamp(0.0, 24.0), spots.first.y));
-      }
-    } else {
-      spots = const [
-        FlSpot(0, 72),
-        FlSpot(4, 68),
-        FlSpot(8, 76),
-        FlSpot(12, 82),
-        FlSpot(16, 75),
-        FlSpot(20, 70),
-        FlSpot(24, 74),
-      ];
     }
 
     final double minVal = hrData?.minHeartRate ?? 60.0;
@@ -765,8 +892,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
     // Tính cận trên và cận dưới linh hoạt theo dữ liệu thực tế
     final double computedMaxY = (((maxVal > 120 ? maxVal : 120) + 15) / 10).ceil() * 10.0;
     final double computedMinY = (((minVal < 50 ? minVal : 50) - 15) / 10).floor() * 10.0;
-    final double chartMaxY = computedMaxY.clamp(130.0, 220.0);
-    final double chartMinY = computedMinY.clamp(30.0, 60.0);
+    final double chartMaxY = computedMaxY.clamp(130.0, 320.0);
+    final double chartMinY = computedMinY.clamp(0.0, 60.0);
     final double yInterval = ((chartMaxY - chartMinY) / 4).clamp(15.0, 40.0);
 
     return Column(
@@ -1159,23 +1286,21 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
     final spo2 = _spo224h;
     final points = spo2?.points ?? [];
 
+    if (points.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 36),
+        child: Center(child: Text('Chưa có mẫu SpO₂ trong 24 giờ qua',
+            style: TextStyle(color: Color(0xFF94A3B8)))),
+      );
+    }
+
     List<FlSpot> spots = [];
     if (points.isNotEmpty) {
-      final baseTime = points.first.timestamp;
+      final windowStart = DateTime.now().subtract(const Duration(hours: 24));
       for (int i = 0; i < points.length; i++) {
-        final hoursDiff = points[i].timestamp.difference(baseTime).inMinutes / 60.0;
-        spots.add(FlSpot(hoursDiff, points[i].value));
+        final hoursDiff = points[i].timestamp.toLocal().difference(windowStart).inMinutes / 60.0;
+        spots.add(FlSpot(hoursDiff.clamp(0.0, 24.0), points[i].value));
       }
-    } else {
-      spots = const [
-        FlSpot(0, 98),
-        FlSpot(4, 97),
-        FlSpot(8, 98),
-        FlSpot(12, 99),
-        FlSpot(16, 98),
-        FlSpot(20, 97),
-        FlSpot(24, 98),
-      ];
     }
 
     final double minVal = spo2?.minSpo2 ?? 96.0;
@@ -1307,7 +1432,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
               borderData: FlBorderData(show: false),
               minX: 0,
               maxX: 24,
-              minY: 85,
+              minY: (((minVal - 5) / 5).floor() * 5).clamp(0, 85).toDouble(),
               maxY: 100,
               lineBarsData: [
                 LineChartBarData(
@@ -1317,7 +1442,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> {
                   color: const Color(0xFF0EA5E9),
                   barWidth: 3,
                   isStrokeCapRound: true,
-                  dotData: const FlDotData(show: false),
+                  dotData: FlDotData(show: spots.length == 1),
                   belowBarData: BarAreaData(
                     show: true,
                     gradient: LinearGradient(

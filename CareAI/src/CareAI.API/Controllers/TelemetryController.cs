@@ -231,6 +231,11 @@ public class TelemetryController : ControllerBase
                     ct: ct,
                     measuredAtUtc: sample.Timestamp);
             }
+            else if (sample.MetricType == "SPO2")
+            {
+                await _clinicalEngine.EvaluateSpO2SampleAsync(
+                    device.ElderProfileId, validatedDeviceId, sample.Value, sample.Timestamp, ct);
+            }
         }
 
         return StatusCode(StatusCodes.Status201Created, new

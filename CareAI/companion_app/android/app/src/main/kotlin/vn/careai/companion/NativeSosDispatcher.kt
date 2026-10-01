@@ -10,7 +10,6 @@ import android.os.CancellationSignal
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.work.*
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -205,8 +204,6 @@ object NativeSosDispatcher {
         } catch (e: Exception) {
             Log.w("CareAI-Dispatcher", "Không lấy/gửi được GPS hiện tại: ${e.javaClass.simpleName}")
         }
-    }
-
     }
 
     fun enqueueWorkManagerRetry(context: Context, eventId: String) {
