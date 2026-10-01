@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/telemetry_sample.dart';
 import 'local_offline_store.dart';
 import 'sync_service.dart';
 
-/// Dịch vụ thu thập sinh hiệu từ Google Health Connect & Fallback Engine
+/// Dịch vụ thu thập sinh hiệu từ Google Health Connect.
 /// Phục vụ Nhiệm vụ 1.1 theo Bản Kế hoạch Triển khai CareAI v111.0
 class HealthConnectService {
   static final HealthConnectService instance = HealthConnectService._init();
@@ -14,15 +13,13 @@ class HealthConnectService {
 
   static const MethodChannel _channel = MethodChannel('vn.careai.companion/health_connect');
 
-  final Random _random = Random();
-
   /// Kiểm tra Google Health Connect có sẵn trên thiết bị hay không
   Future<bool> isHealthConnectAvailable() async {
     try {
       final available = await _channel.invokeMethod<bool>('isAvailable');
       return available ?? false;
     } on MissingPluginException {
-      debugPrint('[HealthConnect] Plugin chưa đăng ký, dùng chế độ mô phỏng sinh hiệu');
+      debugPrint('[HealthConnect] Plugin chưa đăng ký');
       return false;
     } catch (e) {
       debugPrint('[HealthConnect] Lỗi kiểm tra khả dụng: $e');
@@ -81,66 +78,11 @@ class HealthConnectService {
           return samples;
         }
       } catch (e) {
-        debugPrint('[HealthConnect] Lỗi đọc bản ghi từ Health Connect: $e. Chuyển sang Fallback.');
+        debugPrint('[HealthConnect] Lỗi đọc bản ghi từ Health Connect: $e');
       }
     }
 
-    // CHẾ ĐỘ DỰ PHÒNG CHUẨN MỰC (Deterministic Fallback / Standby Harvester)
-    // Sinh chuỗi sinh hiệu sinh lý học thực tế của người cao tuổi
-    samples.addAll(_generatePhysiologicalSamples(startTime, endTime));
-    return samples;
-  }
-
-  /// Sinh các mẫu sinh hiệu thực tế dựa trên nhịp sinh học
-  List<TelemetrySample> _generatePhysiologicalSamples(DateTime startTime, DateTime endTime) {
-    final List<TelemetrySample> samples = [];
-    final duration = endTime.difference(startTime);
-
-    // Thu thập từng bước 3 phút một mẫu nhịp tim
-    final stepMinutes = 3;
-    final totalSteps = (duration.inMinutes / stepMinutes).clamp(1, 15).toInt();
-
-    for (int i = 0; i < totalSteps; i++) {
-      final sampleTime = startTime.add(Duration(minutes: i * stepMinutes));
-
-      // 1. Nhịp tim người già nghỉ ngơi (68 - 84 bpm, dao động nhẹ)
-      final hrBase = 74.0;
-      final hrVariation = (_random.nextDouble() * 10.0) - 5.0; // -5 to +5
-      final heartRate = (hrBase + hrVariation).roundToDouble();
-
-      samples.add(TelemetrySample(
-        metricType: 'HEART_RATE',
-        value: heartRate,
-        unit: 'BPM',
-        timestamp: sampleTime,
-      ));
-
-      // 2. Nồng độ oxy trong máu SpO2 (96.5% - 99.0%)
-      if (i % 2 == 0) {
-        final spo2 = 97.0 + (_random.nextDouble() * 2.0);
-        samples.add(TelemetrySample(
-          metricType: 'SPO2',
-          value: double.parse(spo2.toStringAsFixed(1)),
-          unit: '%',
-          timestamp: sampleTime,
-        ));
-      }
-    }
-
-    // 3. Số bước chân trong khoảng thời gian (10 - 65 bước nếu ban ngày, 0 nếu ban đêm)
-    final hour = endTime.toLocal().hour;
-    final isDayTime = hour >= 6 && hour <= 21;
-    final stepsCount = isDayTime ? (15 + _random.nextInt(50)).toDouble() : 0.0;
-
-    if (stepsCount > 0) {
-      samples.add(TelemetrySample(
-        metricType: 'STEPS',
-        value: stepsCount,
-        unit: 'STEPS',
-        timestamp: endTime,
-      ));
-    }
-
+    // Không tạo chỉ số giả khi chưa có quyền hoặc chưa có mẫu đo.
     return samples;
   }
 

@@ -10,7 +10,10 @@
 - `CareAI/companion_app`: ứng dụng Flutter hợp nhất cho người cao tuổi và người thân (`lib/caregiver/`), kèm Kotlin Android; `CareAI/companion_app/android/wearos`: module đồng hồ.
 - Backend dùng .NET 9, NuGet qua các `.csproj`; ứng dụng Flutter dùng `flutter pub get` với `pubspec.lock`; Wear OS dùng Gradle wrapper trong `CareAI/companion_app/android`.
 
-## Lệnh kiểm tra
+## Lệnh kiểm tra tham khảo
+
+- Không tự chạy build, test, analyze hoặc kiểm thử trên thiết bị khi người dùng không yêu cầu. Các lệnh dưới đây chỉ dùng khi người dùng yêu cầu kiểm tra.
+
 | Phạm vi | Lệnh chạy từ thư mục gốc |
 | --- | --- |
 | Build backend | `dotnet build CareAI/CareAI.slnx --nologo` |
@@ -18,7 +21,7 @@
 | Toàn bộ kiểm thử backend | `dotnet test CareAI/CareAI.slnx --nologo` |
 | Phân tích một tệp Dart | `cd CareAI/companion_app; flutter analyze lib/duong_dan.dart` |
 | Build Wear OS trên Windows | `cd CareAI/companion_app/android; .\gradlew.bat :wearos:assembleDebug` |
-- Chạy kiểm tra sát phạm vi thay đổi trước; chỉ báo kết quả đã thực sự chạy và nêu rõ khi thiếu SDK, thiết bị hoặc SQL Server.
+- Khi được yêu cầu kiểm tra, chọn lệnh sát phạm vi thay đổi; chỉ báo kết quả đã thực sự chạy và nêu rõ khi thiếu SDK, thiết bị hoặc SQL Server.
 
 ## Bất biến cần giữ
 - Giữ kiến trúc backend modular monolith và các phiên bản .NET/EF Core ổn định đang khai báo trong `.csproj`.
@@ -26,7 +29,7 @@
 - Giữ kiểm soát quyền caregiver với từng elder; không bỏ qua xác thực JWT hoặc middleware thiết bị.
 - Giữ tính idempotent của gói telemetry theo `(DeviceId, PacketId)`, lưu mẫu đo kèm gói SOS và ràng buộc một incident `Open`/`Acknowledged` cho mỗi elder; xem `TelemetryEngine` và `CareAiDbContext`.
 - Khi sửa luồng incident, giữ `RowVersion`, timeline và notification outbox. `NotificationDispatcherWorker` hiện mô phỏng gửi FCM; không coi trạng thái `SENT` là bằng chứng đã gửi đến thiết bị.
-- Khi sửa cảnh báo Android, giữ luồng Direct Boot, Device Protected Storage và `RTC_WAKEUP`; kiểm tra hành vi trên thiết bị hoặc emulator nếu có.
+- Khi sửa cảnh báo Android, giữ luồng Direct Boot, Device Protected Storage và `RTC_WAKEUP`; nếu người dùng yêu cầu kiểm thử, kiểm tra hành vi trên thiết bị hoặc emulator khi có sẵn.
 
 ## Quy ước thay đổi
 - Đặt entity và DTO ở Core, ánh xạ/lưu trữ ở Infrastructure, HTTP ở API; theo mẫu code cùng phân hệ.

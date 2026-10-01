@@ -56,5 +56,7 @@ public record ElderDashboardResponse(
     int StepGoal,
     string? LastKnownGpsLocation,
     DateTime? LastSyncedAt,
-    IncidentResponseDto? ActiveEmergency
+    IncidentResponseDto? ActiveEmergency,
+    VitalSignDto? DemoHeartRate = null,
+    VitalSignDto? DemoSpO2 = null
 );
