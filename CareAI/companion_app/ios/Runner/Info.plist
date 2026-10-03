@@ -66,5 +66,32 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>CareAI cần sử dụng vị trí GPS để gửi tọa độ cứu nạn khẩn cấp cho người thân và chỉ đường cấp cứu.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>CareAI cần vị trí liên tục để bảo vệ an toàn cho người cao tuổi trong tình huống té ngã hoặc đi lạc.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>CareAI cần vị trí để phát hiện tình huống khẩn cấp cho người cao tuổi.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>CareAI cần truy cập máy ảnh để chụp ảnh hiện trường gửi cho người thân khi xảy ra sự cố cấp cứu.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>CareAI cần truy cập thư viện ảnh để gửi hình ảnh bằng chứng sự cố y tế.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>CareAI cần Bluetooth để kết nối và nhận dữ liệu viễn trắc từ đồng hồ thông minh.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>CareAI cần kết nối với thiết bị ngoại vi thông minh.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>CareAI cần quyền truy cập cảm biến chuyển động để tự động phát hiện tai nạn té ngã và gửi tín hiệu cấp cứu.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>careai_periodic_sync_task</string>
+		<string>careai.healthsync</string>
+	</array>
 </dict>
 </plist>

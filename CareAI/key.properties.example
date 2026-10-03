@@ -1,0 +1,17 @@
+# CareAI Production Release Keystore Configuration Template
+# For Google Play Services Wearable Data Layer (Bluetooth), both the Android Phone App
+# and the Wear OS Watch App MUST be signed with the EXACT SAME keystore and alias
+# so that they share identical SHA-256 certificate fingerprints.
+#
+# Usage:
+# 1. Generate a production keystore (if not already created):
+#    keytool -genkey -v -keystore careai-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias careai_release_key
+# 2. Copy this file to:
+#    - CareAI/companion_app/android/key.properties
+#    - CareAI/wearos/key.properties
+# 3. Fill in your actual passwords and keystore absolute path below:
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=careai_release_key
+storeFile=C:\\path\\to\\careai-release.jks

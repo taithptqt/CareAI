@@ -13,11 +13,15 @@ targets:
       - Sources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: vn.careai.watch
+        PRODUCT_BUNDLE_IDENTIFIER: vn.careai.careaiCompanion.watchkitapp
         CODE_SIGN_ENTITLEMENTS: CareAIWatch.entitlements
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_NSHumanReadableCopyright: CareAI
         INFOPLIST_KEY_NSHealthShareUsageDescription: CareAI reads heart rate and blood oxygen samples to share with an authorized family member.
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: CareAI does not write health data.
-        INFOPLIST_KEY_WKApplication: YES
-        INFOPLIST_KEY_WKWatchOnly: YES
+        INFOPLIST_KEY_NSMotionUsageDescription: CareAI sử dụng cảm biến chuyển động để tự động phát hiện tai nạn té ngã và gửi tín hiệu cấp cứu.
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: vn.careai.careaiCompanion
+        INFOPLIST_KEY_WKBackgroundModes:
+          - workout-processing
+          - physical-therapy
+

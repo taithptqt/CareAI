@@ -250,6 +250,8 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
                 const SizedBox(width: 6),
                 _typeFilterChip('Nút SOS', 'MANUAL_SOS'),
                 const SizedBox(width: 6),
+                _typeFilterChip('Oxy thấp (SpO₂)', 'LOW_OXYGEN'),
+                const SizedBox(width: 6),
                 _typeFilterChip('Nhịp tim ≥180', 'CRITICAL_HIGH_HR'),
                 const SizedBox(width: 6),
                 _typeFilterChip('Nhịp tim ≤35', 'CRITICAL_LOW_HR'),
@@ -434,6 +436,30 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
     );
   }
 
+  IconData _emergencyIcon(String type) {
+    final upper = type.toUpperCase();
+    if (upper.contains('FALL')) return Icons.personal_injury_rounded;
+    if (upper.contains('OXYGEN') || upper.contains('SPO2')) return Icons.air_rounded;
+    if (upper.contains('TACHYCARDIA') || upper.contains('BRADYCARDIA') || upper.contains('SURGE') || upper.contains('HR') || upper.contains('HEART')) return Icons.monitor_heart_rounded;
+    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) return Icons.speed_rounded;
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.signal_cellular_connected_no_internet_4_bar_rounded;
+    if (upper.contains('SOS')) return Icons.emergency_rounded;
+    return Icons.crisis_alert_rounded;
+  }
+
+  String _emergencyLabel(String type) {
+    final upper = type.toUpperCase();
+    if (upper.contains('FALL')) return 'Té ngã';
+    if (upper.contains('LOW_OXYGEN') || upper.contains('LOWOXYGEN') || upper.contains('OXYGEN')) return 'Oxy máu thấp';
+    if (upper.contains('TACHYCARDIA') || upper.contains('CRITICAL_HIGH_HR')) return 'Nhịp tim nhanh';
+    if (upper.contains('BRADYCARDIA') || upper.contains('CRITICAL_LOW_HR')) return 'Nhịp tim chậm';
+    if (upper.contains('SURGE')) return 'Nhịp tim tăng vọt';
+    if (upper.contains('HYPERTENSION')) return 'Cơn tăng huyết áp';
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) return 'Mất tín hiệu';
+    if (upper.contains('SOS')) return 'Nút khẩn cấp SOS';
+    return type;
+  }
+
   Widget _buildIncidentCard(Incident incident) {
     final isOpen = incident.isOpen;
     final isAck = incident.isAcknowledged;
@@ -456,9 +482,6 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
       statusText = 'Đã Giải Quyết';
       statusIcon = Icons.task_alt;
     }
-
-    final isFall = incident.emergencyType.contains('FALL');
-    final isHeart = incident.emergencyType.contains('HR') || incident.emergencyType.contains('HEART');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -486,7 +509,7 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
                     radius: 18,
                     backgroundColor: statusColor.withValues(alpha: 0.12),
                     child: Icon(
-                      isFall ? Icons.personal_injury : (isHeart ? Icons.monitor_heart : Icons.crisis_alert),
+                      _emergencyIcon(incident.emergencyType),
                       color: statusColor,
                       size: 20,
                     ),
@@ -497,7 +520,7 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${incident.emergencyType} · ${incident.elderName}',
+                          '${_emergencyLabel(incident.emergencyType)} · ${incident.elderName}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
                           overflow: TextOverflow.ellipsis,
                         ),

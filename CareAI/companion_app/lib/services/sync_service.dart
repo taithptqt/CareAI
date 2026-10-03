@@ -6,6 +6,7 @@ import '../models/telemetry_sample.dart';
 import 'api_service.dart';
 import 'health_connect_service.dart';
 import 'local_offline_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SyncResult {
   final int syncedCount;
@@ -128,6 +129,19 @@ class SyncService {
   /// Ghi nhận và lưu gói viễn trắc sinh hiệu vào hàng đợi SQLite Outbox
   Future<void> enqueueTelemetrySamples(List<TelemetrySample> samples) async {
     if (samples.isEmpty) return;
+
+    // Tự động lưu vết sinh hiệu mới nhất vào SharedPreferences để phục vụ cấp cứu Fast-Lane SOS
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final sample in samples) {
+        if (sample.metricType == 'HEART_RATE') {
+          await prefs.setDouble('careai_last_heart_rate', sample.value);
+        } else if (sample.metricType == 'SPO2') {
+          await prefs.setDouble('careai_last_spo2', sample.value);
+        }
+      }
+    } catch (_) {}
+
     final routineSamples = <TelemetrySample>[];
     for (final sample in samples) {
       if (!sample.isCriticalHeartRate) {

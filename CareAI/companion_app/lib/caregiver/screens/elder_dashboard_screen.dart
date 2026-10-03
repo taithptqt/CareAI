@@ -48,6 +48,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   // Trạng thái phân tích AI
   bool _isAnalyzingThresholds = false;
 
+  // Trạng thái mở rộng nhận định cho gia đình
+  bool _isAdviceExpanded = true;
+
   @override
   void initState() {
     super.initState();
@@ -627,7 +630,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             Text('SpO₂ giảm: ${spo2.value.toStringAsFixed(0)}% · '
                 '${DateFormat('HH:mm:ss').format(spo2.timestamp.toLocal())}',
                 style: const TextStyle(color: Colors.white)),
-          const Text('Chỉ dùng để thử luồng đồng bộ. Không phải số đo HealthKit.',
+          const Text('Chỉ dùng để thử luồng đồng bộ. Không phải số đo lâm sàng từ thiết bị.',
               style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12)),
         ],
       ),
@@ -640,10 +643,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final oxygen = d.latestSpO2;
     final messages = <String>[];
     if (hr == null && oxygen == null) {
-      messages.add('Chưa có mẫu nhịp tim hoặc SpO₂. Kiểm tra đồng hồ, quyền HealthKit và kết nối mạng.');
+      messages.add('Chưa có mẫu nhịp tim hoặc SpO₂. Kiểm tra kết nối đồng hồ, quyền truy cập sức khỏe và mạng.');
     } else {
-      if (hr == null) messages.add('Chưa có mẫu nhịp tim. Kiểm tra quyền HealthKit trên đồng hồ.');
-      if (oxygen == null) messages.add('Chưa có mẫu SpO₂. Kiểm tra quyền HealthKit và khả năng đo của đồng hồ.');
+      if (hr == null) messages.add('Chưa có mẫu nhịp tim. Kiểm tra quyền cảm biến nhịp tim trên đồng hồ.');
+      if (oxygen == null) messages.add('Chưa có mẫu SpO₂. Kiểm tra quyền cảm biến SpO₂ và khả năng đo của đồng hồ.');
       if (hr != null) {
         if (now.difference(hr.timestamp).inHours >= 2) {
           messages.add('Mẫu nhịp tim đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.');
@@ -670,15 +673,51 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         border: Border.all(color: const Color(0xFF334155)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Nhận định cho gia đình',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        ...messages.map((message) => Padding(
-          padding: const EdgeInsets.only(bottom: 5),
-          child: Text('• $message', style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12)),
-        )),
-        const Text('Chỉ hỗ trợ theo dõi, không thay thế đánh giá y tế.',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.lightbulb_outline, color: Color(0xFF38BDF8), size: 18),
+                SizedBox(width: 6),
+                Text('Nhận định cho gia đình',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+            InkWell(
+              onTap: () => setState(() => _isAdviceExpanded = !_isAdviceExpanded),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _isAdviceExpanded ? 'Thu gọn' : 'Xem (${messages.length})',
+                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      _isAdviceExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      color: const Color(0xFF94A3B8),
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_isAdviceExpanded) ...[
+          const SizedBox(height: 8),
+          ...messages.map((message) => Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text('• $message', style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12)),
+          )),
+          const SizedBox(height: 2),
+          const Text('Chỉ hỗ trợ theo dõi, không thay thế đánh giá y tế.',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+        ],
       ]),
     );
   }

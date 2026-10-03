@@ -10,6 +10,7 @@ import '../services/emergency_evidence_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
 import '../services/voice_guidance_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FallCountdownDialog extends StatefulWidget {
   final FallEvent event;
@@ -104,12 +105,18 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
 
     final recentFix = EmergencyEvidenceService.recentFix;
     final initialGps = recentFix?.coordinates;
+    final prefs = await SharedPreferences.getInstance();
+    final lastHr = prefs.getDouble('careai_last_heart_rate') ?? 76.0;
+    final lastSpo2 = prefs.getDouble('careai_last_spo2') ?? 98.0;
+    final now = DateTime.now().toUtc();
+
+    // Fact 35 Invariant: Gói Fast-Lane SOS BẮT BUỘC lưu toàn bộ mẫu đo sinh hiệu đi kèm
     final request = SosPacketRequest(
       packetId: canonicalPacketId,
       eventId: widget.event.eventId,
       emergencyType: 'FALL',
       severity: 'CRITICAL',
-      triggeredAt: DateTime.now().toUtc(),
+      triggeredAt: now,
       gpsLocation: initialGps,
       gpsIsSimulated: recentFix?.isSimulated,
       gpsAccuracyMeters: recentFix?.accuracyMeters,
@@ -118,7 +125,19 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
           metricType: 'FALL',
           value: widget.event.impactG ?? 2.5,
           unit: 'G',
-          timestamp: DateTime.now().toUtc(),
+          timestamp: now,
+        ),
+        TelemetrySample(
+          metricType: 'HEART_RATE',
+          value: lastHr,
+          unit: 'bpm',
+          timestamp: now,
+        ),
+        TelemetrySample(
+          metricType: 'SPO2',
+          value: lastSpo2,
+          unit: '%',
+          timestamp: now,
         ),
       ],
     );

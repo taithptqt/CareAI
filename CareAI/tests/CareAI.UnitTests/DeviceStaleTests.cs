@@ -30,6 +30,23 @@ public class DeviceStaleTests
     }
 
     [Fact]
+    public async Task CompanionPhone_DoesNotCauseFiveMinuteFalseOfflineAlert_UntilTwentyFiveMinutes()
+    {
+        await using var db = NewMemoryDb();
+        var now = DateTime.UtcNow;
+        await SeedAsync(db, now.AddMinutes(-20)); // WorkManager 15-minute periodic interval
+        db.DeviceRegistrations.Single(d => d.Id == "device-a").DeviceType = "SMARTPHONE_COMPANION";
+        db.DeviceRegistrations.Single(d => d.Id == "device-b").IsActive = false;
+        await db.SaveChangesAsync();
+
+        await Engine(db).ScanAsync(now);
+        Assert.Empty(db.Incidents);
+
+        await Engine(db).ScanAsync(now.AddMinutes(6)); // Total 26 minutes since heartbeat
+        Assert.Equal(EmergencyType.StaleOffline, Assert.Single(db.Incidents).EmergencyType);
+    }
+
+    [Fact]
     public async Task OneOfTwoDevicesOnline_PreventsOfflineIncident_AtFiveMinuteBoundary()
     {
         await using var db = NewMemoryDb();

@@ -31,8 +31,9 @@ Future<void> dispatchNativeCaregiverAlert(RemoteMessage message,
   final incidentId = data['incidentId'];
   if (incidentId == null || incidentId.isEmpty) return;
   final urgent = data['siren']?.toLowerCase() == 'true';
+  final isHighPriority = data['priority']?.toUpperCase() == 'HIGH' || data['priority']?.toUpperCase() == 'CRITICAL';
   final eventType = data['eventType']?.toUpperCase() ?? '';
-  if (!urgent && eventType != 'ACKNOWLEDGED' && eventType != 'RESOLVED') return;
+  if (!urgent && !isHighPriority && eventType != 'ACKNOWLEDGED' && eventType != 'RESOLVED') return;
   final arguments = <String, dynamic>{
     'incidentId': incidentId,
     'alertCycleNumber': int.tryParse(data['alertCycleNumber'] ?? '') ?? 1,
@@ -40,17 +41,20 @@ Future<void> dispatchNativeCaregiverAlert(RemoteMessage message,
     'title': data['title'] ?? 'CẢNH BÁO CẤP CỨU',
     'body': data['body'] ?? 'Người cao tuổi cần trợ giúp ngay.',
     'emergencyType': data['emergencyType'] ?? '',
+    'priority': data['priority'] ?? '',
     'siren': urgent,
   };
   if (sendNative != null) {
     await sendNative(arguments);
     return;
   }
-  await AndroidIntent(
-    action: 'vn.careai.companion.ACTION_CAREGIVER_ALERT',
-    package: 'vn.careai.companion',
-    arguments: arguments,
-  ).sendBroadcast();
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await AndroidIntent(
+      action: 'vn.careai.companion.ACTION_CAREGIVER_ALERT',
+      package: 'vn.careai.companion',
+      arguments: arguments,
+    ).sendBroadcast();
+  }
 }
 
 class CaregiverPushService {
@@ -89,9 +93,10 @@ class CaregiverPushService {
         }
       } catch (_) {}
     }
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android ||
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS) ||
         _apiKey.isEmpty || _appId.isEmpty || _senderId.isEmpty || _projectId.isEmpty) {
-      debugPrint('[CareAI-Push] Firebase Android chưa được cấu hình.');
+      debugPrint('[CareAI-Push] Firebase chưa được cấu hình.');
       return;
     }
     try {
@@ -99,9 +104,16 @@ class CaregiverPushService {
         apiKey: _apiKey, appId: _appId,
         messagingSenderId: _senderId, projectId: _projectId,
       ));
-      FirebaseMessaging.onBackgroundMessage(caregiverBackgroundMessage);
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        FirebaseMessaging.onBackgroundMessage(caregiverBackgroundMessage);
+      }
       final messaging = FirebaseMessaging.instance;
-      await messaging.requestPermission(alert: true, badge: true, sound: true);
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        criticalAlert: true,
+      );
       FirebaseMessaging.onMessage.listen((message) {
         unawaited(_handleMessage(message, openScreen: true));
       });
@@ -196,16 +208,23 @@ class CaregiverPushService {
       return;
     }
     if (openScreen) {
-      try {
-        await _alertChannel.invokeMethod<void>('showAlarmScreen', <String, dynamic>{
-          'incidentId': id,
-          'alertCycleNumber': int.tryParse(message.data['alertCycleNumber'] ?? '') ?? 1,
-          'title': message.data['title'] ?? 'CẢNH BÁO CẤP CỨU',
-          'body': message.data['body'] ?? 'Người cao tuổi cần trợ giúp ngay.',
-          'emergencyType': message.data['emergencyType'] ?? '',
-        });
-      } catch (error) {
-        debugPrint('[CareAI-Push] Không thể mở màn hình báo động: $error');
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          await _alertChannel.invokeMethod<void>('showAlarmScreen', <String, dynamic>{
+            'incidentId': id,
+            'alertCycleNumber': int.tryParse(message.data['alertCycleNumber'] ?? '') ?? 1,
+            'title': message.data['title'] ?? 'CẢNH BÁO CẤP CỨU',
+            'body': message.data['body'] ?? 'Người cao tuổi cần trợ giúp ngay.',
+            'emergencyType': message.data['emergencyType'] ?? '',
+          });
+        } catch (error) {
+          debugPrint('[CareAI-Push] Không thể mở màn hình báo động: $error');
+        }
+      } else {
+        // Trên iOS hoặc môi trường không hỗ trợ Activity đè màn hình khóa:
+        // Tự động điều hướng trực tiếp tới màn hình chi tiết sự cố cấp cứu ngay khi nhận cảnh báo
+        _pendingIncidentId = id;
+        await openPendingIncident();
       }
     }
   }

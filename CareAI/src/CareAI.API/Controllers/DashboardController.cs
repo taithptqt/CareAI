@@ -258,17 +258,7 @@ public class DashboardController : ControllerBase
 
         if (points.Count == 0)
         {
-            var now = DateTime.UtcNow;
-            points = new List<BloodPressurePointDto>
-            {
-                new(now.AddDays(-6), 118, 76),
-                new(now.AddDays(-5), 122, 78),
-                new(now.AddDays(-4), 125, 80),
-                new(now.AddDays(-3), 120, 78),
-                new(now.AddDays(-2), 128, 82),
-                new(now.AddDays(-1), 122, 80),
-                new(now, 120, 80)
-            };
+            return Ok(new BloodPressureHistoryResponse([], 0, 0, "Chưa có dữ liệu", "GRAY"));
         }
 
         var latest = points.Last();
@@ -374,17 +364,6 @@ public class DashboardController : ControllerBase
         }
 
         var totalSteps = hourlyMap.Values.Sum();
-        if (totalSteps == 0)
-        {
-            hourlyMap[6] = 450;
-            hourlyMap[7] = 620;
-            hourlyMap[8] = 380;
-            hourlyMap[11] = 210;
-            hourlyMap[16] = 520;
-            hourlyMap[17] = 410;
-            totalSteps = hourlyMap.Values.Sum();
-        }
-
         var list = hourlyMap.OrderBy(kv => kv.Key).Select(kv => new HourlyStepsDto(kv.Key, kv.Value)).ToList();
         var peak = list.OrderByDescending(x => x.Steps).First();
 
@@ -434,7 +413,9 @@ public class DashboardController : ControllerBase
         DateTime? sleepEnd;
         int deepMinutes;
         int lightMinutes;
-        int wakeCount = 1;
+        int wakeCount;
+        string sleepQuality;
+        string statusColor;
 
         if (sleepSamples.Count > 0)
         {
@@ -443,34 +424,39 @@ public class DashboardController : ControllerBase
             sleepEnd = sleepSamples.Last().Timestamp;
             deepMinutes = (int)(totalSleepMinutes * 0.28);
             lightMinutes = totalSleepMinutes - deepMinutes;
+            wakeCount = 1;
+
+            if (totalSleepMinutes < 300)
+            {
+                sleepQuality = "Thiếu ngủ (Nguy cơ suy nhược)";
+                statusColor = "RED";
+            }
+            else if (totalSleepMinutes < 360)
+            {
+                sleepQuality = "Ngủ ít (Cần theo dõi)";
+                statusColor = "YELLOW";
+            }
+            else if (totalSleepMinutes > 540)
+            {
+                sleepQuality = "Ngủ nhiều bất thường";
+                statusColor = "YELLOW";
+            }
+            else
+            {
+                sleepQuality = "Tốt (Đạt chuẩn y tế)";
+                statusColor = "GREEN";
+            }
         }
         else
         {
-            totalSleepMinutes = 435; // 7 giờ 15 phút
-            sleepStart = today.AddDays(-1).AddHours(22).AddMinutes(15);
-            sleepEnd = today.AddHours(5).AddMinutes(30);
-            deepMinutes = 120; // 2 giờ ngủ sâu
-            lightMinutes = 315; // 5 giờ 15 phút ngủ nông/REM
-            wakeCount = 1;
-        }
-
-        string sleepQuality = "Tốt (Đạt chuẩn y tế)";
-        string statusColor = "GREEN";
-
-        if (totalSleepMinutes < 300)
-        {
-            sleepQuality = "Thiếu ngủ (Nguy cơ suy nhược)";
-            statusColor = "RED";
-        }
-        else if (totalSleepMinutes < 360)
-        {
-            sleepQuality = "Ngủ ít (Cần theo dõi)";
-            statusColor = "YELLOW";
-        }
-        else if (totalSleepMinutes > 540)
-        {
-            sleepQuality = "Ngủ nhiều bất thường";
-            statusColor = "YELLOW";
+            totalSleepMinutes = 0;
+            sleepStart = null;
+            sleepEnd = null;
+            deepMinutes = 0;
+            lightMinutes = 0;
+            wakeCount = 0;
+            sleepQuality = "Chưa có dữ liệu";
+            statusColor = "GRAY";
         }
 
         var response = new SleepSummaryResponse(

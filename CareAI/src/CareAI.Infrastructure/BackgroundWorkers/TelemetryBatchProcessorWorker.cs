@@ -121,7 +121,8 @@ public class TelemetryBatchProcessorWorker : BackgroundService
 
                 var now = DateTime.UtcNow;
                 int addedMeasurements = 0;
-                var heartRateEvaluations = new List<(string ElderId, string DeviceId, double HeartRate)>();
+                var heartRateEvaluations = new List<(string ElderId, string DeviceId, double HeartRate, DateTime Timestamp)>();
+                var spo2Evaluations = new List<(string ElderId, string DeviceId, double SpO2, DateTime Timestamp)>();
 
                 foreach (var msg in batch)
                 {
@@ -189,7 +190,11 @@ public class TelemetryBatchProcessorWorker : BackgroundService
 
                         if (metricType == "HEART_RATE")
                         {
-                            heartRateEvaluations.Add((msg.ElderProfileId, msg.DeviceId, sample.Value));
+                            heartRateEvaluations.Add((msg.ElderProfileId, msg.DeviceId, sample.Value, timestamp));
+                        }
+                        else if (metricType == "SPO2")
+                        {
+                            spo2Evaluations.Add((msg.ElderProfileId, msg.DeviceId, sample.Value, timestamp));
                         }
                     }
                 }
@@ -214,7 +219,20 @@ public class TelemetryBatchProcessorWorker : BackgroundService
                         deviceId: eval.DeviceId,
                         heartRate: eval.HeartRate,
                         recentSteps: 0,
-                        ct: ct);
+                        ct: ct,
+                        measuredAtUtc: eval.Timestamp);
+                }
+
+                // 5. Đánh giá lâm sàng thời gian thực cho các mẫu SpO2 (cửa sổ 20 phút cho mẻ viễn trắc)
+                foreach (var eval in spo2Evaluations)
+                {
+                    await clinicalEngine.EvaluateSpO2SampleAsync(
+                        elderProfileId: eval.ElderId,
+                        deviceId: eval.DeviceId,
+                        spo2: eval.SpO2,
+                        measuredAtUtc: eval.Timestamp,
+                        ct: ct,
+                        maxBackfillAge: TimeSpan.FromMinutes(20));
                 }
 
                 return; // Thành công, thoát vòng lặp retry

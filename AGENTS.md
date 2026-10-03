@@ -7,8 +7,8 @@
 
 ## Cấu trúc và công cụ
 - `CareAI/src/CareAI.Core`: entity, enum, DTO; `CareAI.Infrastructure`: EF Core, engine, background worker; `CareAI.API`: controller, middleware, cấu hình HTTP; `CareAI/tests/CareAI.UnitTests`: xUnit.
-- `CareAI/companion_app`: ứng dụng Flutter hợp nhất cho người cao tuổi và người thân (`lib/caregiver/`), kèm Kotlin Android; `CareAI/companion_app/android/wearos`: module đồng hồ.
-- Backend dùng .NET 9, NuGet qua các `.csproj`; ứng dụng Flutter dùng `flutter pub get` với `pubspec.lock`; Wear OS dùng Gradle wrapper trong `CareAI/companion_app/android`.
+- `CareAI/companion_app`: ứng dụng Flutter hợp nhất cho người cao tuổi và người thân (`lib/caregiver/`), kèm Kotlin Android; `CareAI/wearos`: module đồng hồ Wear OS độc lập; `CareAI/watchos`: module đồng hồ Apple Watch độc lập.
+- Backend dùng .NET 9, NuGet qua các `.csproj`; ứng dụng Flutter dùng `flutter pub get` với `pubspec.lock`; Wear OS dùng Gradle wrapper độc lập trong `CareAI/wearos`.
 
 ## Lệnh kiểm tra tham khảo
 
@@ -20,7 +20,7 @@
 | Một bài kiểm thử | `dotnet test CareAI/tests/CareAI.UnitTests/CareAI.UnitTests.csproj --filter "FullyQualifiedName~TenTest" --nologo` |
 | Toàn bộ kiểm thử backend | `dotnet test CareAI/CareAI.slnx --nologo` |
 | Phân tích một tệp Dart | `cd CareAI/companion_app; flutter analyze lib/duong_dan.dart` |
-| Build Wear OS trên Windows | `cd CareAI/companion_app/android; .\gradlew.bat :wearos:assembleDebug` |
+| Build Wear OS trên Windows | `cd CareAI/wearos; .\gradlew.bat assembleDebug` |
 - Khi được yêu cầu kiểm tra, chọn lệnh sát phạm vi thay đổi; chỉ báo kết quả đã thực sự chạy và nêu rõ khi thiếu SDK, thiết bị hoặc SQL Server.
 
 ## Bất biến cần giữ

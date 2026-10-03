@@ -103,7 +103,24 @@ VALUES
 (@ElderId, @DeviceId, 'PKT_HR_4', 'HEART_RATE', 185.0, 'bpm', @T, @T),
 (@ElderId, @DeviceId, 'PKT_HR_5', 'HEART_RATE', 152.0, 'bpm', DATEADD(minute, 5, @T), DATEADD(minute, 5, @T)),
 (@ElderId, @DeviceId, 'PKT_HR_6', 'HEART_RATE', 98.0, 'bpm', DATEADD(minute, 10, @T), DATEADD(minute, 10, @T)),
-(@ElderId, @DeviceId, 'PKT_HR_7', 'HEART_RATE', 76.0, 'bpm', DATEADD(minute, 15, @T), DATEADD(minute, 15, @T));
+(@ElderId, @DeviceId, 'PKT_HR_7', 'HEART_RATE', 76.0, 'bpm', DATEADD(minute, 15, @T), DATEADD(minute, 15, @T)),
+-- SpO2 measurements 24h
+(@ElderId, @DeviceId, 'PKT_SPO2_1', 'SPO2', 98.0, '%', DATEADD(hour, -18, SYSUTCDATETIME()), DATEADD(hour, -18, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_SPO2_2', 'SPO2', 97.5, '%', DATEADD(hour, -12, SYSUTCDATETIME()), DATEADD(hour, -12, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_SPO2_3', 'SPO2', 98.2, '%', DATEADD(hour, -6, SYSUTCDATETIME()), DATEADD(hour, -6, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_SPO2_4', 'SPO2', 99.0, '%', DATEADD(hour, -2, SYSUTCDATETIME()), DATEADD(hour, -2, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_SPO2_5', 'SPO2', 98.0, '%', SYSUTCDATETIME(), SYSUTCDATETIME()),
+-- Hourly steps
+(@ElderId, @DeviceId, 'PKT_STEP_1', 'STEPS', 120.0, 'STEPS', DATEADD(hour, -8, SYSUTCDATETIME()), DATEADD(hour, -8, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_STEP_2', 'STEPS', 350.0, 'STEPS', DATEADD(hour, -6, SYSUTCDATETIME()), DATEADD(hour, -6, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_STEP_3', 'STEPS', 540.0, 'STEPS', DATEADD(hour, -4, SYSUTCDATETIME()), DATEADD(hour, -4, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_STEP_4', 'STEPS', 280.0, 'STEPS', DATEADD(hour, -2, SYSUTCDATETIME()), DATEADD(hour, -2, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_STEP_5', 'STEPS', 160.0, 'STEPS', SYSUTCDATETIME(), SYSUTCDATETIME()),
+-- Blood Pressure history
+(@ElderId, @DeviceId, 'PKT_BP_1', 'BLOOD_PRESSURE', 122.0, 'mmHg', DATEADD(day, -3, SYSUTCDATETIME()), DATEADD(day, -3, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_BP_2', 'BLOOD_PRESSURE', 118.0, 'mmHg', DATEADD(day, -2, SYSUTCDATETIME()), DATEADD(day, -2, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_BP_3', 'BLOOD_PRESSURE', 125.0, 'mmHg', DATEADD(day, -1, SYSUTCDATETIME()), DATEADD(day, -1, SYSUTCDATETIME())),
+(@ElderId, @DeviceId, 'PKT_BP_4', 'BLOOD_PRESSURE', 120.0, 'mmHg', SYSUTCDATETIME(), SYSUTCDATETIME());
 
 -- 6. Active Open Incident (Té ngã khẩn cấp để trải nghiệm còi và ACK)
 DECLARE @OpenIncidentId NVARCHAR(50) = 'incident_demo_fall_open';

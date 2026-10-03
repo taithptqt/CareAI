@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Kết quả định vị GPS chuẩn y tế CareAI
 class GpsLocationResult {
@@ -67,40 +69,66 @@ class LocationService {
         await requestLocationPermission();
       }
 
-      // 2. Gọi kênh native Android để lấy vị trí phần cứng tốt nhất
-      final dynamic raw = await _channel.invokeMethod('getCurrentLocation');
-      if (raw != null && raw is Map) {
-        final lat = (raw['latitude'] as num?)?.toDouble();
-        final lng = (raw['longitude'] as num?)?.toDouble();
-        final acc = (raw['accuracy'] as num?)?.toDouble();
-        final prov = (raw['provider'] as String?) ?? 'gps';
+      // 2. Thử gọi kênh native Android nếu chạy trên Android
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          final dynamic raw = await _channel.invokeMethod('getCurrentLocation');
+          if (raw != null && raw is Map) {
+            final lat = (raw['latitude'] as num?)?.toDouble();
+            final lng = (raw['longitude'] as num?)?.toDouble();
+            final acc = (raw['accuracy'] as num?)?.toDouble();
+            final prov = (raw['provider'] as String?) ?? 'gps';
 
-        if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
-          final result = GpsLocationResult(
-            latitude: lat,
-            longitude: lng,
-            accuracy: acc,
-            provider: prov,
-            isRealGps: true,
-            timestamp: DateTime.now().toUtc(),
-          );
-
-          // Ghi nhớ vị trí gần nhất vào bộ nhớ máy để phục vụ ngoại tuyến
-          await _cacheLastLocation(lat, lng);
-          return result;
+            if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+              final result = GpsLocationResult(
+                latitude: lat,
+                longitude: lng,
+                accuracy: acc,
+                provider: prov,
+                isRealGps: true,
+                timestamp: DateTime.now().toUtc(),
+              );
+              await _cacheLastLocation(lat, lng);
+              return result;
+            }
+          }
+        } catch (e) {
+          debugPrint('[LocationService] Lỗi kênh Native Android: $e');
         }
       }
+
+      // 3. Sử dụng Geolocator đa nền tảng (phục vụ iOS và Android fallback)
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+        final result = GpsLocationResult(
+          latitude: position.latitude,
+          longitude: position.longitude,
+          accuracy: position.accuracy.isFinite && position.accuracy > 0 ? position.accuracy : null,
+          provider: defaultTargetPlatform == TargetPlatform.iOS ? 'ios_corelocation' : 'geolocator',
+          isRealGps: !position.isMocked,
+          timestamp: position.timestamp.toUtc(),
+        );
+        await _cacheLastLocation(position.latitude, position.longitude);
+        return result;
+      } catch (geoError) {
+        debugPrint('[LocationService] Lỗi khi lấy GPS qua Geolocator: $geoError');
+      }
     } catch (e) {
-      debugPrint('[LocationService] Lỗi khi lấy GPS thực tế: $e');
+      debugPrint('[LocationService] Lỗi tổng quát khi lấy GPS: $e');
     }
 
-    // 3. Fallback: Lấy vị trí đã cache trước đó từ bộ nhớ máy
+    // 4. Fallback: Lấy vị trí đã cache trước đó từ bộ nhớ máy
     final cached = await _getCachedLocation();
     if (cached != null) {
       return cached;
     }
 
-    // 4. Fallback cuối cùng: Vị trí mặc định
+    // 5. Fallback cuối cùng: Vị trí mặc định
     return GpsLocationResult(
       latitude: defaultLat,
       longitude: defaultLng,
@@ -113,38 +141,72 @@ class LocationService {
 
   /// Mở vị trí tọa độ trực tiếp trong ứng dụng Google Maps hoặc trình duyệt
   Future<bool> openGoogleMaps(double latitude, double longitude, {String? label}) async {
-    try {
-      final success = await _channel.invokeMethod<bool>('openGoogleMaps', {
-        'latitude': latitude,
-        'longitude': longitude,
-        'label': label ?? 'Vị trí người cao tuổi CareAI',
-      });
-      return success ?? false;
-    } catch (e) {
-      debugPrint('[LocationService] Lỗi gọi openGoogleMaps: $e');
-      return false;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final success = await _channel.invokeMethod<bool>('openGoogleMaps', {
+          'latitude': latitude,
+          'longitude': longitude,
+          'label': label ?? 'Vị trí người cao tuổi CareAI',
+        });
+        if (success == true) return true;
+      } catch (e) {
+        debugPrint('[LocationService] Lỗi gọi openGoogleMaps Android: $e');
+      }
     }
+
+    // Fallback đa nền tảng (iOS / Desktop / Web)
+    try {
+      final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('[LocationService] Lỗi fallback mở Google Maps: $e');
+    }
+    return false;
   }
 
   /// Mở chỉ đường cứu nạn trực tiếp tới vị trí tọa độ trên Google Maps (Turn-by-turn Navigation)
   Future<bool> openGoogleMapsDirections(double latitude, double longitude) async {
-    try {
-      final success = await _channel.invokeMethod<bool>('openGoogleMapsDirections', {
-        'latitude': latitude,
-        'longitude': longitude,
-      });
-      return success ?? false;
-    } catch (e) {
-      debugPrint('[LocationService] Lỗi gọi openGoogleMapsDirections: $e');
-      return false;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final success = await _channel.invokeMethod<bool>('openGoogleMapsDirections', {
+          'latitude': latitude,
+          'longitude': longitude,
+        });
+        if (success == true) return true;
+      } catch (e) {
+        debugPrint('[LocationService] Lỗi gọi openGoogleMapsDirections Android: $e');
+      }
     }
+
+    // Fallback đa nền tảng (iOS sử dụng Apple Maps hoặc Google Maps):
+    try {
+      final appleMapsUri = Uri.parse('https://maps.apple.com/?daddr=$latitude,$longitude&dirflg=d');
+      final googleMapsUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
+      if (defaultTargetPlatform == TargetPlatform.iOS && await canLaunchUrl(appleMapsUri)) {
+        return await launchUrl(appleMapsUri, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(googleMapsUri)) {
+        return await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('[LocationService] Lỗi fallback chỉ đường: $e');
+    }
+    return false;
   }
 
   /// Kiểm tra quyền truy cập vị trí
   Future<bool> hasLocationPermission() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final hasPerm = await _channel.invokeMethod<bool>('hasLocationPermission');
+        if (hasPerm != null) return hasPerm;
+      } catch (_) {}
+    }
+
     try {
-      final hasPerm = await _channel.invokeMethod<bool>('hasLocationPermission');
-      return hasPerm ?? false;
+      final perm = await Geolocator.checkPermission();
+      return perm == LocationPermission.always || perm == LocationPermission.whileInUse;
     } catch (_) {
       return false;
     }
@@ -152,16 +214,29 @@ class LocationService {
 
   /// Yêu cầu cấp quyền vị trí
   Future<void> requestLocationPermission() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await _channel.invokeMethod('requestLocationPermission');
+        return;
+      } catch (_) {}
+    }
+
     try {
-      await _channel.invokeMethod('requestLocationPermission');
+      await Geolocator.requestPermission();
     } catch (_) {}
   }
 
   /// Kiểm tra GPS phần cứng có đang bật không
   Future<bool> isLocationEnabled() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final enabled = await _channel.invokeMethod<bool>('isLocationEnabled');
+        if (enabled != null) return enabled;
+      } catch (_) {}
+    }
+
     try {
-      final enabled = await _channel.invokeMethod<bool>('isLocationEnabled');
-      return enabled ?? false;
+      return await Geolocator.isLocationServiceEnabled();
     } catch (_) {
       return false;
     }

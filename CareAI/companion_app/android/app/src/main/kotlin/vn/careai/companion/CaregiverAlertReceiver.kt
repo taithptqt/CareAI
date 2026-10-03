@@ -14,11 +14,15 @@ class CaregiverAlertReceiver : BroadcastReceiver() {
         val incidentId = intent.getStringExtra("incidentId")?.takeIf { it.isNotBlank() } ?: return
         val cycle = intent.getIntExtra("alertCycleNumber", 1)
         val eventType = intent.getStringExtra("eventType")
-        if (!intent.getBooleanExtra("siren", false) &&
+        val siren = intent.getBooleanExtra("siren", false)
+        val priority = intent.getStringExtra("priority")?.uppercase() ?: ""
+        val isHighPriority = priority == "HIGH" || priority == "CRITICAL"
+        if (!siren && !isHighPriority &&
             eventType != "ACKNOWLEDGED" && eventType != "RESOLVED") return
 
+        val isStart = siren || isHighPriority
         val serviceIntent = Intent(context, CaregiverAlertService::class.java).apply {
-            action = if (intent.getBooleanExtra("siren", false))
+            action = if (isStart)
                 CaregiverAlertService.ACTION_START else CaregiverAlertService.ACTION_STOP
             putExtra("incidentId", incidentId)
             putExtra("alertCycleNumber", cycle)

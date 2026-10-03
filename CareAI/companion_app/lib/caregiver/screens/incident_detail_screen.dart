@@ -270,6 +270,49 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     ]),
   );
 
+  IconData _emergencyIcon(String type) {
+    final upper = type.toUpperCase();
+    if (upper.contains('FALL')) return Icons.personal_injury_rounded;
+    if (upper.contains('OXYGEN') || upper.contains('SPO2')) return Icons.air_rounded;
+    if (upper.contains('TACHYCARDIA') || upper.contains('BRADYCARDIA') || upper.contains('SURGE') || upper.contains('HR') || upper.contains('HEART')) return Icons.monitor_heart_rounded;
+    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) return Icons.speed_rounded;
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.signal_cellular_connected_no_internet_4_bar_rounded;
+    if (upper.contains('SOS')) return Icons.emergency_rounded;
+    return Icons.warning_amber_rounded;
+  }
+
+  String _emergencyLabel(String type) {
+    final upper = type.toUpperCase();
+    if (upper.contains('FALL')) return 'Té ngã';
+    if (upper.contains('LOW_OXYGEN') || upper.contains('LOWOXYGEN') || upper.contains('OXYGEN')) return 'Oxy máu (SpO₂) thấp';
+    if (upper.contains('TACHYCARDIA')) return 'Nhịp tim quá nhanh';
+    if (upper.contains('BRADYCARDIA')) return 'Nhịp tim quá chậm';
+    if (upper.contains('SURGE')) return 'Nhịp tim tăng đột biến';
+    if (upper.contains('HYPERTENSION')) return 'Cơn tăng huyết áp';
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) return 'Mất tín hiệu thiết bị';
+    if (upper.contains('SOS')) return 'Nút khẩn cấp SOS';
+    return type;
+  }
+
+  String _statusLabel(String status) {
+    switch (status.toUpperCase()) {
+      case 'OPEN': return 'Đang mở';
+      case 'ACKNOWLEDGED': return 'Đã tiếp nhận';
+      case 'RESOLVED': return 'Đã giải quyết';
+      default: return status;
+    }
+  }
+
+  String _severityLabel(String severity) {
+    switch (severity.toUpperCase()) {
+      case 'CRITICAL': return 'Nguy kịch';
+      case 'HIGH': return 'Cao';
+      case 'MEDIUM': return 'Trung bình';
+      case 'LOW': return 'Thấp';
+      default: return severity;
+    }
+  }
+
   List<IncidentTimeline> get _sortedTimeline {
     final list = List<IncidentTimeline>.from(_incident.timeline);
     list.sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
@@ -280,8 +323,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
   Widget build(BuildContext context) {
     final snapshot = _incident.snapshot;
     final rescueGps = snapshot?.currentGpsLocation ?? snapshot?.gpsLocation;
-    final isFall = _incident.emergencyType.contains('FALL');
-    final isHeart = _incident.emergencyType.contains('HR') || _incident.emergencyType.contains('HEART');
     final isResolved = _incident.isResolved;
     final isAck = _incident.isAcknowledged;
     final alertState = _incident.alertState;
@@ -324,7 +365,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                 child: Column(
                   children: [
                     Icon(
-                      isFall ? Icons.personal_injury : (isHeart ? Icons.monitor_heart : Icons.warning_amber_rounded),
+                      _emergencyIcon(_incident.emergencyType),
                       color: _urgent ? Colors.red.shade700 : (isResolved ? const Color(0xFF16A34A) : Colors.orange.shade800),
                       size: 44,
                     ),
@@ -332,7 +373,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                     Text(_incident.elderName, style: Theme.of(context).textTheme.headlineSmall),
                     const SizedBox(height: 4),
                     Text(
-                      '${_incident.emergencyType} · ${_incident.severity} · ${_incident.status}',
+                      '${_emergencyLabel(_incident.emergencyType)} · Mức ${_severityLabel(_incident.severity)} · ${_statusLabel(_incident.status)}',
                       style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                     ),
                     const SizedBox(height: 2),

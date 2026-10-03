@@ -16,6 +16,9 @@ class VoiceGuidanceService {
   /// Phát âm thanh hướng dẫn giọng nói tổng quát
   Future<bool> speak(String text) async {
     if (text.trim().isEmpty) return false;
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
     try {
       _isSpeaking = true;
       final result = await _channel.invokeMethod<bool>('speak', {'text': text.trim()});
@@ -33,6 +36,9 @@ class VoiceGuidanceService {
 
   /// Dừng phát âm thanh ngay lập tức
   Future<bool> stop() async {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
     try {
       _isSpeaking = false;
       final result = await _channel.invokeMethod<bool>('stop');
@@ -47,6 +53,9 @@ class VoiceGuidanceService {
 
   /// Kiểm tra xem gói ngôn ngữ tiếng Việt có sẵn sàng trên máy không
   Future<bool> isLanguageAvailable() async {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
     try {
       final result = await _channel.invokeMethod<bool>('isLanguageAvailable');
       return result ?? false;

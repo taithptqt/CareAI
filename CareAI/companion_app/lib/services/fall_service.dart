@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../models/fall_event.dart';
@@ -91,6 +92,9 @@ class FallService {
   /// Hủy cảnh báo ngã (Người dùng bấm nút "TÔI ỔN")
   /// Gửi lệnh hủy AlarmManager Watchdog sang Native Android
   Future<bool> cancelFallAlarm(String eventId) async {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
     try {
       final success = await _fallChannel.invokeMethod<bool>('cancelFallAlarm', {
         'eventId': eventId,
@@ -103,6 +107,9 @@ class FallService {
 
   /// Dừng âm thanh còi hú y tế khẩn cấp
   Future<bool> stopEmergencySound([String? eventId]) async {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
     try {
       final args = <String, dynamic>{};
       if (eventId != null) {
@@ -117,6 +124,9 @@ class FallService {
 
   /// Kiểm tra quyền SCHEDULE_EXACT_ALARM trên Android 12+
   Future<bool> checkExactAlarmPermission() async {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     try {
       final allowed = await _fallChannel.invokeMethod<bool>('checkExactAlarmPermission');
       return allowed ?? true;
@@ -127,6 +137,9 @@ class FallService {
 
   /// Kích hoạt mô phỏng sự cố ngã phần cứng Wear OS từ Companion App
   Future<String?> simulateHardwareFall() async {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+      return null;
+    }
     try {
       final eventId = await _fallChannel.invokeMethod<String>('simulateHardwareFall');
       return eventId;

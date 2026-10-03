@@ -228,12 +228,13 @@ public class IncidentsController : ControllerBase
             ec.CaregiverId == caregiverId && ec.ElderProfileId == incident.ElderProfileId && ec.IsActive, ct);
         if (!allowed) return Forbid();
 
-        // Chuỗi nhịp tim T-15...T+15 phút quanh mốc xảy ra sự cố (Task 8 / Bước 8)
+        // Chuỗi nhịp tim hoặc SpO2 T-15...T+15 phút quanh mốc xảy ra sự cố (Task 8 / Bước 8)
         var windowStart = incident.TriggeredAt.AddMinutes(-15);
         var windowEnd = incident.TriggeredAt.AddMinutes(15);
+        var metricType = incident.EmergencyType == EmergencyType.LowOxygen ? "SPO2" : "HEART_RATE";
         var hrSamples = await _db.HealthMeasurements.AsNoTracking()
             .Where(m => m.ElderProfileId == incident.ElderProfileId
-                     && m.MetricType == "HEART_RATE"
+                     && m.MetricType == metricType
                      && m.Timestamp >= windowStart
                      && m.Timestamp <= windowEnd)
             .OrderBy(m => m.Timestamp)
@@ -250,7 +251,7 @@ public class IncidentsController : ControllerBase
     }
 
     /// <summary>
-    /// API chuyên biệt lấy chuỗi nhịp tim T-15...T+15 phút phục vụ biểu đồ lâm sàng
+    /// API chuyên biệt lấy chuỗi nhịp tim hoặc SpO2 T-15...T+15 phút phục vụ biểu đồ lâm sàng
     /// </summary>
     [HttpGet("{id}/heart-rate-series")]
     [Authorize]
@@ -272,9 +273,10 @@ public class IncidentsController : ControllerBase
 
         var windowStart = incident.TriggeredAt.AddMinutes(-15);
         var windowEnd = incident.TriggeredAt.AddMinutes(15);
+        var seriesMetric = incident.EmergencyType == EmergencyType.LowOxygen ? "SPO2" : "HEART_RATE";
         var hrSamples = await _db.HealthMeasurements.AsNoTracking()
             .Where(m => m.ElderProfileId == incident.ElderProfileId
-                     && m.MetricType == "HEART_RATE"
+                     && m.MetricType == seriesMetric
                      && m.Timestamp >= windowStart
                      && m.Timestamp <= windowEnd)
             .OrderBy(m => m.Timestamp)
