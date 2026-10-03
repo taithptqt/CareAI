@@ -1,0 +1,109 @@
+name: CareAI Multi-Platform CI
+
+on:
+  push:
+    branches: [ main, phan1-hieu, integration-4parts ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-quality-gate:
+    name: Backend .NET 9 LTS (176 Facts)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore CareAI/CareAI.slnx
+
+      - name: Build Backend (0 Warnings, 0 Errors)
+        run: dotnet build CareAI/CareAI.slnx --no-restore --nologo -warnaserror
+
+      - name: Execute xUnit Tests (176 Facts)
+        run: dotnet test CareAI/CareAI.slnx --no-build --nologo
+
+  flutter-quality-gate:
+    name: Flutter Companion & Caregiver App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter Dependencies
+        working-directory: CareAI/companion_app
+        run: flutter pub get
+
+      - name: Analyze Flutter Code (0 Issues)
+        working-directory: CareAI/companion_app
+        run: flutter analyze
+
+      - name: Run Flutter Unit Tests (33 Tests)
+        working-directory: CareAI/companion_app
+        run: flutter test
+
+  wearos-quality-gate:
+    name: Wear OS Standalone App (Gradle 9)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant Execute Permission to Gradlew
+        working-directory: CareAI/wearos
+        run: chmod +x gradlew
+
+      - name: Assemble Wear OS Debug APK
+        working-directory: CareAI/wearos
+        run: ./gradlew assembleDebug --no-daemon
+
+  watchos-quality-gate:
+    name: watchOS Apple Watch (XcodeGen & Build)
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        working-directory: CareAI/watchos
+        run: xcodegen generate
+
+      - name: Build watchOS Application
+        working-directory: CareAI/watchos
+        run: |
+          xcodebuild -project CareAIWatch.xcodeproj \
+            -scheme CareAIWatch \
+            -destination 'generic/platform=watchOS' \
+            clean build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
