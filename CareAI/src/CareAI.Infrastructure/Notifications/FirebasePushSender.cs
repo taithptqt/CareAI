@@ -19,12 +19,26 @@ public class FirebasePushSender : IPushSender
         _projectId = configuration["Firebase:ProjectId"] ??
             Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT");
         _logger = logger;
-        _messaging = new Lazy<FirebaseMessaging>(() => FirebaseMessaging.GetMessaging(
-            FirebaseApp.Create(new AppOptions
+        _messaging = new Lazy<FirebaseMessaging>(() =>
+        {
+            var credentialsPath = configuration["Firebase:CredentialsPath"];
+            GoogleCredential credential;
+            if (!string.IsNullOrWhiteSpace(credentialsPath) && File.Exists(credentialsPath))
             {
-                Credential = GoogleCredential.GetApplicationDefault(),
-                ProjectId = _projectId
-            }, $"careai-push-{Guid.NewGuid():N}")));
+                credential = GoogleCredential.FromFile(credentialsPath);
+            }
+            else
+            {
+                credential = GoogleCredential.GetApplicationDefault();
+            }
+
+            return FirebaseMessaging.GetMessaging(
+                FirebaseApp.Create(new AppOptions
+                {
+                    Credential = credential,
+                    ProjectId = _projectId
+                }, $"careai-push-{Guid.NewGuid():N}"));
+        });
     }
 
     public async Task<PushSendResult> SendAsync(NotificationOutbox outbox, CancellationToken ct)

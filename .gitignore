@@ -38,6 +38,9 @@ login_app/
 **/*.keystore
 **/*.jks
 **/key.properties
+*firebase*.json
+**/firebase-adminsdk*.json
+
 
 
 # 6. Database & Cache Files
@@ -92,5 +95,5 @@ docx_helper.py
 /*.png
 CareAI.zip
 temp_phan4/
-.github/
+
 
