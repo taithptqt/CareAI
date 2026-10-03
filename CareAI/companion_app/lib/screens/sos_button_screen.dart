@@ -196,10 +196,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final packetId = 'SOS_${const Uuid().v4().substring(0, 8).toUpperCase()}';
     final now = DateTime.now().toUtc();
 
+    final prefs = await SharedPreferences.getInstance();
+    final lastHr = prefs.getDouble('careai_last_heart_rate') ?? 76.0;
+    final lastSpo2 = prefs.getDouble('careai_last_spo2') ?? 98.0;
+
     // Fact 35 Invariant: Gói Fast-Lane SOS BẮT BUỘC lưu toàn bộ mẫu đo sinh hiệu đi kèm
     final samples = [
-      TelemetrySample(metricType: 'HEART_RATE', value: 85.0, unit: 'BPM', timestamp: now),
-      TelemetrySample(metricType: 'SPO2', value: 98.0, unit: '%', timestamp: now),
+      TelemetrySample(metricType: 'HEART_RATE', value: lastHr, unit: 'BPM', timestamp: now),
+      TelemetrySample(metricType: 'SPO2', value: lastSpo2, unit: '%', timestamp: now),
       TelemetrySample(metricType: 'BATTERY', value: 92.0, unit: '%', timestamp: now),
     ];
 

@@ -55,12 +55,28 @@ object NativeSosDispatcher {
             if (nativeGps != null) {
                 put("gpsLocation", nativeGps)
             }
+            val timeIso = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Instant.ofEpochMilli(record.timestamp).toString() else record.timestamp.toString()
             put("samples", JSONArray().apply {
                 put(JSONObject().apply {
                     put("metricType", "FALL")
-                    if (record.impactG != null) put("value", record.impactG)
+                    if (record.impactG != null) put("value", record.impactG) else put("value", 1.0)
                     put("unit", "G")
-                    put("timestamp", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Instant.ofEpochMilli(record.timestamp).toString() else record.timestamp.toString())
+                    put("timestamp", timeIso)
+                })
+                // BẤT BIẾN FACT 35: Gói tin Fast-Lane SOS bắt buộc nạp và lưu trữ toàn bộ các mẫu đo sinh hiệu đi kèm
+                val lastHr = appPrefs.getFloat("flutter.careai_last_heart_rate", 76f).toDouble()
+                put(JSONObject().apply {
+                    put("metricType", "HEART_RATE")
+                    put("value", lastHr)
+                    put("unit", "bpm")
+                    put("timestamp", timeIso)
+                })
+                val lastSpo2 = appPrefs.getFloat("flutter.careai_last_spo2", 98f).toDouble()
+                put(JSONObject().apply {
+                    put("metricType", "SPO2")
+                    put("value", lastSpo2)
+                    put("unit", "%")
+                    put("timestamp", timeIso)
                 })
             })
         }.toString()

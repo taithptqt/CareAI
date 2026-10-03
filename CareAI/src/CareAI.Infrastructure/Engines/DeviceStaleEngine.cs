@@ -12,10 +12,17 @@ public class DeviceStaleEngine
 {
     public static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(5);
     public static readonly TimeSpan AppleWatchStaleAfter = TimeSpan.FromHours(3);
+    public static readonly TimeSpan CompanionPhoneStaleAfter = TimeSpan.FromMinutes(25);
 
-    public static TimeSpan StaleAfterFor(string? deviceType) =>
-        string.Equals(deviceType, "AppleWatch", StringComparison.OrdinalIgnoreCase)
-            ? AppleWatchStaleAfter : StaleAfter;
+    public static TimeSpan StaleAfterFor(string? deviceType)
+    {
+        if (string.Equals(deviceType, "AppleWatch", StringComparison.OrdinalIgnoreCase))
+            return AppleWatchStaleAfter;
+        if (string.Equals(deviceType, "SMARTPHONE_COMPANION", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(deviceType, "CompanionPhone", StringComparison.OrdinalIgnoreCase))
+            return CompanionPhoneStaleAfter;
+        return StaleAfter;
+    }
     private readonly CareAiDbContext _db;
     private readonly ILogger<DeviceStaleEngine> _logger;
 
@@ -67,6 +74,7 @@ public class DeviceStaleEngine
 
         if (allStale)
         {
+            var maxTimeoutMinutes = (int)devices.Max(d => StaleAfterFor(d.DeviceType)).TotalMinutes;
             if (active == null)
             {
                 var elder = await _db.ElderProfiles.AsNoTracking()
@@ -86,11 +94,11 @@ public class DeviceStaleEngine
                 {
                     IncidentId = incident.Id, AlertCycleNumber = incident.AlertCycleNumber,
                     EventType = "TRIGGERED",
-                    Description = $"Tất cả {devices.Count} thiết bị của {elder.FullName} mất tín hiệu quá 5 phút.",
+                    Description = $"Tất cả {devices.Count} thiết bị của {elder.FullName} mất tín hiệu quá {maxTimeoutMinutes} phút.",
                     RecordedAt = now
                 });
                 await QueueOutboxAsync(incident, "DEVICE_OFFLINE",
-                    "Thiết bị mất kết nối", "Tất cả thiết bị của người cao tuổi đã mất tín hiệu quá 5 phút.", now, ct);
+                    "Thiết bị mất kết nối", $"Tất cả thiết bị của người cao tuổi đã mất tín hiệu quá {maxTimeoutMinutes} phút.", now, ct);
                 await _db.SaveChangesAsync(ct);
                 _logger.LogWarning("[WATCHDOG-ALERT] All devices offline for elder {ElderId}.", elderId);
                 return;
@@ -105,7 +113,7 @@ public class DeviceStaleEngine
             {
                 IncidentId = active.Id, AlertCycleNumber = active.AlertCycleNumber,
                 EventType = emergency ? "DEVICE_STALE_SUPPRESSED" : "DEVICE_STALE",
-                Description = $"Tất cả {devices.Count} thiết bị mất tín hiệu quá 5 phút; ghi vào sự cố {active.EmergencyType} hiện tại.",
+                Description = $"Tất cả {devices.Count} thiết bị mất tín hiệu quá {maxTimeoutMinutes} phút; ghi vào sự cố {active.EmergencyType} hiện tại.",
                 RecordedAt = now
             });
             await _db.SaveChangesAsync(ct);

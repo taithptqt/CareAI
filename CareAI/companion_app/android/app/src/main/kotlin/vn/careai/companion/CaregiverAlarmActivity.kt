@@ -64,8 +64,17 @@ class CaregiverAlarmActivity : Activity() {
         if (incidentId == null) { finish(); return }
         val kind = alertIntent.getStringExtra("emergencyType")?.uppercase() ?: ""
         val title = alertIntent.getStringExtra("title")?.uppercase() ?: ""
-        val heading = if (kind.contains("FALL") || title.contains("FALL") || title.contains("NGÃ"))
-            "PHÁT HIỆN TÉ NGÃ" else "CẢNH BÁO KHẨN CẤP"
+        val heading = when {
+            kind.contains("FALL") || title.contains("FALL") || title.contains("NGÃ") -> "PHÁT HIỆN TÉ NGÃ"
+            kind.contains("LOW_OXYGEN") || kind.contains("LOWOXYGEN") || title.contains("OXYGEN") || title.contains("SPO2") -> "OXY MÁU (SpO₂) THẤP"
+            kind.contains("TACHYCARDIA") || title.contains("NHANH") -> "NHỊP TIM QUÁ NHANH"
+            kind.contains("BRADYCARDIA") || title.contains("CHẬM") -> "NHỊP TIM QUÁ CHẬM"
+            kind.contains("SURGE") || title.contains("ĐỘT BIẾN") -> "NHỊP TIM TĂNG ĐỘT BIẾN"
+            kind.contains("HYPERTENSION") || title.contains("HUYẾT ÁP") -> "CƠN TĂNG HUYẾT ÁP"
+            kind.contains("STALE") || kind.contains("OFFLINE") || title.contains("MẤT TÍN HIỆU") || title.contains("MẤT KẾT NỐI") -> "THIẾT BỊ MẤT TÍN HIỆU"
+            kind.contains("SOS") || title.contains("SOS") -> "BẤM NÚT KHẨN CẤP SOS"
+            else -> "CẢNH BÁO KHẨN CẤP"
+        }
         val detail = alertIntent.getStringExtra("body")?.takeIf { it.isNotBlank() }
             ?: "Người thân của bạn cần được trợ giúp ngay."
 

@@ -16,9 +16,7 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    if (project.name != "wearos") {
-        project.evaluationDependsOn(":app")
-    }
+    project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {

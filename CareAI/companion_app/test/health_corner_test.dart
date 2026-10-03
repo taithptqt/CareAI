@@ -14,10 +14,12 @@ class FakeHealthApi implements HealthReportApi {
       return {'weekStartUtc': '2026-09-13T00:00:00Z', 'content': '1. Tổng quan sức khỏe tuần\nBáo cáo kiểm thử'};
     }
     if (empty) return {'items': [], 'nextBeforeId': null};
-    if (resource == 'insights') return {
-      'items': [{'id': 1, 'insightType': 'NIGHT_HEART_RATE_SPIKE', 'windowEndUtc': '2026-09-20T06:00:00Z', 'observedValue': 100, 'baselineValue': 65}],
-      'nextBeforeId': null,
-    };
+    if (resource == 'insights') {
+      return {
+        'items': [{'id': 1, 'insightType': 'NIGHT_HEART_RATE_SPIKE', 'windowEndUtc': '2026-09-20T06:00:00Z', 'observedValue': 100, 'baselineValue': 65}],
+        'nextBeforeId': null,
+      };
+    }
     cursors.add(beforeId);
     return {
       'items': [{'id': beforeId == null ? 2 : 1, 'weekStartUtc': beforeId == null ? '2026-09-13T00:00:00Z' : '2026-09-06T00:00:00Z',

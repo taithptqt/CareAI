@@ -196,15 +196,17 @@ public class ClinicalDiagnosticEngine
 
     public async Task<Incident?> EvaluateSpO2SampleAsync(
         string elderProfileId, string deviceId, double spo2,
-        DateTime measuredAtUtc, CancellationToken ct = default)
+        DateTime measuredAtUtc, CancellationToken ct = default,
+        TimeSpan? maxBackfillAge = null)
     {
         var now = DateTime.UtcNow;
         var measuredAt = measuredAtUtc.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(measuredAtUtc, DateTimeKind.Utc)
             : measuredAtUtc.ToUniversalTime();
+        var backfillWindow = maxBackfillAge ?? TimeSpan.FromMinutes(2);
         // An old HealthKit backfill must never trigger a current notification.
         if (!double.IsFinite(spo2) || spo2 <= 0 || spo2 > 92 ||
-            measuredAt < now.AddMinutes(-2) || measuredAt > now.AddMinutes(1)) return null;
+            measuredAt < now - backfillWindow || measuredAt > now.AddMinutes(1)) return null;
 
         const string rule = "SPO2_LOW";
         var cooldown = await _db.ClinicalRuleCooldowns.FindAsync([elderProfileId, rule], ct);
@@ -213,12 +215,15 @@ public class ClinicalDiagnosticEngine
         var active = await _db.Incidents.FirstOrDefaultAsync(i => i.ElderProfileId == elderProfileId &&
             (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged), ct);
         var reason = $"SpO₂ ghi nhận {spo2:0.#}%. Hãy hỏi thăm, kiểm tra lại phép đo và liên hệ nhân viên y tế nếu mức thấp kéo dài hoặc có triệu chứng.";
+        var homeAddress = await _db.ElderProfiles.Where(e => e.Id == elderProfileId)
+            .Select(e => e.HomeAddress).FirstOrDefaultAsync(ct);
         var incident = active ?? new Incident
         {
             Id = Guid.NewGuid().ToString(), ElderProfileId = elderProfileId,
             TriggeredByDeviceId = deviceId, EmergencyType = EmergencyType.LowOxygen,
             Severity = IncidentSeverity.High, Status = IncidentStatus.Open,
             TriggeredAt = now, SpO2Percent = spo2, VitalsMeasuredAt = measuredAt,
+            HomeAddressSnapshot = homeAddress,
             CreatedAt = now, UpdatedAt = now
         };
         if (active == null) _db.Incidents.Add(incident);
@@ -241,7 +246,7 @@ public class ClinicalDiagnosticEngine
                 DataPayloadJson = JsonSerializer.Serialize(new
                 {
                     incidentId = incident.Id, elderProfileId, emergencyType = EmergencyType.LowOxygen,
-                    priority = "NORMAL", siren = false, alertCycleNumber = incident.AlertCycleNumber
+                    priority = "HIGH", siren = false, alertCycleNumber = incident.AlertCycleNumber
                 }),
                 Status = "PENDING", RetryCount = 0, CreatedAt = now
             });

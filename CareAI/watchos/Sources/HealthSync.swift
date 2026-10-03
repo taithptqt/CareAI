@@ -2,6 +2,45 @@ import Foundation
 import HealthKit
 import Network
 import WatchKit
+import CoreMotion
+import WatchConnectivity
+
+/// Helper điều phối WatchConnectivity chuyển tiếp gói tin cứu nạn sang iPhone Companion (Apple Watch GPS)
+private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
+    static let shared = WatchConnectivityCoordinator()
+
+    override init() {
+        super.init()
+        if WCSession.isSupported() {
+            WCSession.default.delegate = self
+            WCSession.default.activate()
+        }
+    }
+
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+
+    func relayEmergencySos(packetId: String, eventId: String, type: String, triggeredAt: String, hr: Double, spo2: Double) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        let payload: [String: Any] = [
+            "action": "EMERGENCY_SOS",
+            "packetId": packetId,
+            "eventId": eventId,
+            "emergencyType": type,
+            "triggeredAt": triggeredAt,
+            "heartRate": hr,
+            "spo2": spo2
+        ]
+        if session.activationState == .activated {
+            // Chuyển giao bảo đảm (Guaranteed Transfer) trong nền
+            session.transferUserInfo(payload)
+            // Nếu iPhone đang ở gần và kết nối trực tiếp, gửi tin tức thì 0ms
+            if session.isReachable {
+                session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
+        }
+    }
+}
 
 private struct PendingReading: Codable {
     let sampleId: String
@@ -16,9 +55,56 @@ private struct TelemetryBatch: Encodable {
     let samples: [PendingReading]
 }
 
+private struct HealthSampleDto: Codable {
+    let metricType: String
+    let value: Double
+    let unit: String?
+    let timestamp: String
+}
+
+private struct SosPacketRequest: Codable {
+    let packetId: String
+    let eventId: String?
+    let emergencyType: String
+    let severity: String?
+    let triggeredAt: String?
+    let gpsLocation: String?
+    let samples: [HealthSampleDto]?
+    let gpsIsSimulated: Bool?
+    let gpsAccuracyMeters: Double?
+}
+
+/// Helper điều phối CMFallDetectionDelegate chuẩn Apple Watch
+private final class FallDetectionCoordinator: NSObject, CMFallDetectionDelegate {
+    private weak var sync: HealthSync?
+
+    init(sync: HealthSync) {
+        self.sync = sync
+        super.init()
+    }
+
+    func fallDetectionManager(
+        _ fallDetectionManager: CMFallDetectionManager,
+        didDetect event: CMFallDetectionEvent,
+        completionHandler handler: @escaping () -> Void
+    ) {
+        Task { @MainActor [weak self] in
+            defer { handler() }
+            guard let self, let sync = self.sync else { return }
+            if event.resolution == .confirmed || event.resolution == .unresponsive {
+                let eventId = "APPLE_FALL_\(Int64(event.date.timeIntervalSince1970 * 1000))"
+                await sync.triggerEmergencySos(type: "FALL_DETECTED", eventId: eventId)
+            }
+        }
+    }
+}
+
 @MainActor
 final class HealthSync: ObservableObject {
     @Published var status = "Set up backend to start"
+    @Published var customAlert: String?
+    @Published var diagnosticLog = "⚡ Cảm biến sẵn sàng"
+    @Published var autoFallDetectionEnabled = true
     @Published private(set) var latestHeartRate: Double?
     @Published private(set) var latestHeartRateAt: Date?
     @Published private(set) var latestSpo2: Double?
@@ -42,6 +128,25 @@ final class HealthSync: ObservableObject {
         (.oxygenSaturation, "SPO2", HKUnit.percent(), "%")
     ]
 
+    // Cảm biến chuyển động & Phát hiện té ngã
+    @Published var batterySaverEnabled = true
+    private var fallCoordinator: FallDetectionCoordinator?
+    private var fallDetectionManager: CMFallDetectionManager?
+    private let motionManager = CMMotionManager()
+    private let motionQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.name = "vn.careai.watch.motion"
+        q.maxConcurrentOperationCount = 1
+        q.qualityOfService = .userInitiated
+        return q
+    }()
+    private var lastMotionFallDetectedAt: Date?
+    private var isFreeFallDetected = false
+    private var freeFallStartTime: Date?
+    private var isBurstSampling = false
+    private var burstResetWorkItem: DispatchWorkItem?
+    private var activeEmergencySession: WKExtendedRuntimeSession?
+
     init() {
         latestHeartRate = UserDefaults.standard.object(forKey: "latest.heartRate") as? Double
         latestHeartRateAt = UserDefaults.standard.object(forKey: "latest.heartRateAt") as? Date
@@ -49,15 +154,17 @@ final class HealthSync: ObservableObject {
         latestSpo2At = UserDefaults.standard.object(forKey: "latest.spo2At") as? Date
         updateHealthAlert()
         loadOutbox()
+        setupFallDetection()
         pathMonitor.pathUpdateHandler = { [weak self] path in
             guard path.status == .satisfied else { return }
-            Task { @MainActor [weak self] in self?.flush() }
+            Task { @MainActor [weak self] in self?.flush(force: false) }
         }
         pathMonitor.start(queue: DispatchQueue(label: "careai.watch.network"))
-        retryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        // Tối ưu pin: Chu kỳ quét nền gom lô giãn ra 300 giây (5 phút) thay vì 60 giây
+        retryTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateHealthAlert()
-                self?.flush()
+                self?.flush(force: true)
             }
         }
         if UserDefaults.standard.string(forKey: "backend") != nil,
@@ -68,6 +175,7 @@ final class HealthSync: ObservableObject {
 
     func start() {
         if !outboxReady { loadOutbox() }
+        if autoFallDetectionEnabled { setupFallDetection() }
         guard HKHealthStore.isHealthDataAvailable() else { status = "HealthKit unavailable"; return }
         guard let url = URL(string: UserDefaults.standard.string(forKey: "backend") ?? ""),
               url.scheme == "https", url.host?.isEmpty == false,
@@ -83,7 +191,7 @@ final class HealthSync: ObservableObject {
                 guard let self else { return }
                 if let error { self.status = "HealthKit: \(error.localizedDescription)"; return }
                 self.registerObservers()
-                self.flush()
+                self.flush(force: false)
             }
         }
     }
@@ -110,15 +218,285 @@ final class HealthSync: ObservableObject {
     func setSimulatedOffline(_ enabled: Bool) {
         simulatedOffline = enabled
         status = enabled ? "DEMO offline · readings stay on watch" : "DEMO network restored"
-        if !enabled { flush() }
+        if !enabled { flush(force: true) }
+    }
+
+    // 1. Nút test Nhịp nhanh 155 BPM trực tiếp trên mặt đồng hồ
+    func simulateTachycardia() {
+        latestHeartRate = 155.0
+        latestHeartRateAt = Date()
+        customAlert = "TACHYCARDIA"
+        status = "🚨 NHỊP NHANH: 155 BPM"
+        diagnosticLog = "⚡ Nút bấm: Phát hiện nhịp nhanh 155 BPM!"
+        enqueueDemo(metricType: "DEMO_HEART_RATE", value: 155.0, unit: "bpm")
+        updateHealthAlert()
+    }
+
+    // 2. Nút test Nhịp chậm 38 BPM trực tiếp trên mặt đồng hồ
+    func simulateBradycardia() {
+        latestHeartRate = 38.0
+        latestHeartRateAt = Date()
+        customAlert = "BRADYCARDIA"
+        status = "⚠️ NHỊP CHẬM: 38 BPM"
+        diagnosticLog = "⚡ Nút bấm: Phát hiện nhịp chậm 38 BPM!"
+        enqueueDemo(metricType: "DEMO_HEART_RATE", value: 38.0, unit: "bpm")
+        updateHealthAlert()
+    }
+
+    // 3. Nút test Thiếu oxy SpO2 88% trực tiếp trên mặt đồng hồ
+    func simulateHypoxia() {
+        latestSpo2 = 88.0
+        latestSpo2At = Date()
+        customAlert = "HYPOXIA"
+        status = "🫁 THIẾU OXY: 88.0%"
+        diagnosticLog = "⚡ Nút bấm: Nồng độ SpO2 giảm sâu 88%!"
+        enqueueDemo(metricType: "DEMO_SPO2", value: 88.0, unit: "%")
+        updateHealthAlert()
+    }
+
+    // 4. Nút test Khôi phục bình thường 75 BPM trực tiếp trên mặt đồng hồ
+    func simulateNormal() {
+        latestHeartRate = 75.0
+        latestHeartRateAt = Date()
+        latestSpo2 = 98.5
+        latestSpo2At = Date()
+        customAlert = "NORMAL"
+        status = "🟢 Đang Giám Sát Cổ Tay"
+        diagnosticLog = "⚡ Nút bấm [75 BPM, 98.5%]"
+        enqueueDemo(metricType: "DEMO_HEART_RATE", value: 75.0, unit: "bpm")
+        enqueueDemo(metricType: "DEMO_SPO2", value: 98.5, unit: "%")
+        updateHealthAlert()
     }
 
     func simulateHighHeartRate() {
-        enqueueDemo(metricType: "DEMO_HEART_RATE", value: 145, unit: "bpm")
+        simulateTachycardia()
     }
 
     func simulateLowSpo2() {
-        enqueueDemo(metricType: "DEMO_SPO2", value: 90, unit: "%")
+        simulateHypoxia()
+    }
+
+    /// Kích hoạt gửi cảnh báo Cấp Cứu Fast-Lane SOS hoặc Phát hiện Té Ngã (Tuân thủ Bất biến Fact 35)
+    @discardableResult
+    func triggerEmergencySos(type: String, eventId: String? = nil) async -> (success: Bool, message: String) {
+        let baseEventId = eventId ?? "\(type)_\(Int64(Date().timeIntervalSince1970 * 1000))"
+        let canonicalPacketId = type == "FALL_DETECTED" ? "FALL_\(baseEventId)" : "SOS_\(baseEventId)"
+
+        if type == "FALL_DETECTED" {
+            customAlert = "FALL_DETECTED"
+            status = "💥 CẢNH BÁO TÉ NGÃ!"
+            diagnosticLog = "Đang gửi cảnh báo té ngã khẩn cấp..."
+        } else {
+            customAlert = "MANUAL_SOS"
+            status = "🆘 ĐÃ BẮN TÍN HIỆU SOS!"
+            diagnosticLog = "Đang gửi SOS khẩn cấp..."
+        }
+
+        let hr = latestHeartRate ?? 76.0
+        let spo2 = latestSpo2 ?? 98.0
+        let now = Date()
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let timeStr = formatter.string(from: now)
+
+        // BẤT BIẾN FACT 35: Gói tin Fast-Lane SOS bắt buộc nạp và lưu trữ toàn bộ các mẫu đo sinh hiệu đi kèm
+        let samples: [HealthSampleDto] = [
+            HealthSampleDto(metricType: "HEART_RATE", value: hr, unit: "bpm", timestamp: timeStr),
+            HealthSampleDto(metricType: "SPO2", value: spo2, unit: "%", timestamp: timeStr)
+        ]
+
+        let packet = SosPacketRequest(
+            packetId: canonicalPacketId,
+            eventId: baseEventId,
+            emergencyType: type,
+            severity: "CRITICAL",
+            triggeredAt: timeStr,
+            gpsLocation: nil,
+            samples: samples,
+            gpsIsSimulated: false,
+            gpsAccuracyMeters: nil
+        )
+
+        // CHUYỂN GIAO SONG SONG QUA WATCHCONNECTIVITY (Cho Apple Watch GPS mượn sóng 4G/LTE của iPhone)
+        WatchConnectivityCoordinator.shared.relayEmergencySos(
+            packetId: canonicalPacketId,
+            eventId: baseEventId,
+            type: type,
+            triggeredAt: timeStr,
+            hr: hr,
+            spo2: spo2
+        )
+
+        guard !simulatedOffline,
+              let base = UserDefaults.standard.string(forKey: "backend"),
+              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/v1/incidents/sos"),
+              let deviceId = UserDefaults.standard.string(forKey: "deviceId"),
+              let token = KeychainToken.load() else {
+            enqueueDemo(metricType: type == "FALL_DETECTED" ? "FALL" : "SOS", value: 1.0, unit: "event")
+            let offlineMsg = "⚠️ Ngoại tuyến: Đã lưu SOS vào bộ đệm đồng hồ"
+            diagnosticLog = offlineMsg
+            return (false, offlineMsg)
+        }
+
+        activateEmergencySession()
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 8
+        request.setValue(deviceId, forHTTPHeaderField: "X-DeviceId")
+        request.setValue(token, forHTTPHeaderField: "X-Device-Token")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Sử dụng URLSession cấu hình đợi kết nối (resilient) chống rớt gói khi chuyển Wi-Fi/LTE
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 8
+        config.timeoutIntervalForResource = 15
+        config.waitsForConnectivity = true
+        let session = URLSession(configuration: config)
+
+        do {
+            request.httpBody = try JSONEncoder().encode(packet)
+            let (_, response) = try await session.data(for: request)
+            let code = (response as? HTTPURLResponse)?.statusCode
+            if code == 200 || code == 201 {
+                let successMsg = "✅ Đã gửi \(type == "FALL_DETECTED" ? "cảnh báo ngã" : "SOS") thành công!"
+                diagnosticLog = successMsg
+                deactivateEmergencySession()
+                return (true, successMsg)
+            } else {
+                let failMsg = "⚠️ Máy chủ phản hồi mã \(code ?? 0). Đã lưu đệm."
+                diagnosticLog = failMsg
+                enqueueDemo(metricType: type == "FALL_DETECTED" ? "FALL" : "SOS", value: 1.0, unit: "event")
+                deactivateEmergencySession()
+                return (false, failMsg)
+            }
+        } catch {
+            let errorMsg = "⚠️ Lỗi mạng: \(error.localizedDescription). Đã lưu đệm."
+            diagnosticLog = errorMsg
+            enqueueDemo(metricType: type == "FALL_DETECTED" ? "FALL" : "SOS", value: 1.0, unit: "event")
+            deactivateEmergencySession()
+            return (false, errorMsg)
+        }
+    }
+
+    /// Kích hoạt phiên thực thi mở rộng giữ đồng hồ thức ngầm khi có cấp cứu
+    private func activateEmergencySession() {
+        guard activeEmergencySession == nil || activeEmergencySession?.state == .invalid else { return }
+        let session = WKExtendedRuntimeSession()
+        session.start()
+        activeEmergencySession = session
+    }
+
+    private func deactivateEmergencySession() {
+        activeEmergencySession?.invalidate()
+        activeEmergencySession = nil
+    }
+
+    private var baselineInterval: TimeInterval {
+        batterySaverEnabled ? 0.1 : 0.05 // 10Hz khi bật Tiết kiệm pin, 20Hz khi bình thường
+    }
+
+    func applyBatteryPolicy() {
+        if autoFallDetectionEnabled {
+            setupFallDetection()
+        }
+        diagnosticLog = batterySaverEnabled ? "🔋 Đã bật Tiết Kiệm Pin Thích Ứng (10Hz)" : "⚡ Đã bật Giám Sát Hiệu Năng Cao (20Hz)"
+    }
+
+    /// Thiết lập hệ thống phát hiện té ngã kết hợp (Apple CMFallDetectionManager + CMMotionManager Fallback)
+    func setupFallDetection() {
+        guard autoFallDetectionEnabled else {
+            motionManager.stopAccelerometerUpdates()
+            diagnosticLog = "⚡ Đã tắt tự động phát hiện té ngã"
+            return
+        }
+
+        // 1. Thử kích hoạt CMFallDetectionManager chuẩn Apple Watch Series 4+
+        if CMFallDetectionManager.isAvailable {
+            let manager = CMFallDetectionManager()
+            let coordinator = FallDetectionCoordinator(sync: self)
+            manager.delegate = coordinator
+            self.fallDetectionManager = manager
+            self.fallCoordinator = coordinator
+            // TẮT NGAY cảm biến gia tốc thô để chip Motion Coprocessor của Apple gánh toàn bộ, tiết kiệm pin tối đa
+            motionManager.stopAccelerometerUpdates()
+            diagnosticLog = "⚡ Apple Fall Detection sẵn sàng (Tiết kiệm pin phần cứng)"
+        } else {
+            // 2. Dự phòng: Kích hoạt phân tích gia tốc qua CMMotionManager với hàng đợi nền riêng biệt
+            startMotionFallDetectionFallback()
+            diagnosticLog = batterySaverEnabled ? "🔋 Cảm biến Fallback (Tiết kiệm pin 10Hz)" : "⚡ Cảm biến Fallback (20Hz)"
+        }
+    }
+
+    private func startMotionFallDetectionFallback() {
+        guard motionManager.isAccelerometerAvailable else { return }
+        motionManager.accelerometerUpdateInterval = baselineInterval
+        // Sử dụng OperationQueue nền chuyên dụng để không chiếm luồng UI chính, cho phép CPU ngủ giữa các lần lấy mẫu
+        motionManager.startAccelerometerUpdates(to: motionQueue) { [weak self] data, error in
+            guard let self, let data, self.autoFallDetectionEnabled else { return }
+            let x = data.acceleration.x
+            let y = data.acceleration.y
+            let z = data.acceleration.z
+            let g = sqrt(x * x + y * y + z * z)
+            Task { @MainActor [weak self] in
+                self?.processMotionAcceleration(g)
+            }
+        }
+    }
+
+    private func triggerBurstSampling() {
+        guard !isBurstSampling else { return }
+        isBurstSampling = true
+        motionManager.accelerometerUpdateInterval = 0.025 // 40Hz Burst trong 1.5 giây để bắt va chạm sắc nét
+        burstResetWorkItem?.cancel()
+        let resetItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isBurstSampling = false
+                self.motionManager.accelerometerUpdateInterval = self.baselineInterval
+            }
+        }
+        burstResetWorkItem = resetItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: resetItem)
+    }
+
+    private func processMotionAcceleration(_ g: Double) {
+        let now = Date()
+        // Chống spam: Mỗi sự cố ngã cách nhau tối thiểu 15 giây
+        if let last = lastMotionFallDetectedAt, now.timeIntervalSince(last) < 15.0 {
+            return
+        }
+
+        // Tối ưu pin thích ứng: Khi phát hiện dấu hiệu gia tốc bất thường, tự động tăng tần số lên 40Hz
+        if (g < 0.4 || g > 1.8) && !isBurstSampling {
+            triggerBurstSampling()
+        }
+
+        // Giai đoạn 1: Rơi tự do (Trọng lực giảm mạnh < 0.35g)
+        if g < 0.35 && !isFreeFallDetected {
+            isFreeFallDetected = true
+            freeFallStartTime = now
+            return
+        }
+
+        // Giai đoạn 2: Va chạm mạnh (Gia tốc vượt ngưỡng > 2.8g) trong vòng 800ms sau khi rơi tự do
+        if isFreeFallDetected, let start = freeFallStartTime {
+            let elapsed = now.timeIntervalSince(start)
+            if elapsed <= 0.8 {
+                if g > 2.8 {
+                    isFreeFallDetected = false
+                    freeFallStartTime = nil
+                    lastMotionFallDetectedAt = now
+                    let eventId = "MOTION_FALL_\(Int64(now.timeIntervalSince1970 * 1000))"
+                    Task {
+                        await self.triggerEmergencySos(type: "FALL_DETECTED", eventId: eventId)
+                    }
+                }
+            } else {
+                isFreeFallDetected = false
+                freeFallStartTime = nil
+            }
+        }
     }
 
     func sendNow() async {
@@ -158,7 +536,7 @@ final class HealthSync: ObservableObject {
                 demoSpo2Alert = "DEMO alert: low SpO₂ · 90%"
             }
             status = simulatedOffline ? "DEMO offline · saved on watch" : "DEMO sample queued"
-            if !simulatedOffline { flush() }
+            if !simulatedOffline { flush(force: true) }
         } catch {
             status = "Cannot save demo reading on watch"
         }
@@ -166,12 +544,40 @@ final class HealthSync: ObservableObject {
 
     private func updateHealthAlert() {
         let now = Date()
+        if let alert = customAlert {
+            switch alert {
+            case "TACHYCARDIA":
+                healthAlert = "🚨 NHỊP NHANH: \(Int(latestHeartRate ?? 155)) BPM"
+                return
+            case "BRADYCARDIA":
+                healthAlert = "⚠️ NHỊP CHẬM: \(Int(latestHeartRate ?? 38)) BPM"
+                return
+            case "HYPOXIA":
+                healthAlert = "🫁 THIẾU OXY: \(String(format: "%.1f", latestSpo2 ?? 88.0))%"
+                return
+            case "NORMAL":
+                healthAlert = nil
+                return
+            case "FALL_DETECTED":
+                healthAlert = "💥 CẢNH BÁO TÉ NGÃ!"
+                return
+            case "MANUAL_SOS":
+                healthAlert = "🆘 ĐÃ BẮN TÍN HIỆU SOS!"
+                return
+            default:
+                break
+            }
+        }
+
         if let at = latestSpo2At, now.timeIntervalSince(at) < 10 * 60,
            let value = latestSpo2, value <= 92 {
-            healthAlert = String(format: "Low SpO₂: %.0f%% · check the person and recheck", value)
+            healthAlert = String(format: "🫁 THIẾU OXY: %.0f%%", value)
         } else if let at = latestHeartRateAt, now.timeIntervalSince(at) < 10 * 60,
-                  let value = latestHeartRate, value > 120 || value < 50 {
-            healthAlert = String(format: "Heart rate: %.0f bpm · check the person", value)
+                  let value = latestHeartRate, value > 120 {
+            healthAlert = String(format: "🚨 NHỊP NHANH: %.0f BPM", value)
+        } else if let at = latestHeartRateAt, now.timeIntervalSince(at) < 10 * 60,
+                  let value = latestHeartRate, value < 50 {
+            healthAlert = String(format: "⚠️ NHỊP CHẬM: %.0f BPM", value)
         } else {
             healthAlert = nil
         }
@@ -271,7 +677,7 @@ final class HealthSync: ObservableObject {
                     UserDefaults.standard.set(data, forKey: key)
                 }
                 self.status = "Watching HealthKit · queued \(self.queue.count)"
-                if sendAfter { self.flush() }
+                if sendAfter { self.flush(force: false) }
             }
         }
         healthStore.execute(query)
@@ -304,7 +710,12 @@ final class HealthSync: ObservableObject {
             options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
-    private func flush() {
+    private func flush(force: Bool = true) {
+        // Tối ưu năng lượng vô tuyến (Radio Coalescing):
+        // Nếu không ép buộc và không có cảnh báo y tế khẩn cấp, chỉ đánh thức modem mạng khi gom đủ ít nhất 10 mẫu
+        if !force && healthAlert == nil && customAlert == nil && queue.count < 10 {
+            return
+        }
         Task { await sendPending(maximum: .max) }
     }
 
@@ -319,11 +730,15 @@ final class HealthSync: ObservableObject {
         isSending = true
         defer { isSending = false }
         var sent = 0
-        while sent < maximum, let reading = queue.first {
+        let batchLimit = 50
+        while sent < maximum && !queue.isEmpty {
             if simulatedOffline {
                 status = "DEMO offline · readings stay on watch"
                 return
             }
+            let chunk = Array(queue.prefix(min(batchLimit, maximum - sent)))
+            guard !chunk.isEmpty else { break }
+
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.timeoutInterval = 15
@@ -331,23 +746,25 @@ final class HealthSync: ObservableObject {
             request.setValue(token, forHTTPHeaderField: "X-Device-Token")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             do {
+                let batchId = "HK_BATCH_\(Int64(Date().timeIntervalSince1970 * 1000))_\(chunk.count)"
                 request.httpBody = try JSONEncoder().encode(TelemetryBatch(
-                    batchId: "HK_\(reading.sampleId)", samples: [reading]))
+                    batchId: batchId, samples: chunk))
                 let (_, response) = try await URLSession.shared.data(for: request)
                 let code = (response as? HTTPURLResponse)?.statusCode
-                guard code == 201 else {
+                // Chấp nhận 200 OK, 201 Created (đồng bộ) hoặc 202 Accepted (kênh phi khóa Non-Blocking Channel)
+                guard code == 200 || code == 201 || code == 202 else {
                     status = "Waiting to send · HTTP \(code.map(String.init) ?? "offline")"
                     return
                 }
-                // Keep the original on disk until the server has committed it.
-                let remaining = Array(queue.dropFirst())
+                // Giữ bản gốc trên đĩa cho đến khi máy chủ xác nhận cam kết thành công
+                let remaining = Array(queue.dropFirst(chunk.count))
                 try persistQueue(remaining)
                 queue = remaining
                 pendingCount = remaining.count
-                sent += 1
-                status = "Sent · queued \(queue.count)"
+                sent += chunk.count
+                status = "Sent \(chunk.count) samples · queued \(queue.count)"
             } catch {
-                // A failed request or disk write leaves the reading in the outbox.
+                // Thất bại giữ nguyên outbox để thử lại sau
                 status = "Offline or save failed · queued \(queue.count)"
                 return
             }

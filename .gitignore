@@ -5,6 +5,8 @@
 # 1. External & Unrelated Projects
 AcademicManagement/
 tools/
+counter_app/
+login_app/
 
 # 2. Visual Studio & IDEs
 .vs/
@@ -35,6 +37,8 @@ tools/
 **/*.aab
 **/*.keystore
 **/*.jks
+**/key.properties
+
 
 # 6. Database & Cache Files
 *.db
@@ -88,3 +92,5 @@ docx_helper.py
 /*.png
 CareAI.zip
 temp_phan4/
+.github/
+

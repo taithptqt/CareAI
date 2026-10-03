@@ -158,6 +158,17 @@ public class DashboardAndGpsTests : IDisposable
                 Unit = "steps",
                 Timestamp = now,
                 RecordedAt = now
+            },
+            new HealthMeasurement
+            {
+                ElderProfileId = _testElderId,
+                DeviceId = "DEV_01",
+                PacketId = "P11",
+                MetricType = "SLEEP",
+                Value = 420,
+                Unit = "minutes",
+                Timestamp = now.Date.AddDays(-1).AddHours(22),
+                RecordedAt = now
             }
         );
 
@@ -384,6 +395,44 @@ public class DashboardAndGpsTests : IDisposable
         // Assert
         var objResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, objResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task Fact_52B_GetElderBloodPressureHistory_ReturnsEmpty_WhenNoMeasurements()
+    {
+        _db.HealthMeasurements.RemoveRange(_db.HealthMeasurements
+            .Where(m => m.MetricType.StartsWith("BLOOD_PRESSURE")));
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var result = await controller.GetElderBloodPressureHistory(_testElderId, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<BloodPressureHistoryResponse>(okResult.Value);
+        Assert.Empty(response.Points);
+        Assert.Equal(0, response.LatestSystolic);
+        Assert.Equal(0, response.LatestDiastolic);
+        Assert.Equal("Chưa có dữ liệu", response.Classification);
+        Assert.Equal("GRAY", response.StatusColor);
+    }
+
+    [Fact]
+    public async Task Fact_60_GetElderSleepSummary_ReturnsZeroAndGray_WhenNoData()
+    {
+        _db.HealthMeasurements.RemoveRange(_db.HealthMeasurements
+            .Where(m => m.MetricType == "SLEEP" || m.MetricType == "SLEEP_STAGE"));
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var result = await controller.GetElderSleepSummary(_testElderId, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<SleepSummaryResponse>(okResult.Value);
+        Assert.Equal(0, response.TotalSleepMinutes);
+        Assert.Null(response.SleepStartTime);
+        Assert.Null(response.SleepEndTime);
+        Assert.Equal("Chưa có dữ liệu", response.SleepQuality);
+        Assert.Equal("GRAY", response.StatusColor);
     }
 
     public void Dispose()

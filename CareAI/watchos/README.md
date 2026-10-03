@@ -1,29 +1,55 @@
-# HealthKit → CareAI → Android
+# CareAI watchOS App (Apple Watch · HealthKit · Fast-Lane SOS)
 
-This watchOS app was adapted from PulseNet's HealthKit reader. It reads existing heart rate and oxygen saturation samples on Apple Watch, then sends them to CareAI using the device telemetry API. The Android caregiver dashboard reads the stored samples from CareAI. Android cannot access HealthKit directly.
+Ứng dụng watchOS độc lập cho Apple Watch trong hệ sinh thái CareAI, đồng bộ tính năng và giao diện 100% (feature & UI parity) với phân hệ Wear OS (`vn.careai.companion` Wear OS).
 
-## Set up
+## Tính năng và Năng lực cốt lõi (Tương đương Wear OS)
 
-1. On a Mac, install Xcode and XcodeGen, then run `xcodegen generate` in this directory and open `CareAIWatch.xcodeproj`.
-2. Use an Apple Developer team with HealthKit capability and deploy to a physical Apple Watch. Set your own bundle identifier/signing team in Xcode.
-3. Run the CareAI API at a reachable **HTTPS** address. In the Android caregiver dashboard, generate a device pairing PIN for the elder profile.
-4. On the watch, enter the HTTPS base URL and PIN, then tap **Pair watch**. The app registers a separate `AppleWatch` device and stores its device token in the watch Keychain. Grant HealthKit read access for heart rate and blood oxygen when prompted.
-5. Open that elder's dashboard in the CareAI Android app. The latest cards and 24 hour heart rate chart show measurements received by the API. While the dashboard is open, it refreshes the latest vitals and charts every 30 seconds; pull down to refresh immediately. An empty chart means no samples were received in that window.
+1. **Giao diện Trực quan Y tế (Medical Watch UI)**:
+   - **Tiêu đề**: "CareAI Watch" (màu Cyan `#38BDF8`).
+   - **Huy hiệu Trạng thái Thời gian thực (Dynamic Status Badge)**:
+     - `🟢 Đang Giám Sát Cổ Tay` (Bình thường, theo dõi HealthKit nền).
+     - `🚨 NHỊP NHANH: ... BPM` (Màu đỏ khi nhịp tim $\ge 140$ bpm).
+     - `⚠️ NHỊP CHẬM: ... BPM` (Màu hổ phách khi nhịp tim $\le 45$ bpm).
+     - `🫁 THIẾU OXY: ...%` (Màu tím khi SpO₂ $\le 90\%$).
+     - `💥 CẢNH BÁO TÉ NGÃ!` (Màu đỏ khi phát hiện hoặc mô phỏng té ngã).
+     - `🆘 ĐÃ BẮN TÍN HIỆU SOS!` (Màu đỏ khi kích hoạt nút SOS).
+   - **Thẻ Sinh Hiệu Trực Tiếp (Vitals Pill Card)**: Hiển thị tức thời `❤️ XX BPM · YY.Y% SpO2`.
 
-Each HealthKit sample retains its measurement time. The watch queues readings when offline and retries sending. The API associates samples with the elder through the registered device and suppresses repeats for the same device, metric, and timestamp. The watch syncs the last 24 hours on first setup; later samples arrive through HealthKit observation. Availability of blood oxygen samples depends on the watch, region, and user permissions.
+2. **Nút Bấm Cấp Cứu Sống Còn (Fast-Lane Emergency SOS)**:
+   - **`💥 Mô Phỏng Té Ngã`**: Kích hoạt gửi sự cố té ngã (`FALL_DETECTED`) trực tiếp tới API cấp cứu `POST /api/v1/incidents/sos`.
+   - **`🆘 SOS Khẩn Cấp`**: Kích hoạt gửi sự cố SOS bằng tay (`MANUAL_SOS`) trực tiếp tới API cấp cứu.
+   - **Tuân thủ Tuyệt đối Bất biến Fact 35 (INV-08)**: Gói tin SOS bắt buộc đính kèm toàn bộ các mẫu đo sinh hiệu tức thời (`HEART_RATE`, `SPO2`) tại thời điểm xảy ra sự cố.
 
-## When the watch is offline
+3. **Bộ 4 Nút Thử Nghiệm Lâm Sàng Trực Tiếp Trên Mặt Đồng Hồ (2x2 Grid)**:
+   - `🚨 Nhanh 155`: Giả lập nhịp nhanh kịch phát 155 BPM.
+   - `⚠️ Chậm 38`: Giả lập nhịp chậm nguy hiểm 38 BPM.
+   - `🫁 Oxy 88%`: Giả lập cơn tụt oxy máu sâu SpO₂ 88.0%.
+   - `🟢 Chuẩn 75`: Khôi phục trạng thái bình thường 75 BPM và 98.5% SpO₂.
 
-The watch saves each new HealthKit heart rate or SpO₂ sample and its original measurement time in a protected local file. It advances the HealthKit query cursor only after that file is written. A sample stays in the queue until the API confirms it has stored the sample. The watch screen shows **Saved on watch** so the parent can see how many readings still need to sync. The app retries when network access returns, while it is open, and during watchOS background refresh. Opening the app also checks HealthKit for samples created while the app was suspended.
+4. **Đồng Bộ Dữ Liệu & Hàng Đợi Ngoại Tuyến (Store-and-Forward)**:
+   - Lưu trữ an toàn trong vùng nhớ đĩa (`healthkit-pending-readings.json`) bảo toàn nguyên tử (`.atomic`).
+   - Tự động xả hàng đợi khi có kết nối mạng (`NWPathMonitor`, retry timer).
+   - Lưu trữ token bảo mật trong Keychain (`KeychainToken.swift`).
 
-For example, after 15 minutes without internet, available HealthKit samples remain on the watch or in HealthKit. Once the watch has a connection and watchOS gives the app time to run, the backlog is sent with its original timestamps. The caregiver's Android dashboard then reads it from CareAI on its next refresh, and eligible alerts can be sent. HealthKit does not promise a sample every minute; watchOS can delay background execution, so neither collection nor caregiver delivery has a strict 15 minute deadline.
+5. **Tự Động Phát Hiện Té Ngã Đa Tầng & SOS Kiên Cường (Multi-Tier Fall Detection & Resilient SOS)**:
+   - **Tầng 1 (Chính chủ Apple)**: Tích hợp `CMFallDetectionManager` (`CoreMotion`) nhận diện ngã trực tiếp từ mô hình phần cứng Apple Watch Series 4+.
+   - **Tầng 2 (Dự phòng gia tốc)**: Thuật toán phân tích chuyển động liên tục qua `CMMotionManager` (20Hz) bắt pha rơi tự do ($< 0.35g$) và va chạm mạnh ($> 2.8g$) trong vòng 800ms kèm thời gian hồi chống spam 15 giây.
+   - **Phiên thực thi mở rộng (`WKExtendedRuntimeSession`)**: Giữ đồng hồ thức ngầm trong suốt thời gian xảy ra sự cố cấp cứu, chống watchOS đưa app vào trạng thái ngủ đông khi hạ cổ tay.
+   - **Đường truyền Fast-Lane kiên cường (`URLSession`)**: Cấu hình `waitsForConnectivity = true` chống rớt gói khi đồng hồ chuyển giao mạng Wi-Fi/Cellular/Bluetooth.
 
-## Presentation controls
+## Hướng dẫn Thiết lập & Biên dịch trên macOS (Xcode)
 
-After pairing, scroll down on the watch to the **DEMO** section. Tap **Simulate heart rate ↑** to queue a 145 bpm demonstration sample, or **Simulate SpO₂ ↓** to queue a 90% demonstration sample. The watch immediately shows a labeled demo warning. **Simulate no internet** temporarily blocks uploads within the app; queue demo samples while it is on, then turn it off to upload them automatically. **Send data now** checks HealthKit and drains the pending queue while simulated offline mode is off. The queue count shows the backlog.
-
-Demo samples use separate `DEMO_HEART_RATE` and `DEMO_SPO2` metric types. The backend stores them for the paired elder and the Android dashboard shows a clearly labeled demonstration warning for one hour after upload. Demo samples are excluded from real vital cards, charts, clinical alerts and weekly health analysis. The simulated offline switch does not disconnect the watch from the internet and resets when the app restarts. To test a real network outage, disconnect the watch from the network instead.
-
-CareAI stores accepted samples in `HealthMeasurements`. Recent abnormal heart rate samples use the existing clinical alert and caregiver FCM path. A fresh SpO₂ measurement of 92% or lower now sends a caregiver notification that asks them to check the person and recheck the measurement. The caregiver dashboard provides cautious, timestamp-aware guidance; weekly reports include SpO₂ aggregates. Routine samples remain available from the backend even when the caregiver phone is offline. The watch's HealthKit background delivery is requested immediately, but watchOS chooses when to wake the app. The device offline rule allows up to three hours without a new Apple Watch sample to avoid false five-minute alerts. FCM delivery depends on network, system scheduling, notification permissions, and valid Firebase credentials; it is not guaranteed to be instantaneous.
-
-The watchOS project cannot be built on Windows; verify signing, HealthKit permissions, background delivery, and end to end sync on a physical watch and Android phone.
+1. Trên máy Mac, cài đặt Xcode và XcodeGen:
+   ```bash
+   brew install xcodegen
+   cd CareAI/watchos
+   xcodegen generate
+   open CareAIWatch.xcodeproj
+   ```
+2. Cấu hình Signing & Capabilities:
+   - Chọn Developer Team của bạn.
+   - Bật capability HealthKit (Background Delivery) tương ứng file `CareAIWatch.entitlements`.
+3. Khởi chạy và Ghép nối:
+   - Chạy ứng dụng trên Apple Watch thật hoặc Simulator.
+   - Nhập URL HTTPS của máy chủ CareAI Backend và mã PIN 6 số được cấp từ ứng dụng Người thân.
+   - Nhấn **Ghép Nối Đồng Hồ** để nhận `deviceId` và `deviceToken`.

@@ -1,0 +1,48 @@
+# CareAI Sovereign Modular Monolith - Docker Compose Deployment Stack
+# Self-hosted production/staging stack with Microsoft SQL Server 2022 LTS.
+
+services:
+  careai-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: careai_sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "CareAi_Strong_Password_2026!"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - careai_sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'CareAi_Strong_Password_2026!' -Q 'SELECT 1' -C || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  careai-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: careai_backend
+    restart: unless-stopped
+    depends_on:
+      careai-db:
+        condition: service_healthy
+    ports:
+      - "5097:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ConnectionStrings__DefaultConnection: "Server=careai-db,1433;Database=CareAiDb;User Id=sa;Password=CareAi_Strong_Password_2026!;TrustServerCertificate=True;MultipleActiveResultSets=True;"
+      Jwt__Secret: "CareAI_Definitive_Production_Secret_Key_At_Least_32_Chars_2026_Secure!"
+      Jwt__Issuer: "CareAI.API"
+      Jwt__Audience: "CareAI.App"
+      Alerting__ReminderIntervalSeconds: "60"
+      Alerting__MaxReminders: "3"
+    volumes:
+      - ./firebase-adminsdk.json:/app/firebase-adminsdk.json:ro
+
+volumes:
+  careai_sqldata:
+    driver: local

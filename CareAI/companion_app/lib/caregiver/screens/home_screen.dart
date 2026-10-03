@@ -169,9 +169,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  String _emergencyDescription(Incident incident) => incident.emergencyType == 'FALL'
-      ? '${incident.elderName} vừa bị ngã. Cần kiểm tra và tiếp nhận ngay.'
-      : '${incident.elderName} đang cần trợ giúp khẩn cấp. Hãy tiếp nhận ngay.';
+  String _emergencyDescription(Incident incident) {
+    final type = incident.emergencyType.toUpperCase();
+    if (type.contains('FALL')) return '${incident.elderName} vừa bị ngã. Cần kiểm tra và tiếp nhận ngay.';
+    if (type.contains('LOW_OXYGEN') || type.contains('LOWOXYGEN') || type.contains('OXYGEN')) return '${incident.elderName} có nồng độ oxy máu SpO₂ thấp. Cần kiểm tra ngay.';
+    if (type.contains('TACHYCARDIA')) return '${incident.elderName} có nhịp tim nhanh nguy hiểm. Cần kiểm tra ngay.';
+    if (type.contains('BRADYCARDIA')) return '${incident.elderName} có nhịp tim chậm nguy hiểm. Cần kiểm tra ngay.';
+    if (type.contains('SURGE')) return '${incident.elderName} có nhịp tim tăng vọt bất thường. Cần kiểm tra ngay.';
+    if (type.contains('HYPERTENSION')) return '${incident.elderName} có dấu hiệu cơn tăng huyết áp nguy hiểm.';
+    if (type.contains('STALE') || type.contains('OFFLINE')) return 'Tất cả thiết bị của ${incident.elderName} đã mất tín hiệu kết nối.';
+    if (type.contains('SOS')) return '${incident.elderName} đã kích hoạt nút cứu hộ khẩn cấp SOS.';
+    return '${incident.elderName} đang cần trợ giúp khẩn cấp. Hãy tiếp nhận ngay.';
+  }
+
+  IconData _emergencyIcon(String type) {
+    final upper = type.toUpperCase();
+    if (upper.contains('FALL')) return Icons.personal_injury_rounded;
+    if (upper.contains('OXYGEN') || upper.contains('SPO2')) return Icons.air_rounded;
+    if (upper.contains('TACHYCARDIA') || upper.contains('BRADYCARDIA') || upper.contains('SURGE') || upper.contains('HR') || upper.contains('HEART')) return Icons.monitor_heart_rounded;
+    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) return Icons.speed_rounded;
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.signal_cellular_connected_no_internet_4_bar_rounded;
+    if (upper.contains('SOS')) return Icons.emergency_rounded;
+    return Icons.warning_amber_rounded;
+  }
+
+  String _emergencyLabel(String type) {
+    final upper = type.toUpperCase();
+    if (upper.contains('FALL')) return 'Té Ngã';
+    if (upper.contains('LOW_OXYGEN') || upper.contains('LOWOXYGEN') || upper.contains('OXYGEN')) return 'Oxy Máu Thấp';
+    if (upper.contains('TACHYCARDIA')) return 'Nhịp Tim Nhanh';
+    if (upper.contains('BRADYCARDIA')) return 'Nhịp Tim Chậm';
+    if (upper.contains('SURGE')) return 'Nhịp Tim Tăng Vọt';
+    if (upper.contains('HYPERTENSION')) return 'Cơn Tăng Huyết Áp';
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) return 'Mất Tín Hiệu';
+    if (upper.contains('SOS')) return 'Nút Khẩn Cấp SOS';
+    return type;
+  }
 
   Future<void> _showAddElderDialog() async {
     final nameCtrl = TextEditingController();
@@ -539,7 +572,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildStickyEmergencyAlert() {
     final inc = _currentEmergency!;
-    final isFall = inc.emergencyType == 'FALL';
     final count = _activeIncidents.where((i) => i.isOpen && i.severity == 'Critical').length;
     return Container(
       width: double.infinity,
@@ -556,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ]),
           const SizedBox(height: 8),
           Text(
-            '${inc.elderName} ${isFall ? 'vừa bị ngã' : 'cần trợ giúp ngay'}',
+            '${inc.elderName} - ${_emergencyLabel(inc.emergencyType)}',
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
           ),
           const SizedBox(height: 4),
@@ -812,13 +844,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               leading: CircleAvatar(
                 backgroundColor: isOpen ? const Color(0xFFDC2626) : Colors.amber[700],
                 child: Icon(
-                  inc.emergencyType == 'FALL' ? Icons.personal_injury : Icons.warning,
+                  _emergencyIcon(inc.emergencyType),
                   color: Colors.white,
                   size: 20,
                 ),
               ),
               title: Text(
-                inc.emergencyType == 'FALL' ? 'Té Ngã - ${inc.elderName}' : 'Khẩn cấp - ${inc.elderName}',
+                '${_emergencyLabel(inc.emergencyType)} - ${inc.elderName}',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               subtitle: Column(
@@ -884,6 +916,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     context: context,
                     builder: (_) => const ServerConfigDialog(),
                   ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.shield_outlined, color: Color(0xFF0284C7)),
+                  title: const Text('Tuyên bố Y tế & Pháp lý'),
+                  subtitle: const Text('Định vị Non-SaMD, cấp cứu 115 & bảo vệ dữ liệu'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: _showMedicalDisclaimerDialog,
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.battery_alert_outlined, color: Color(0xFFF59E0B)),
+                  title: const Text('Bảo vệ còi hú & Chống ngủ sâu'),
+                  subtitle: const Text('Hướng dẫn tắt tối ưu pin Samsung One UI & Android Doze'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: _showBatteryOptimizationGuide,
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -985,4 +1033,138 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
     );
   }
+
+  void _showMedicalDisclaimerDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.health_and_safety_outlined, color: Color(0xFF0284C7)),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Tuyên Bố Y Tế & Pháp Lý',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '1. Định Vị Ứng Dụng (Non-SaMD):',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'CareAI là Nền tảng Hỗ trợ Cảnh báo Chăm sóc Người cao tuổi (Non-SaMD). Hệ thống KHÔNG phải là thiết bị chẩn đoán y tế chuyên sâu và không đưa ra phán quyết điều trị bệnh.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '2. Trường Hợp Cấp Cứu Sống Còn:',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Trong trường hợp người thân gặp sự cố nguy kịch hoặc tai nạn bất tỉnh, vui lòng gọi ngay Tổng đài Cấp cứu Y tế 115 của Nhà nước hoặc đưa bệnh nhân đến cơ sở y tế gần nhất. CareAI đóng vai trò kênh báo động song song hỗ trợ gia đình.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '3. Bảo Vệ Dữ Liệu Sức Khỏe:',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Mọi dữ liệu sinh hiệu (nhịp tim, SpO2, gia tốc) đều được truyền mã hóa chuẩn TLS/HTTPS và bảo mật theo quy định tại Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân tại Việt Nam.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ĐÃ HIỂU & ĐỒNG Ý', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBatteryOptimizationGuide() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.battery_alert_rounded, color: Color(0xFFF59E0B)),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Bảo Vệ Còi Hú Ngầm',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Để còi hú cấp cứu luôn đổ chuông ngay cả khi điện thoại tắt màn hình hoặc đang ở chế độ chờ:',
+                style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '1. Tắt Tối Ưu Hóa Pin (Samsung One UI / Xiaomi / Oppo):',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Vào Cài đặt > Ứng dụng > CareAI > Pin > Chọn "Không giới hạn" (Unrestricted) để hệ điều hành không đóng băng app.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '2. Cho Phép Hiển Thị Trên Ứng Dụng Khác:',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Bật quyền "Xuất hiện trên cùng" (Appear on top) để màn hình còi hú có thể bật sáng ngay lập tức khi cụ nhấn SOS.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '3. Bỏ Qua Chế Độ Không Làm Phiền:',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Vào Thông báo của CareAI > Kênh "Caregiver Emergency Alerts" > Bật "Đặt làm ưu tiên / Bỏ qua Không làm phiền".',
+                style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ĐÃ NẮM RÕ', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

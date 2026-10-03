@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -64,9 +65,11 @@ class EmergencyEvidenceService {
         return null;
       }
       bool isEmulator = false;
-      try {
-        isEmulator = await _sourceChannel.invokeMethod<bool>('isEmulator') ?? false;
-      } catch (_) {}
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          isEmulator = await _sourceChannel.invokeMethod<bool>('isEmulator') ?? false;
+        } catch (_) {}
+      }
       final fix = CurrentGpsFix(
           position.latitude, position.longitude, position.timestamp.toUtc(),
           accuracyMeters: position.accuracy.isFinite && position.accuracy > 0

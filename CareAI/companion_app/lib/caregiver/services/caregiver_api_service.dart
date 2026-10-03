@@ -579,6 +579,24 @@ class CaregiverApiService {
     }
   }
 
+  /// Lấy các mẫu đo sinh hiệu thô gần nhất trong vòng 24 giờ (VitalsController: GET /api/v1/elders/{id}/vitals/recent)
+  Future<List<Map<String, dynamic>>> getRecentRawVitals(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .get(
+          Uri.parse('$baseUrl/api/v1/elders/$elderProfileId/vitals/recent'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> list = jsonDecode(response.body);
+      return list.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Không thể tải dữ liệu sinh hiệu thô (${response.statusCode})');
+    }
+  }
+
   // 8. Danh sách Sự cố Đang mở / Đã tiếp nhận (UC-08 Quorum Alerting)
   Future<List<Incident>> getActiveIncidents() async {
     final token = await getToken();

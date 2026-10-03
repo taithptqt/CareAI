@@ -39,8 +39,9 @@ CareAI hỗ trợ gia đình theo dõi người cao tuổi, nhận tín hiệu S
         │   └── services/             API thiết bị, SQLite outbox, sync, bridge ngã
         ├── test/                     Flutter tests
         └── android/
-            ├── app/                  Kotlin native điện thoại
-            └── wearos/               Module APK Wear OS riêng
+            └── app/                  Kotlin native điện thoại
+    ├── wearos/                       Module APK Wear OS riêng biệt (Kotlin Native)
+    └── watchos/                      Module Apple Watch riêng biệt (SwiftUI / XcodeGen)
 ```
 
 `ios/`, `linux/`, `macos/`, `windows/`, `web/` trong app phần lớn là Flutter platform scaffolding. Không sửa tệp sinh tự động nếu nghiệp vụ không yêu cầu. Hai tệp Word và các master plan ở thư mục gốc là đặc tả/định hướng; code hiện tại có thể khác. README bên trong `companion_app/` vẫn là mẫu Flutter, không phải tài liệu kiến trúc.
@@ -194,9 +195,13 @@ flutter analyze
 flutter test
 flutter run
 
-# Wear OS, chạy trong CareAI/companion_app/android
-cd android
-.\gradlew.bat :wearos:assembleDebug
+# Wear OS, chạy độc lập trong CareAI/wearos
+cd ../wearos
+.\gradlew.bat assembleDebug
+
+# Apple Watch, tạo project Xcode trong CareAI/watchos
+cd ../watchos
+xcodegen generate
 ```
 
 Kiểm tra sát thay đổi trước: `dotnet test CareAI/tests/CareAI.UnitTests/CareAI.UnitTests.csproj --filter "FullyQualifiedName~TenTest" --nologo`, `flutter analyze lib/duong_dan.dart`, hoặc `flutter test test/ten_test.dart`. Integration test SQL Server cần DB phù hợp; kiểm thử FCM, còi, Direct Boot, mạng và Wear OS cần emulator/thiết bị/cấu hình. Không lấy số test trong kế hoạch làm kết quả mới. `/health` hiện là health check ASP.NET trong `Program.cs`, chưa chứng minh DB, FCM hoặc điện thoại hoạt động.
