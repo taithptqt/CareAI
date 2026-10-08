@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,18 +43,35 @@ void main() async {
   // 3. Khởi tạo Workmanager để đồng bộ nền thiết bị
   if (!kIsWeb) {
     try {
-      await Workmanager().initialize(
-        callbackDispatcher,
-      );
+      if (Platform.isAndroid) {
+        await Workmanager().initialize(
+          callbackDispatcher,
+        );
 
-      await Workmanager().registerPeriodicTask(
-        'careai_periodic_sync_task',
-        'careai_periodic_sync',
-        frequency: const Duration(minutes: 15),
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-        ),
-      );
+        await Workmanager().registerPeriodicTask(
+          'careai_periodic_sync_task',
+          'careai_periodic_sync',
+          frequency: const Duration(minutes: 15),
+          constraints: Constraints(
+            networkType: NetworkType.connected,
+          ),
+        );
+      } else if (Platform.isIOS) {
+        // Trên iOS: Workmanager sử dụng BGTaskScheduler đã được khai báo trong AppDelegate & Info.plist
+        await Workmanager().initialize(
+          callbackDispatcher,
+        );
+
+        try {
+          await Workmanager().registerPeriodicTask(
+            'careai_periodic_sync_task',
+            'careai_periodic_sync',
+            frequency: const Duration(minutes: 15),
+          );
+        } catch (iosBgError) {
+          debugPrint('[CareAI-Workmanager] Lưu ý đăng ký nền trên iOS: $iosBgError');
+        }
+      }
     } catch (e) {
       debugPrint('Không thể khởi tạo Workmanager: $e');
     }

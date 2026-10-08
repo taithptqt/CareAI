@@ -2,6 +2,9 @@ import Flutter
 import UIKit
 import WatchConnectivity
 import UserNotifications
+#if canImport(workmanager_apple)
+import workmanager_apple
+#endif
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, WCSessionDelegate {
@@ -15,6 +18,15 @@ import UserNotifications
     }
 
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+
+    // Đăng ký tác vụ nền cho iOS BGTaskScheduler trước khi hàm didFinishLaunchingWithOptions kết thúc
+    // Bắt buộc theo quy định của Apple và plugin workmanager_apple để tránh crash NSInternalInconsistencyException
+    #if canImport(workmanager_apple)
+    if #available(iOS 13.0, *) {
+      WorkmanagerPlugin.registerPeriodicTask(withIdentifier: "careai_periodic_sync_task")
+      WorkmanagerPlugin.registerLaunchHandlers()
+    }
+    #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
