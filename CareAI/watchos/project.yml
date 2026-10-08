@@ -4,6 +4,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: 5.9
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
   CareAIWatch:
     type: application
@@ -14,7 +15,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: vn.careai.careaiCompanion.watchkitapp
-        SWIFT_OBJC_BRIDGING_HEADER: Sources/CareAIWatch-Bridging-Header.h
+        SWIFT_OBJC_BRIDGING_HEADER: $(SRCROOT)/Sources/CareAIWatch-Bridging-Header.h
+        HEADER_SEARCH_PATHS: $(SRCROOT)/Sources
         CODE_SIGN_ENTITLEMENTS: CareAIWatch.entitlements
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_NSHumanReadableCopyright: CareAI
@@ -25,4 +27,5 @@ targets:
         INFOPLIST_KEY_WKBackgroundModes:
           - workout-processing
           - physical-therapy
-
+        INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers:
+          - careai.healthsync
