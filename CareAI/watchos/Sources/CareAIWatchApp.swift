@@ -17,8 +17,8 @@ struct CareAIWatchApp: App {
 struct ContentView: View {
     @ObservedObject var sync: HealthSync
     @Environment(\.scenePhase) private var scenePhase
-    // Cấu hình URL Cloudflare Tunnel mặc định và mã PIN ghép nối mẫu để tiện kiểm thử trên Simulator
-    @State private var backend = UserDefaults.standard.string(forKey: "backend") ?? "https://combo-administrators-gently-kinda.trycloudflare.com"
+    // Cấu hình URL Azure App Service mặc định và mã PIN ghép nối mẫu để tiện kiểm thử trên Simulator
+    @State private var backend = UserDefaults.standard.string(forKey: "backend") ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
     @State private var pin = "581983"
     @State private var pairing = false
     @State private var pairingError: String?

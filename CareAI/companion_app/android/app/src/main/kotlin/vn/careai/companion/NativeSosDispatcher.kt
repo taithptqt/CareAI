@@ -29,7 +29,7 @@ object NativeSosDispatcher {
     // [BẤT BIẾN P0-2]: STRICT OUTBOX-FIRST SOS VỚI DEVICE PROTECTED STORAGE
     fun dispatchOutboxFirstSos(context: Context, record: FallRecord) {
         val appPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val serverUrl = appPrefs.getString("flutter.server_base_url", "http://10.0.2.2:5097") ?: "http://10.0.2.2:5097"
+        val serverUrl = appPrefs.getString("flutter.server_base_url", "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net") ?: "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
         val deviceId = appPrefs.getString("flutter.device_id", "") ?: ""
         val deviceToken = appPrefs.getString("flutter.device_token", "") ?: ""
         val gpsAt = appPrefs.getLong("flutter.careai_recent_gps_at", 0L)
@@ -249,7 +249,7 @@ class NativeSosRetryWorker(appContext: Context, workerParams: WorkerParameters) 
         val payload = outboxPrefs.getString("outbox_$eventId", null) ?: return Result.success()
 
         val appPrefs = applicationContext.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val serverUrl = appPrefs.getString("flutter.server_base_url", "http://10.0.2.2:5097") ?: "http://10.0.2.2:5097"
+        val serverUrl = appPrefs.getString("flutter.server_base_url", "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net") ?: "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
         val deviceId = appPrefs.getString("flutter.device_id", "") ?: ""
         val deviceToken = appPrefs.getString("flutter.device_token", "") ?: ""
 

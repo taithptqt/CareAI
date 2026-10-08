@@ -13,7 +13,7 @@ class DevicePairingScreen extends StatefulWidget {
 
 class _DevicePairingScreenState extends State<DevicePairingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _serverUrlController = TextEditingController(text: 'http://127.0.0.1:5097');
+  final _serverUrlController = TextEditingController(text: ApiService.internetTunnelUrl);
   final _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
@@ -172,7 +172,7 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                     controller: _serverUrlController,
                     decoration: InputDecoration(
                       labelText: 'Địa chỉ máy chủ CareAI',
-                      hintText: 'http://10.0.2.2:5097 hoặc IP máy tính',
+                      hintText: 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net',
                       prefixIcon: const Icon(Icons.dns_outlined),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
