@@ -128,7 +128,9 @@ public class DashboardController : ControllerBase
         string lastKnownGpsLocation = "10.776889, 106.700806"; // Tọa độ mặc định nhà cụ (Quận 1, TP. Hồ Chí Minh)
         if (latestLat != null && latestLng != null)
         {
-            lastKnownGpsLocation = $"{latestLat.Value:F6}, {latestLng.Value:F6}";
+            // Bắt buộc dùng FormattableString.Invariant để đảm bảo tọa độ GPS luôn dùng dấu chấm '.' ngăn cách thập phân,
+            // tránh bị đổi thành dấu phẩy ',' trên các môi trường chạy macOS/Linux có CultureInfo địa phương.
+            lastKnownGpsLocation = FormattableString.Invariant($"{latestLat.Value:F6}, {latestLng.Value:F6}");
         }
         else
         {
