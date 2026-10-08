@@ -15,10 +15,10 @@ class ApiService {
   ApiService._init();
 
   static const String usbServerUrl = 'http://127.0.0.1:5097';
-  static const String internetTunnelUrl = 'https://combo-administrators-gently-kinda.trycloudflare.com';
+  static const String internetTunnelUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
   static const String wifiServerUrl = 'http://192.168.0.105:5097';
 
-  String _activeServerUrl = usbServerUrl;
+  String _activeServerUrl = internetTunnelUrl;
   String get activeServerUrl => _activeServerUrl;
 
   Future<String> getServerUrl() async {
@@ -103,11 +103,10 @@ class ApiService {
     await prefs.remove('elder_name');
   }
 
-  /// Danh sách URL thử nghiệm theo thứ tự ưu tiên chuẩn mực:
-  /// Luôn ưu tiên Cáp USB (127.0.0.1:5097) trước vì độ trễ 0ms và không tốn dữ liệu di động.
-  /// Nếu Cáp USB không khả dụng, dùng Internet Tunnel, sau đó tới Wi-Fi LAN.
+  /// Danh sách URL thử nghiệm theo thứ tự ưu tiên:
+  /// Ưu tiên Đám Mây Azure (Internet 24/7), sau đó chuyển tiếp Cáp USB và Wi-Fi LAN.
   List<String> _getEndpointsToTry() {
-    return [usbServerUrl, internetTunnelUrl, wifiServerUrl];
+    return [internetTunnelUrl, usbServerUrl, wifiServerUrl];
   }
 
   /// Gửi tín hiệu SOS Fast-Lane với cơ chế Chuyển mạch Dự phòng Kép (Dual-Failover)

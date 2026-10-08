@@ -10,15 +10,15 @@ class CaregiverApiService {
   CaregiverApiService._init();
 
   static const String defaultUsbUrl = 'http://127.0.0.1:5097';
-  static const String defaultInternetUrl = 'https://recording-arthur-widely-bald.trycloudflare.com';
+  static const String defaultInternetUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
   static const String defaultWifiUrl = 'http://192.168.0.105:5097';
 
-  String _currentServerUrl = defaultUsbUrl;
+  String _currentServerUrl = defaultInternetUrl;
   String get currentServerUrl => _currentServerUrl;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _currentServerUrl = prefs.getString('caregiver_server_url') ?? defaultUsbUrl;
+    _currentServerUrl = prefs.getString('caregiver_server_url') ?? defaultInternetUrl;
   }
 
   Future<void> setServerUrl(String url) async {
@@ -88,7 +88,7 @@ class CaregiverApiService {
     try {
       return await action(_currentServerUrl);
     } catch (_) {
-      final fallbackUrls = [defaultUsbUrl, defaultInternetUrl]
+      final fallbackUrls = [defaultInternetUrl, defaultUsbUrl]
           .where((u) => u != _currentServerUrl)
           .toList();
       for (final altUrl in fallbackUrls) {

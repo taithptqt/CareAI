@@ -65,7 +65,7 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
             ),
             const SizedBox(height: 8),
             _buildPresetButton(
-              title: 'Internet Cloudflare',
+              title: 'Đám Mây Azure (Chính Thức)',
               subtitle: CaregiverApiService.defaultInternetUrl,
               icon: Icons.cloud,
               url: CaregiverApiService.defaultInternetUrl,

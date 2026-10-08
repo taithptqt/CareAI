@@ -76,7 +76,7 @@ import workmanager_apple
     UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
 
     let userDefaults = UserDefaults.standard
-    let serverUrl = userDefaults.string(forKey: "flutter.server_base_url") ?? "http://127.0.0.1:5097"
+    let serverUrl = userDefaults.string(forKey: "flutter.server_base_url") ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
     let deviceId = userDefaults.string(forKey: "flutter.device_id") ?? ""
     let deviceToken = userDefaults.string(forKey: "flutter.device_token") ?? ""
 
