@@ -25,7 +25,9 @@ public class FirebasePushSender : IPushSender
             GoogleCredential credential;
             if (!string.IsNullOrWhiteSpace(credentialsPath) && File.Exists(credentialsPath))
             {
+#pragma warning disable CS0618
                 credential = GoogleCredential.FromFile(credentialsPath);
+#pragma warning restore CS0618
             }
             else
             {
