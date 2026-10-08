@@ -15,7 +15,7 @@ class ApiService {
   ApiService._init();
 
   static const String usbServerUrl = 'http://127.0.0.1:5097';
-  static const String internetTunnelUrl = 'https://recording-arthur-widely-bald.trycloudflare.com';
+  static const String internetTunnelUrl = 'https://combo-administrators-gently-kinda.trycloudflare.com';
   static const String wifiServerUrl = 'http://192.168.0.105:5097';
 
   String _activeServerUrl = usbServerUrl;
