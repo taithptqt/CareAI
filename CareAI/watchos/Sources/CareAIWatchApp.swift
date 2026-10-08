@@ -17,8 +17,9 @@ struct CareAIWatchApp: App {
 struct ContentView: View {
     @ObservedObject var sync: HealthSync
     @Environment(\.scenePhase) private var scenePhase
-    @State private var backend = UserDefaults.standard.string(forKey: "backend") ?? ""
-    @State private var pin = ""
+    // Cấu hình URL Cloudflare Tunnel mặc định và mã PIN ghép nối mẫu để tiện kiểm thử trên Simulator
+    @State private var backend = UserDefaults.standard.string(forKey: "backend") ?? "https://combo-administrators-gently-kinda.trycloudflare.com"
+    @State private var pin = "581983"
     @State private var pairing = false
     @State private var pairingError: String?
     @State private var isPaired = KeychainToken.load() != nil
@@ -241,7 +242,12 @@ struct ContentView: View {
             .padding(.vertical, 8)
         }
         .onAppear {
-            if KeychainToken.load() != nil { sync.start() }
+            if KeychainToken.load() != nil {
+                sync.start()
+            } else if !backend.isEmpty && pin.count == 6 {
+                // Tự động kích hoạt ghép nối khi khởi động nếu đã có sẵn URL và mã PIN hợp lệ
+                Task { await pairWatch() }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && isPaired { sync.start() }
