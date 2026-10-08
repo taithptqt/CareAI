@@ -124,6 +124,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CareAIWatch.entitlements;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
+				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = (
+					careai.healthsync,
+				);
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "CareAI does not write health data.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = CareAI;
@@ -136,7 +140,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Sources/CareAIWatch-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/Sources/CareAIWatch-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
@@ -179,6 +183,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -210,6 +215,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CareAIWatch.entitlements;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
+				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = (
+					careai.healthsync,
+				);
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "CareAI does not write health data.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = CareAI;
@@ -222,7 +231,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Sources/CareAIWatch-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/Sources/CareAIWatch-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
@@ -265,6 +274,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
