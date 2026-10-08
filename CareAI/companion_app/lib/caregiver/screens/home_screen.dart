@@ -184,11 +184,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   IconData _emergencyIcon(String type) {
     final upper = type.toUpperCase();
-    if (upper.contains('FALL')) return Icons.personal_injury_rounded;
+    if (upper.contains('FALL')) return Icons.warning_rounded;
     if (upper.contains('OXYGEN') || upper.contains('SPO2')) return Icons.air_rounded;
     if (upper.contains('TACHYCARDIA') || upper.contains('BRADYCARDIA') || upper.contains('SURGE') || upper.contains('HR') || upper.contains('HEART')) return Icons.monitor_heart_rounded;
     if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) return Icons.speed_rounded;
-    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.signal_cellular_connected_no_internet_4_bar_rounded;
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.wifi_off_rounded;
     if (upper.contains('SOS')) return Icons.emergency_rounded;
     return Icons.warning_amber_rounded;
   }
@@ -941,7 +941,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.personal_injury_rounded, color: Color(0xFFEF4444)),
+                  leading: const Icon(Icons.elderly_rounded, color: Color(0xFFEF4444)),
                   title: const Text('Chuyển sang Chế độ Người cao tuổi'),
                   subtitle: const Text('Kích hoạt nút SOS & Cảnh báo ngã trên máy này'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 14),
