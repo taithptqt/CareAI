@@ -140,7 +140,7 @@ class CaregiverAlertService : Service() {
                 manager.createNotificationChannel(NotificationChannel(
                     FALLBACK_CHANNEL_ID, "Cấp cứu dự phòng", NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    val sound = android.net.Uri.parse("android.resource://${context.packageName}/${R.raw.careai_emergency_alarm}")
                     setSound(sound, AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM).build())
                     enableVibration(true)
