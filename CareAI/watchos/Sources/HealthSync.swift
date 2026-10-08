@@ -403,7 +403,23 @@ final class HealthSync: ObservableObject {
         diagnosticLog = batterySaverEnabled ? "🔋 Đã bật Tiết Kiệm Pin Thích Ứng (10Hz)" : "⚡ Đã bật Giám Sát Hiệu Năng Cao (20Hz)"
     }
 
-    /// Thiết lập hệ thống phát hiện té ngã kết hợp (Apple CMFallDetectionManager + CMMotionManager Fallback)
+    /// Thiết lập hệ thống phát hiện té ngã 2 tầng kiên cường (Two-Tier Resilient Fall Detection):
+    ///
+    /// -----------------------------------------------------------------------------------------
+    /// 🏥 TẦNG 1: CHIP APPLE MOTION COPROCESSOR (CMFallDetectionManager)
+    /// - Khi app có giấy phép Entitlement chính thức từ Apple (`com.apple.developer.coremotion.fall-detection`),
+    ///   hệ thống ủy thác toàn bộ cho chip đồng xử lý chuyển động phần cứng của Apple để tiết kiệm >90% pin.
+    ///
+    /// 🛡️ TẦNG 2: BẢO VỆ DỰ PHÒNG TỰ CHỦ QUA COREMOTION (CMMotionManager)
+    /// - Tự động kích hoạt khi chạy trên Simulator, tài khoản Apple cá nhân (Personal Team), hoặc khi
+    ///   thiết bị không có Apple Entitlement. Đo gia tốc rơi tự do (<0.35g) và va chạm (>2.8g).
+    ///
+    /// ⚠️ [GIẢI PHÁP CẦU NỐI BẮT NGOẠI LỆ OBJECTIVE-C]:
+    /// Khi gọi CMFallDetectionManager.isAvailable mà app thiếu Entitlement, runtime của Apple sẽ ném một
+    /// ngoại lệ cấp thấp NSInternalInconsistencyException làm crash app lập tức (Swift do-catch KHÔNG bắt được).
+    /// Ta sử dụng hàm cầu nối `catchException` (Objective-C @try-@catch trong NSExceptionCatcher.h)
+    /// để bắt trọn ngoại lệ của Apple một cách êm đẹp, tự động chuyển giao xuống Tầng 2 mà không hề sập app!
+    /// -----------------------------------------------------------------------------------------
     func setupFallDetection() {
         guard autoFallDetectionEnabled else {
             motionManager.stopAccelerometerUpdates()
@@ -411,20 +427,26 @@ final class HealthSync: ObservableObject {
             return
         }
 
-        // 1. Thử kích hoạt CMFallDetectionManager chuẩn Apple Watch Series 4+
-        if CMFallDetectionManager.isAvailable {
+        var isAppleFallSupported = false
+        // Bọc trong cầu nối catchException để triệt tiêu hoàn toàn nguy cơ NSInternalInconsistencyException crash
+        let safeExecution = catchException {
+            isAppleFallSupported = CMFallDetectionManager.isAvailable
+        }
+
+        if safeExecution && isAppleFallSupported {
+            // TẦNG 1: Đủ quyền Entitlement của Apple -> Sử dụng chip phần cứng Apple Coprocessor (Tiết kiệm pin tối đa)
             let manager = CMFallDetectionManager()
             let coordinator = FallDetectionCoordinator(sync: self)
             manager.delegate = coordinator
             self.fallDetectionManager = manager
             self.fallCoordinator = coordinator
-            // TẮT NGAY cảm biến gia tốc thô để chip Motion Coprocessor của Apple gánh toàn bộ, tiết kiệm pin tối đa
+            // Tắt cập nhật gia tốc phần mềm để nhường toàn bộ cho chip phần cứng
             motionManager.stopAccelerometerUpdates()
             diagnosticLog = "⚡ Apple Fall Detection sẵn sàng (Tiết kiệm pin phần cứng)"
         } else {
-            // 2. Dự phòng: Kích hoạt phân tích gia tốc qua CMMotionManager với hàng đợi nền riêng biệt
+            // TẦNG 2: Bắt được ngoại lệ thiếu Entitlement hoặc máy không hỗ trợ -> Tự động chuyển đổi sang CMMotionManager
             startMotionFallDetectionFallback()
-            diagnosticLog = batterySaverEnabled ? "🔋 Cảm biến Fallback (Tiết kiệm pin 10Hz)" : "⚡ Cảm biến Fallback (20Hz)"
+            diagnosticLog = batterySaverEnabled ? "🔋 Cảm biến CoreMotion Fallback (Tiết kiệm pin 10Hz)" : "⚡ Cảm biến CoreMotion Fallback (20Hz)"
         }
     }
 

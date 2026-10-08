@@ -1,0 +1,310 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		131884FBD08137D7E66B1F12 /* KeychainToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = A76EE6F47C2C03550636C97C /* KeychainToken.swift */; };
+		549D0DC3E46E559118CACB59 /* NSExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 1D98CCDC5227EEBE91EF7474 /* NSExceptionCatcher.m */; };
+		6C0CF5F5DD26C3615A79974E /* HealthSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39BB591352A5EEC9A16B14CF /* HealthSync.swift */; };
+		F4530521A30B6073789A951C /* CareAIWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007B813685CBF0AAA5FA2E98 /* CareAIWatchApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		007B813685CBF0AAA5FA2E98 /* CareAIWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareAIWatchApp.swift; sourceTree = "<group>"; };
+		1D98CCDC5227EEBE91EF7474 /* NSExceptionCatcher.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NSExceptionCatcher.m; sourceTree = "<group>"; };
+		39BB591352A5EEC9A16B14CF /* HealthSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSync.swift; sourceTree = "<group>"; };
+		6062F150A8AAAA50C4CA31CF /* NSExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NSExceptionCatcher.h; sourceTree = "<group>"; };
+		6382FC5B0BD7A4E900386905 /* CareAIWatch-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "CareAIWatch-Bridging-Header.h"; sourceTree = "<group>"; };
+		8566FADB1981854290E44F02 /* CareAIWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CareAIWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A76EE6F47C2C03550636C97C /* KeychainToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainToken.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		85F15F38B75F1174C528BD97 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8566FADB1981854290E44F02 /* CareAIWatch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		89407203D930618B7275807B /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				6382FC5B0BD7A4E900386905 /* CareAIWatch-Bridging-Header.h */,
+				007B813685CBF0AAA5FA2E98 /* CareAIWatchApp.swift */,
+				39BB591352A5EEC9A16B14CF /* HealthSync.swift */,
+				A76EE6F47C2C03550636C97C /* KeychainToken.swift */,
+				6062F150A8AAAA50C4CA31CF /* NSExceptionCatcher.h */,
+				1D98CCDC5227EEBE91EF7474 /* NSExceptionCatcher.m */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		C14857AD0D94AFD616D20D9A = {
+			isa = PBXGroup;
+			children = (
+				89407203D930618B7275807B /* Sources */,
+				85F15F38B75F1174C528BD97 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CE4323BEBEE9E5F736AA1D05 /* CareAIWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4BE16D34492DD32FAA92FAC1 /* Build configuration list for PBXNativeTarget "CareAIWatch" */;
+			buildPhases = (
+				17C244BC7F67DA8EFB063CF8 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CareAIWatch;
+			packageProductDependencies = (
+			);
+			productName = CareAIWatch;
+			productReference = 8566FADB1981854290E44F02 /* CareAIWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		92523CB017BFDB66E75311D5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 97E0878A0FF706E99A915367 /* Build configuration list for PBXProject "CareAIWatch" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C14857AD0D94AFD616D20D9A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 85F15F38B75F1174C528BD97 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CE4323BEBEE9E5F736AA1D05 /* CareAIWatch */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		17C244BC7F67DA8EFB063CF8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F4530521A30B6073789A951C /* CareAIWatchApp.swift in Sources */,
+				6C0CF5F5DD26C3615A79974E /* HealthSync.swift in Sources */,
+				131884FBD08137D7E66B1F12 /* KeychainToken.swift in Sources */,
+				549D0DC3E46E559118CACB59 /* NSExceptionCatcher.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		37780B34CABE6A1C03EB5672 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CareAIWatch.entitlements;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "CareAI does not write health data.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = CareAI;
+				INFOPLIST_KEY_NSMotionUsageDescription = "CareAI sử dụng cảm biến chuyển động để tự động phát hiện tai nạn té ngã và gửi tín hiệu cấp cứu.";
+				INFOPLIST_KEY_WKBackgroundModes = (
+					"workout-processing",
+					"physical-therapy",
+				);
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = vn.careai.careaiCompanion;
+				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/CareAIWatch-Bridging-Header.h";
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		66AD2C8FE22E10CBB816DFAA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		A67DD6D978139D0647AD8642 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CareAIWatch.entitlements;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "CareAI does not write health data.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = CareAI;
+				INFOPLIST_KEY_NSMotionUsageDescription = "CareAI sử dụng cảm biến chuyển động để tự động phát hiện tai nạn té ngã và gửi tín hiệu cấp cứu.";
+				INFOPLIST_KEY_WKBackgroundModes = (
+					"workout-processing",
+					"physical-therapy",
+				);
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = vn.careai.careaiCompanion;
+				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/CareAIWatch-Bridging-Header.h";
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		B7BEA5AC8564191C4A338584 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4BE16D34492DD32FAA92FAC1 /* Build configuration list for PBXNativeTarget "CareAIWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37780B34CABE6A1C03EB5672 /* Debug */,
+				A67DD6D978139D0647AD8642 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		97E0878A0FF706E99A915367 /* Build configuration list for PBXProject "CareAIWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				66AD2C8FE22E10CBB816DFAA /* Debug */,
+				B7BEA5AC8564191C4A338584 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 92523CB017BFDB66E75311D5 /* Project object */;
+}
