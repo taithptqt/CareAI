@@ -40,6 +40,12 @@ class CaregiverApiService {
   // Quản lý Token JWT
   Future<void> saveAuth(AuthResponse auth) async {
     final prefs = await SharedPreferences.getInstance();
+    final previousCaregiverId = prefs.getString('previous_caregiver_id') ?? prefs.getString('caregiver_id');
+    if (previousCaregiverId != null && previousCaregiverId.isNotEmpty && previousCaregiverId != auth.caregiverId) {
+      // Đăng nhập bằng tài khoản Người thân khác -> Hủy thông tin ghép đôi của Cụ thuộc tài khoản cũ
+      await ApiService.instance.unpair();
+    }
+    await prefs.setString('previous_caregiver_id', auth.caregiverId);
     await prefs.setString('jwt_token', auth.token);
     await prefs.setString('caregiver_id', auth.caregiverId);
     await prefs.setString('caregiver_name', auth.fullName);
@@ -73,10 +79,15 @@ class CaregiverApiService {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    final currentId = prefs.getString('caregiver_id');
+    if (currentId != null && currentId.isNotEmpty) {
+      await prefs.setString('previous_caregiver_id', currentId);
+    }
     await prefs.remove('jwt_token');
     await prefs.remove('caregiver_id');
     await prefs.remove('caregiver_name');
     await prefs.remove('caregiver_email');
+    await prefs.remove('careai_selected_role');
   }
 
   Map<String, String> _buildHeaders(String? token) {

@@ -480,9 +480,20 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              _isServerOnline ? 'Hệ Thống Trực Tuyến' : 'Ngoại Tuyến (Offline)',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            Flexible(
+              child: Text(
+                _isServerOnline
+                    ? (ApiService.instance.activeServerUrl.contains('127.0.0.1')
+                        ? 'Trực tuyến (Cáp USB)'
+                        : (ApiService.instance.activeServerUrl.contains('trycloudflare.com') ||
+                                ApiService.instance.activeServerUrl.contains('azurewebsites.net') ||
+                                ApiService.instance.activeServerUrl.startsWith('https://'))
+                            ? 'Trực tuyến (Internet/4G)'
+                            : 'Trực tuyến (Wi-Fi LAN)')
+                    : 'Ngoại tuyến (Offline)',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),

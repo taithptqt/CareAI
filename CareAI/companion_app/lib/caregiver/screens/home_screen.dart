@@ -1012,6 +1012,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await CaregiverPushService.instance.unregisterCurrentToken();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(RoleSelectionScreen.prefSelectedRole, 'elder');
+
+      // Kiểm tra xem thiết bị này đã liên kết với một cụ thuộc tài khoản Người thân hiện tại hay chưa
+      final currentElderProfileId = await ApiService.instance.getElderProfileId();
+      List<ElderItem> eldersToCheck = _elders;
+      if (eldersToCheck.isEmpty) {
+        try {
+          eldersToCheck = await CaregiverApiService.instance.getMyElders();
+        } catch (_) {}
+      }
+
+      final bool isLinkedToCurrentCaregiver = currentElderProfileId != null &&
+          eldersToCheck.any((e) => e.id == currentElderProfileId);
+
+      if (!isLinkedToCurrentCaregiver) {
+        // Phía cụ của tài khoản mới chưa liên kết vào thiết bị -> Hủy ghép đôi cũ và điều hướng sang màn hình nhập PIN
+        await ApiService.instance.unpair();
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
+        );
+        return;
+      }
+
       final isPaired = await ApiService.instance.isPaired();
       if (!mounted) return;
       Navigator.pushReplacement(

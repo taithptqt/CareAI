@@ -21,6 +21,27 @@ class RoleSelectionScreen extends StatelessWidget {
     if (role == 'elder') {
       // Điều hướng luồng Người cao tuổi (Companion)
       final isPaired = await ApiService.instance.isPaired();
+      if (isPaired) {
+        await CaregiverApiService.instance.init();
+        final isLoggedInCaregiver = await CaregiverApiService.instance.isLoggedIn();
+        if (isLoggedInCaregiver) {
+          final currentElderProfileId = await ApiService.instance.getElderProfileId();
+          try {
+            final myElders = await CaregiverApiService.instance.getMyElders();
+            final isLinkedToCurrent = currentElderProfileId != null &&
+                myElders.any((e) => e.id == currentElderProfileId);
+            if (!isLinkedToCurrent) {
+              await ApiService.instance.unpair();
+              if (!context.mounted) return;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
+              );
+              return;
+            }
+          } catch (_) {}
+        }
+      }
       if (!context.mounted) return;
       Navigator.pushReplacement(
         context,

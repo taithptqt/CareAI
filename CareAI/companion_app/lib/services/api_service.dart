@@ -60,6 +60,11 @@ class ApiService {
     return prefs.getString('elder_name');
   }
 
+  Future<String?> getElderProfileId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('elder_profile_id');
+  }
+
   Future<bool> isPaired() async {
     final deviceId = await getDeviceId();
     final deviceToken = await getDeviceToken();
