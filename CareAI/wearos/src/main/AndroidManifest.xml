@@ -5,6 +5,10 @@
     <!-- Khai báo thiết bị đeo Smartwatch -->
     <uses-feature android:name="android.hardware.type.watch" />
 
+    <!-- Quyền mạng Wi-Fi/LTE phục vụ tính năng Standalone Direct Cloud SOS -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- [KHẮC PHỤC TRIỆT ĐỂ P0-3]: Quyền chuẩn hóa AOSP / Samsung để liên kết PassiveListenerService với Google Health Services -->
     <uses-permission android:name="com.google.android.wearable.healthservices.permission.PASSIVE_DATA_BINDING" />
     <uses-permission android:name="android.permission.BODY_SENSORS" />
@@ -19,9 +23,10 @@
         android:label="CareAI Wear"
         android:theme="@android:style/Theme.DeviceDefault">
 
+        <!-- Standalone = true cho phép đồng hồ tự chủ hoàn toàn gửi cứu nạn qua Wi-Fi khi xa điện thoại -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
-            android:value="false" />
+            android:value="true" />
 
         <!-- Giao diện màn hình tròn trực quan cho Samsung Galaxy Watch -->
         <activity
@@ -50,6 +55,20 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.wearable.healthservices.action.PASSIVE_LISTENER_SERVICE" />
+            </intent-filter>
+        </service>
+
+        <!-- Nhận tự động thông tin xác thực thiết bị và URL máy chủ từ điện thoại qua DataClient -->
+        <service
+            android:name=".WearOsDataReceiverService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/careai/credentials" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/careai/sync_credentials" />
             </intent-filter>
         </service>
     </application>

@@ -211,6 +211,31 @@ import workmanager_apple
       case "cancelFallAlarm", "stopEmergencySound":
         self.stopAlarmSound()
         result(true)
+      case "syncWatchCredentials":
+        if WCSession.isSupported() {
+          let session = WCSession.default
+          if session.activationState == .activated {
+            var context: [String: Any] = [:]
+            if let args = call.arguments as? [String: Any] {
+              context["backendUrl"] = args["backendUrl"]
+              context["deviceId"] = args["deviceId"]
+              context["deviceToken"] = args["deviceToken"]
+              context["elderName"] = args["elderName"]
+            }
+            context["syncType"] = "CREDENTIALS"
+            do {
+              try session.updateApplicationContext(context)
+            } catch {
+              session.transferUserInfo(context)
+            }
+            NSLog("[CareAI-iOS] Đã đồng bộ credentials sang Apple Watch qua WCSession.")
+            result(true)
+          } else {
+            result(false)
+          }
+        } else {
+          result(false)
+        }
       case "checkExactAlarmPermission":
         result(true)
       default:

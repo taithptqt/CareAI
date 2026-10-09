@@ -21,7 +21,9 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.KeyEvent
 import androidx.core.content.ContextCompat
+import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import org.json.JSONObject
 import java.util.Locale
 
 import io.flutter.embedding.android.FlutterActivity
@@ -402,6 +404,48 @@ class MainActivity : FlutterActivity() {
                             "error" to (ex.message ?: "Exception"),
                             "connectedCount" to 0
                         ))
+                    }
+                }
+                "syncWatchCredentials" -> {
+                    val backendUrl = call.argument<String>("backendUrl") ?: ""
+                    val deviceId = call.argument<String>("deviceId") ?: ""
+                    val deviceToken = call.argument<String>("deviceToken") ?: ""
+                    val elderName = call.argument<String>("elderName") ?: ""
+
+                    try {
+                        // 1. Gửi qua DataClient (lưu trữ liên tục / persistent buffer để đồng bộ ngay khi đồng hồ kết nối lại)
+                        val putDataReq = PutDataMapRequest.create("/careai/credentials").apply {
+                            dataMap.putString("backendUrl", backendUrl)
+                            dataMap.putString("deviceId", deviceId)
+                            dataMap.putString("deviceToken", deviceToken)
+                            dataMap.putString("elderName", elderName)
+                            dataMap.putLong("updatedAt", System.currentTimeMillis())
+                        }.asPutDataRequest().setUrgent()
+
+                        Wearable.getDataClient(this).putDataItem(putDataReq)
+
+                        // 2. Gửi qua MessageClient (đẩy tức thì 0ms tới tất cả node đồng hồ đang online)
+                        val json = JSONObject().apply {
+                            put("backendUrl", backendUrl)
+                            put("deviceId", deviceId)
+                            put("deviceToken", deviceToken)
+                            put("elderName", elderName)
+                        }.toString()
+
+                        Wearable.getNodeClient(this).connectedNodes.addOnSuccessListener { nodes ->
+                            for (node in nodes) {
+                                Wearable.getMessageClient(this).sendMessage(
+                                    node.id,
+                                    "/careai/sync_credentials",
+                                    json.toByteArray(Charsets.UTF_8)
+                                )
+                            }
+                        }
+                        Log.i("CareAI-MainActivity", "Đã gửi yêu cầu đồng bộ credentials tới Wear OS (DataClient + MessageClient)")
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.w("CareAI-MainActivity", "Không thể đồng bộ credentials tới Wear OS: ${e.message}")
+                        result.success(false)
                     }
                 }
                 else -> result.notImplemented()

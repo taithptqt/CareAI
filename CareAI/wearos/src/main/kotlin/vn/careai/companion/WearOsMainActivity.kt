@@ -79,6 +79,26 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     val eventId = intent.getStringExtra("eventId") ?: "SOS_WATCH_${System.currentTimeMillis()}"
                     triggerManualSos(eventId)
                 }
+                "vn.careai.watch.PAIR_PIN" -> {
+                    val pin = intent.getStringExtra("pin") ?: ""
+                    if (pin.length == 6) {
+                        tvLogResult.text = "Đang ghép nối PIN $pin qua Wi-Fi..."
+                        Thread {
+                            val (ok, msg) = WearOsDirectCloudClient.pairWatchWithPin(this@WearOsMainActivity, pin)
+                            runOnUiThread {
+                                tvLogResult.text = msg
+                                if (ok) updateVitalsUI(source = "Ghép nối Wi-Fi thành công")
+                            }
+                        }.start()
+                    }
+                }
+                "vn.careai.watch.SET_BACKEND" -> {
+                    val url = intent.getStringExtra("url") ?: ""
+                    if (url.isNotBlank()) {
+                        WearOsConfigStore.saveBackendUrl(this@WearOsMainActivity, url)
+                        tvLogResult.text = "Đã lưu URL: $url"
+                    }
+                }
             }
         }
     }
@@ -156,6 +176,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             addAction("whs.synthetic.user.SET_OXYGEN_SATURATION")
             addAction("vn.careai.watch.SIMULATE_FALL")
             addAction("vn.careai.watch.SIMULATE_SOS")
+            addAction("vn.careai.watch.PAIR_PIN")
+            addAction("vn.careai.watch.SET_BACKEND")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(sensorInjectionReceiver, filter, Context.RECEIVER_EXPORTED)
@@ -218,20 +240,19 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         Log.w("CareAI-WearActivity", "Kích hoạt mô phỏng té ngã! EventId=$eventId")
         tvStatus.text = "💥 CẢNH BÁO TÉ NGÃ!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
-        tvLogResult.text = "Đang phát sóng Bluetooth Data Layer..."
+        tvLogResult.text = "Đang gửi cảnh báo té ngã (Bluetooth / Wi-Fi)..."
 
         WearOsFallListenerService.dispatchFallAlert(
             context = this,
             eventId = eventId,
             eventTime = timestamp,
-            sensorType = "SAMSUNG_BIOACTIVE_SIMULATED_TEST"
-        ) { success ->
+            sensorType = "SAMSUNG_BIOACTIVE_SIMULATED_TEST",
+            heartRate = currentHeartRate,
+            spo2 = currentSpo2,
+            emergencyType = "FALL_DETECTED"
+        ) { _, channelInfo ->
             runOnUiThread {
-                if (success) {
-                    tvLogResult.text = "✅ Đã bắn tín hiệu ngã sang điện thoại!"
-                } else {
-                    tvLogResult.text = "⚠️ Đã lưu vào DataClient (Store-and-Forward)"
-                }
+                tvLogResult.text = channelInfo
             }
         }
     }
@@ -241,20 +262,19 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         Log.w("CareAI-WearActivity", "Kích hoạt SOS khẩn cấp! EventId=$eventId")
         tvStatus.text = "🆘 ĐÃ BẮN TÍN HIỆU SOS!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
-        tvLogResult.text = "Đang gửi SOS khẩn cấp..."
+        tvLogResult.text = "Đang gửi SOS khẩn cấp (Bluetooth / Wi-Fi)..."
 
         WearOsFallListenerService.dispatchFallAlert(
             context = this,
             eventId = eventId,
             eventTime = timestamp,
-            sensorType = "WATCH_TOUCH_SOS"
-        ) { success ->
+            sensorType = "WATCH_TOUCH_SOS",
+            heartRate = currentHeartRate,
+            spo2 = currentSpo2,
+            emergencyType = "MANUAL_SOS"
+        ) { _, channelInfo ->
             runOnUiThread {
-                if (success) {
-                    tvLogResult.text = "✅ Đã gửi SOS sang điện thoại!"
-                } else {
-                    tvLogResult.text = "⚠️ Đã lưu SOS vào DataClient"
-                }
+                tvLogResult.text = channelInfo
             }
         }
     }

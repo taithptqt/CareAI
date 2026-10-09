@@ -40,6 +40,30 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             }
         }
     }
+
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        handleIncomingCredentials(applicationContext)
+    }
+
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+        handleIncomingCredentials(userInfo)
+    }
+
+    private func handleIncomingCredentials(_ payload: [String: Any]) {
+        if let token = payload["deviceToken"] as? String, !token.isEmpty {
+            KeychainToken.save(token)
+            if let backendUrl = payload["backendUrl"] as? String, !backendUrl.isEmpty {
+                UserDefaults.standard.set(backendUrl, forKey: "backend")
+            }
+            if let elderName = payload["elderName"] as? String, !elderName.isEmpty {
+                UserDefaults.standard.set(elderName, forKey: "elderName")
+            }
+            if let deviceId = payload["deviceId"] as? String, !deviceId.isEmpty {
+                UserDefaults.standard.set(deviceId, forKey: "deviceId")
+            }
+            NSLog("[CareAI-Watch] Đã nhận và tự động lưu credentials từ iPhone Companion thành công!")
+        }
+    }
 }
 
 private struct PendingReading: Codable {

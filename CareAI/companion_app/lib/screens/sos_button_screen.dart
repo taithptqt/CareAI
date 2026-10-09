@@ -126,6 +126,19 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       if (status.isConnected) {
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
         unawaited(ApiService.instance.syncConnectedWatch(status.watchName ?? platformName));
+        unawaited(() async {
+          final serverUrl = await ApiService.instance.getServerUrl();
+          final devId = await ApiService.instance.getDeviceId();
+          final devToken = await ApiService.instance.getDeviceToken();
+          if (devId != null && devToken != null && devId.isNotEmpty && devToken.isNotEmpty) {
+            await FallService.instance.syncWatchCredentials(
+              backendUrl: serverUrl,
+              deviceId: devId,
+              deviceToken: devToken,
+              elderName: _elderName,
+            );
+          }
+        }());
       }
       if (showFeedback) {
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
@@ -147,7 +160,18 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   Future<void> _loadDeviceInfo() async {
     final name = await ApiService.instance.getElderName();
     final devId = await ApiService.instance.getDeviceId();
+    final devToken = await ApiService.instance.getDeviceToken();
+    final serverUrl = await ApiService.instance.getServerUrl();
     final lastSync = await LocalOfflineStore.instance.getLastSyncTimestamp();
+
+    if (devId != null && devToken != null && devId.isNotEmpty && devToken.isNotEmpty) {
+      unawaited(FallService.instance.syncWatchCredentials(
+        backendUrl: serverUrl,
+        deviceId: devId,
+        deviceToken: devToken,
+        elderName: name,
+      ));
+    }
 
     if (mounted) {
       setState(() {

@@ -167,6 +167,30 @@ class FallService {
     }
   }
 
+  /// Đồng bộ thông tin xác thực lên phần cứng đồng hồ (Galaxy Watch qua Wear OS Data Layer, Apple Watch qua WCSession)
+  Future<bool> syncWatchCredentials({
+    required String backendUrl,
+    required String deviceId,
+    required String deviceToken,
+    String? elderName,
+  }) async {
+    if (!_isSupportedPlatform) {
+      return false;
+    }
+    try {
+      final success = await _fallChannel.invokeMethod<bool>('syncWatchCredentials', {
+        'backendUrl': backendUrl,
+        'deviceId': deviceId,
+        'deviceToken': deviceToken,
+        'elderName': elderName ?? '',
+      });
+      return success ?? false;
+    } catch (e) {
+      debugPrint('[FallService] Lỗi đồng bộ thông tin xác thực sang đồng hồ: $e');
+      return false;
+    }
+  }
+
   void dispose() {
     _sensorSubscription?.cancel();
     _fallEventController.close();

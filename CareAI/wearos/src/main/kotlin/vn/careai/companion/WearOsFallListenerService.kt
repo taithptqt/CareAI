@@ -17,46 +17,67 @@ class WearOsFallListenerService : PassiveListenerService() {
             val eventId = java.util.UUID.randomUUID().toString()
             Log.w("CareAI-Watch", "Cảm biến phần cứng Samsung Galaxy Watch phát hiện FALL_DETECTED! EventId=$eventId")
 
-            dispatchFallAlert(applicationContext, eventId, eventTime, "SAMSUNG_BIOACTIVE_PPG_ACCEL")
+            dispatchFallAlert(
+                context = applicationContext,
+                eventId = eventId,
+                eventTime = eventTime,
+                sensorType = "SAMSUNG_BIOACTIVE_PPG_ACCEL"
+            )
         }
     }
 
     companion object {
-        fun dispatchFallAlert(context: Context, eventId: String, eventTime: Long, sensorType: String = "SAMSUNG_BIOACTIVE_PPG_ACCEL", onComplete: ((Boolean) -> Unit)? = null) {
+        fun dispatchFallAlert(
+            context: Context,
+            eventId: String,
+            eventTime: Long,
+            sensorType: String = "SAMSUNG_BIOACTIVE_PPG_ACCEL",
+            heartRate: Int? = null,
+            spo2: Double? = null,
+            emergencyType: String = "FALL_DETECTED",
+            onComplete: ((success: Boolean, channel: String) -> Unit)? = null
+        ) {
             // [KHẮC PHỤC TRIỆT ĐỂ P1-11]: TRUNG THỰC DỮ LIỆU CẢM BIẾN (SENSOR DATA TRUTH)
-            // Health Services chỉ trả về sự kiện xác nhận té ngã (FALL_DETECTED), không có số đo gia tốc thô (Raw G).
-            // Tuyệt đối không hardcode 3.2G giả mạo! Đặt impactG là null và bổ sung cờ xác thực phần cứng.
             val payloadJson = JSONObject().apply {
                 put("eventId", eventId)
-                put("eventType", "HARDWARE_FALL_DETECTED")
+                put("eventType", if (emergencyType == "FALL_DETECTED") "HARDWARE_FALL_DETECTED" else "MANUAL_SOS_ALERT")
                 put("timestamp", eventTime)
                 put("source", "SAMSUNG_GALAXY_WATCH_HARDWARE_SENSOR")
                 put("isHardwareVerified", true)
                 put("sensorType", sensorType)
                 put("impactG", JSONObject.NULL)
+                if (heartRate != null) put("heartRate", heartRate)
+                if (spo2 != null) put("spo2", spo2)
             }.toString()
             val payloadBytes = payloadJson.toByteArray(Charsets.UTF_8)
 
-            // [KHẮC PHỤC TRIỆT ĐỂ P1]: ĐỘC LẬP HOÀN TOÀN 2 KÊNH VẬN CHUYỂN SONG SONG (TRUE CONCURRENT DUAL-CHANNEL)
-            // Kênh 1: Fast-Lane MessageClient bắn ngay qua Bluetooth không đợi DataClient
             Thread {
                 var messageSuccess = false
+                var directCloudSuccess = false
+                var channelInfo = "Đang truyền tín hiệu..."
+
+                // KÊNH 1: Fast-Lane MessageClient qua Bluetooth sang điện thoại (Ưu tiên tiết kiệm pin 0ms)
                 try {
                     val nodeClient = Wearable.getNodeClient(context)
-                    val nodes = Tasks.await(nodeClient.connectedNodes, 2000, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    val nodes = Tasks.await(nodeClient.connectedNodes, 1500, java.util.concurrent.TimeUnit.MILLISECONDS)
                     if (nodes.isEmpty()) {
-                        Log.w("CareAI-Watch", "Chưa tìm thấy Node điện thoại kết nối Bluetooth. Dữ liệu sẽ được bảo toàn qua DataClient...")
-                    }
-                    for (node in nodes) {
-                        Tasks.await(Wearable.getMessageClient(context).sendMessage(node.id, "/careai/fall_detected", payloadBytes), 2000, java.util.concurrent.TimeUnit.MILLISECONDS)
-                        Log.i("CareAI-Watch", "MessageClient fast-lane đã gửi thành công tới node: ${node.displayName} (${node.id})")
-                        messageSuccess = true
+                        Log.w("CareAI-Watch", "Chưa kết nối điện thoại qua Bluetooth. Sẽ chuyển mạch tự động (Failover) sang Wi-Fi / Cloud...")
+                    } else {
+                        for (node in nodes) {
+                            Tasks.await(
+                                Wearable.getMessageClient(context).sendMessage(node.id, "/careai/fall_detected", payloadBytes),
+                                1500,
+                                java.util.concurrent.TimeUnit.MILLISECONDS
+                            )
+                            Log.i("CareAI-Watch", "MessageClient fast-lane đã gửi thành công tới node: ${node.displayName} (${node.id})")
+                            messageSuccess = true
+                        }
                     }
                 } catch (e: Exception) {
-                    Log.e("CareAI-Watch", "Lỗi MessageClient fast-lane: ${e.message}")
+                    Log.e("CareAI-Watch", "Lỗi MessageClient fast-lane Bluetooth: ${e.message}")
                 }
 
-                // Kênh 2: Store-and-Forward DataClient chạy song song độc lập với timeout bảo vệ
+                // KÊNH 2: Store-and-Forward DataClient chạy song song bảo toàn gói tin khi khôi phục sóng Bluetooth
                 try {
                     val putDataReq = com.google.android.gms.wearable.PutDataMapRequest.create("/careai/fall_event/$eventId").apply {
                         dataMap.putString("payloadJson", payloadJson)
@@ -64,13 +85,45 @@ class WearOsFallListenerService : PassiveListenerService() {
                         dataMap.putString("eventId", eventId)
                     }.asPutDataRequest().setUrgent()
 
-                    Tasks.await(Wearable.getDataClient(context).putDataItem(putDataReq), 3000, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    Tasks.await(Wearable.getDataClient(context).putDataItem(putDataReq), 2500, java.util.concurrent.TimeUnit.MILLISECONDS)
                     Log.i("CareAI-Watch", "DataClient persistent store-and-forward thành công: $eventId")
-                    onComplete?.invoke(true)
                 } catch (e: Exception) {
                     Log.e("CareAI-Watch", "Lỗi DataClient: ${e.message}")
-                    onComplete?.invoke(messageSuccess)
                 }
+
+                // KÊNH 3 (MỚI): Direct Wi-Fi / LTE Cloud Fallover (Truyền trực tiếp lên Central Backend)
+                // Kích hoạt khi:
+                // 1) Bluetooth không gửi được (điện thoại ở xa / tắt nguồn / ngoài tầm sóng)
+                // 2) Hoặc đồng hồ có kết nối Wi-Fi / LTE và đã có cấu hình xác thực (True Hybrid Parity với Apple Watch)
+                val isDirectWifiEnabled = WearOsConfigStore.isDirectWifiEnabled(context)
+                if (isDirectWifiEnabled && (!messageSuccess || WearOsDirectCloudClient.isNetworkAvailable(context))) {
+                    try {
+                        val (cloudOk, cloudMsg) = WearOsDirectCloudClient.sendDirectSosPacket(
+                            context = context,
+                            packetId = "SOS_WEAR_${eventId}",
+                            eventId = eventId,
+                            emergencyType = emergencyType,
+                            eventTime = eventTime,
+                            heartRate = heartRate,
+                            spo2 = spo2
+                        )
+                        directCloudSuccess = cloudOk
+                        Log.i("CareAI-Watch", "Kênh 3 Direct Wi-Fi Cloud kết quả: $cloudOk ($cloudMsg)")
+                    } catch (e: Exception) {
+                        Log.e("CareAI-Watch", "Lỗi Kênh 3 Direct Wi-Fi: ${e.message}")
+                    }
+                }
+
+                // Tổng hợp kênh truyền thành công
+                channelInfo = when {
+                    messageSuccess && directCloudSuccess -> "✅ Đã gửi qua Bluetooth & Wi-Fi Cloud"
+                    directCloudSuccess -> "🌐 Đã gửi trực tiếp lên Cloud qua Wi-Fi"
+                    messageSuccess -> "✅ Đã gửi sang điện thoại qua Bluetooth"
+                    else -> "⚠️ Đã lưu bộ đệm (Sẽ gửi khi có mạng/Bluetooth)"
+                }
+
+                val overallSuccess = messageSuccess || directCloudSuccess
+                onComplete?.invoke(overallSuccess, channelInfo)
             }.start()
         }
     }

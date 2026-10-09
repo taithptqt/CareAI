@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../models/device_models.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
+import 'fall_service.dart';
 
 class ApiService {
   static final ApiService instance = ApiService._init();
@@ -106,6 +107,17 @@ class ApiService {
       await prefs.setString('elder_name', pairResponse.fullName);
 
       _activeServerUrl = normalizedUrl;
+
+      // Tự động đẩy thông tin xác thực sang đồng hồ Wear OS (Galaxy Watch) / watchOS (Apple Watch)
+      try {
+        unawaited(FallService.instance.syncWatchCredentials(
+          backendUrl: normalizedUrl,
+          deviceId: pairResponse.deviceId,
+          deviceToken: pairResponse.deviceToken,
+          elderName: pairResponse.fullName,
+        ));
+      } catch (_) {}
+
       return pairResponse;
     } else {
       String errorMessage = 'Ghép nối thất bại (Mã: ${response.statusCode})';
@@ -126,6 +138,16 @@ class ApiService {
     await prefs.remove('device_token');
     await prefs.remove('elder_profile_id');
     await prefs.remove('elder_name');
+
+    // Đồng bộ hủy thông tin xác thực trên đồng hồ
+    try {
+      unawaited(FallService.instance.syncWatchCredentials(
+        backendUrl: '',
+        deviceId: '',
+        deviceToken: '',
+        elderName: '',
+      ));
+    } catch (_) {}
   }
 
   /// Đồng bộ tên đồng hồ thông minh đang kết nối qua Bluetooth lên máy chủ
