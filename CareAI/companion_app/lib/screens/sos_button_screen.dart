@@ -43,6 +43,8 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   bool _locatingGps = false;
   bool _backgroundGpsGranted = false;
 
+  WatchStatus _watchStatus = const WatchStatus(isConnected: false);
+  Timer? _watchStatusTimer;
   Timer? _healthCheckTimer;
   StreamSubscription<FallEvent>? _fallSubscription;
   late AnimationController _rippleController;
@@ -54,6 +56,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     _loadDeviceInfo();
     _checkServerHealth();
     _loadPendingCount();
+    _checkWatchStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_prepareGps());
     });
@@ -80,6 +83,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       _loadPendingCount();
     });
 
+    // Định kỳ kiểm tra trạng thái kết nối Bluetooth đồng hồ Galaxy Watch (chu kỳ 10 giây)
+    _watchStatusTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _checkWatchStatus();
+    });
+
     // Kích hoạt chu kỳ đồng bộ ngoại tuyến định kỳ
     SyncService.instance.startPeriodicSync();
   }
@@ -87,11 +95,49 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   @override
   void dispose() {
     _healthCheckTimer?.cancel();
+    _watchStatusTimer?.cancel();
     _fallSubscription?.cancel();
     _rippleController.dispose();
     FallService.instance.stopPhoneAccelerometerDetector();
     SyncService.instance.stopPeriodicSync();
     super.dispose();
+  }
+
+  String get _platformWatchTitle {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return 'Apple Watch (watchOS)';
+    }
+    return 'Galaxy Watch (Wear OS)';
+  }
+
+  String get _platformSensorLabel {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return 'Apple Optical Sensor';
+    }
+    return 'BioActive Sensor';
+  }
+
+  Future<void> _checkWatchStatus({bool showFeedback = false}) async {
+    final status = await FallService.instance.getConnectedWatchStatus();
+    if (mounted) {
+      setState(() {
+        _watchStatus = status;
+      });
+      if (showFeedback) {
+        final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
+        final channelDesc = defaultTargetPlatform == TargetPlatform.iOS ? 'Bluetooth / Apple Watch App' : 'Bluetooth / Galaxy Wearable';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              status.isConnected
+                  ? '🟢 Đã kết nối: ${status.watchName ?? platformName} (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})'
+                  : '⚪ Chưa tìm thấy $platformName kết nối qua $channelDesc',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadDeviceInfo() async {
@@ -566,74 +612,101 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             ),
 
             // Card Thiết bị đeo Galaxy Watch (Wear OS)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.5)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E3A8A).withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.watch, color: Color(0xFF60A5FA), size: 22),
+            InkWell(
+              onTap: () => _checkWatchStatus(showFeedback: true),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _watchStatus.isConnected
+                        ? const Color(0xFF22C55E).withValues(alpha: 0.6)
+                        : const Color(0xFF475569).withValues(alpha: 0.4),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Galaxy Watch (Wear OS)',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          '🟢 Sẵn sàng · BioActive Sensor',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF4ADE80)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC2626),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _watchStatus.isConnected
+                            ? const Color(0xFF14532D).withValues(alpha: 0.5)
+                            : const Color(0xFF1E293B),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.watch,
+                        color: _watchStatus.isConnected
+                            ? const Color(0xFF4ADE80)
+                            : const Color(0xFF94A3B8),
+                        size: 22,
                       ),
                     ),
-                    icon: const Icon(Icons.personal_injury, size: 16),
-                    label: const Text(
-                      'Test Ngã',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: () async {
-                      final eventId = await FallService.instance.simulateHardwareFall();
-                      if (context.mounted && eventId != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('⚡ Đã kích hoạt mô phỏng ngã phần cứng ($eventId)'),
-                            backgroundColor: const Color(0xFFB91C1C),
-                            duration: const Duration(seconds: 2),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _watchStatus.isConnected
+                                ? (_watchStatus.watchName ?? _platformWatchTitle)
+                                : _platformWatchTitle,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        );
-                      }
-                    },
-                  ),
-                ],
+                          const SizedBox(height: 2),
+                          Text(
+                            _watchStatus.isConnected
+                                ? '🟢 Đã kết nối · $_platformSensorLabel'
+                                : '⚪ Chưa kết nối (Chạm để kiểm tra)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _watchStatus.isConnected
+                                  ? const Color(0xFF4ADE80)
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.personal_injury, size: 16),
+                      label: const Text(
+                        'Test Ngã',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () async {
+                        final eventId = await FallService.instance.simulateHardwareFall();
+                        if (context.mounted && eventId != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('⚡ Đã kích hoạt mô phỏng ngã phần cứng ($eventId)'),
+                              backgroundColor: const Color(0xFFB91C1C),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
 
