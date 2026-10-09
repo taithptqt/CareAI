@@ -52,12 +52,13 @@ class RoleSelectionScreen extends StatelessWidget {
     } else {
       // Điều hướng luồng Người thân (Caregiver)
       await CaregiverApiService.instance.init();
-      final isLoggedIn = await CaregiverApiService.instance.isLoggedIn();
+      final currentElderId = await ApiService.instance.getElderProfileId();
+      final canEnterHomeScreen = await CaregiverApiService.instance.verifyOrLogoutIfMismatchedElder(currentElderId);
       if (!context.mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => isLoggedIn ? const HomeScreen() : const LoginScreen(),
+          builder: (_) => canEnterHomeScreen ? const HomeScreen() : const LoginScreen(),
         ),
       );
     }

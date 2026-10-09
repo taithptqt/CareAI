@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../caregiver/services/caregiver_api_service.dart';
 import '../services/api_service.dart';
 import 'role_selection_screen.dart';
 import 'sos_button_screen.dart';
@@ -37,6 +38,12 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
         serverUrl: serverUrl,
         pin: _pinController.text.trim(),
       );
+
+      // Đảm bảo phiên Người thân cũ (nếu có) bị đăng xuất ngay nếu không sở hữu Người cao tuổi vừa ghép đôi
+      try {
+        await CaregiverApiService.instance.init();
+        await CaregiverApiService.instance.verifyOrLogoutIfMismatchedElder(response.elderProfileId);
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

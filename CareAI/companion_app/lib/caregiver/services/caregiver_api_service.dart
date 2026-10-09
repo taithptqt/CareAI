@@ -87,7 +87,41 @@ class CaregiverApiService {
     await prefs.remove('caregiver_id');
     await prefs.remove('caregiver_name');
     await prefs.remove('caregiver_email');
+    await prefs.remove('caregiver_cached_elder_ids');
     await prefs.remove('careai_selected_role');
+  }
+
+  /// Kiểm tra tính sở hữu của phiên Người thân hiện tại với Người cao tuổi trên thiết bị.
+  /// Nếu phiên Người thân hiện tại KHÔNG sở hữu Người cao tuổi này (hoặc phiên hết hạn/không hợp lệ),
+  /// tự động đăng xuất an toàn (logout) và trả về false để điều hướng về LoginScreen.
+  Future<bool> verifyOrLogoutIfMismatchedElder(String? currentElderProfileId) async {
+    final loggedIn = await isLoggedIn();
+    if (!loggedIn) return false;
+    if (currentElderProfileId == null || currentElderProfileId.isEmpty) {
+      return true; // Thiết bị chưa ghép đôi Cụ nào, cho phép người thân vào HomeScreen
+    }
+
+    try {
+      final elders = await getMyElders();
+      final isOwner = elders.any((e) => e.id == currentElderProfileId);
+      if (!isOwner) {
+        // Người cao tuổi trên máy KHÔNG thuộc danh sách quản lý của tài khoản này
+        // Đăng xuất phiên Người thân cũ để bảo vệ tính cô lập dữ liệu gia đình
+        await logout();
+        return false;
+      }
+      return true;
+    } catch (e) {
+      // Nếu gặp lỗi mạng, kiểm tra cache đã lưu của phiên đăng nhập hiện tại
+      final prefs = await SharedPreferences.getInstance();
+      final cachedIds = prefs.getStringList('caregiver_cached_elder_ids');
+      if (cachedIds != null && cachedIds.contains(currentElderProfileId)) {
+        return true;
+      }
+      // Không có trong cache hoặc session cũ không hợp lệ -> Đăng xuất để bảo đảm an toàn
+      await logout();
+      return false;
+    }
   }
 
   Map<String, String> _buildHeaders(String? token) {
@@ -449,7 +483,12 @@ class CaregiverApiService {
 
     if (response.statusCode == 200) {
       final List<dynamic> list = jsonDecode(response.body);
-      return list.map((e) => ElderItem.fromJson(e as Map<String, dynamic>)).toList();
+      final items = list.map((e) => ElderItem.fromJson(e as Map<String, dynamic>)).toList();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList('caregiver_cached_elder_ids', items.map((e) => e.id).toList());
+      } catch (_) {}
+      return items;
     } else if (response.statusCode == 401) {
       await logout();
       throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');

@@ -88,9 +88,10 @@ void main() async {
     final isPaired = await ApiService.instance.isPaired();
     initialScreen = isPaired ? const SosButtonScreen() : const DevicePairingScreen();
   } else if (savedRole == 'caregiver') {
-    // Chế độ Người thân: Kiểm tra đăng nhập JWT
-    final isLoggedIn = await CaregiverApiService.instance.isLoggedIn();
-    initialScreen = isLoggedIn ? const HomeScreen() : const LoginScreen();
+    // Chế độ Người thân: Kiểm tra đăng nhập JWT và tính sở hữu với Người cao tuổi trên máy
+    final currentElderId = await ApiService.instance.getElderProfileId();
+    final canEnter = await CaregiverApiService.instance.verifyOrLogoutIfMismatchedElder(currentElderId);
+    initialScreen = canEnter ? const HomeScreen() : const LoginScreen();
   } else {
     // Chưa chọn vai trò -> Hiển thị Màn hình Chọn Vai Trò
     initialScreen = const RoleSelectionScreen();

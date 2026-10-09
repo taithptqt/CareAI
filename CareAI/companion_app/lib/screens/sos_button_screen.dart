@@ -475,11 +475,15 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(RoleSelectionScreen.prefSelectedRole, 'caregiver');
       await CaregiverApiService.instance.init();
-      final isLoggedIn = await CaregiverApiService.instance.isLoggedIn();
+
+      // Kiểm tra tính sở hữu: Người cao tuổi trên máy có thuộc Người thân đang lưu hay không
+      final currentElderId = await ApiService.instance.getElderProfileId();
+      final canEnterHomeScreen = await CaregiverApiService.instance.verifyOrLogoutIfMismatchedElder(currentElderId);
+
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => isLoggedIn ? const HomeScreen() : const LoginScreen(),
+          builder: (_) => canEnterHomeScreen ? const HomeScreen() : const LoginScreen(),
         ),
       );
     }
