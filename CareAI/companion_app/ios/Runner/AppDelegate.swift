@@ -11,7 +11,9 @@ import workmanager_apple
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, WCSessionDelegate {
   private var fallChannel: FlutterMethodChannel?
   private var caregiverAlarmChannel: FlutterMethodChannel?
+  private var caregiverAlertChannel: FlutterMethodChannel?
   private var alarmAudioPlayer: AVAudioPlayer?
+  private var pendingIncidentId: String?
 
   override func application(
     _ application: UIApplication,
@@ -22,7 +24,14 @@ import workmanager_apple
       WCSession.default.activate()
     }
 
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+    UNUserNotificationCenter.current().delegate = self
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+      if let error = error {
+        NSLog("[CareAI-iOS] Lỗi xin quyền thông báo: %@", error.localizedDescription)
+      } else {
+        NSLog("[CareAI-iOS] Quyền thông báo đã cấp: %d", granted)
+      }
+    }
 
     // Đăng ký tác vụ nền cho iOS BGTaskScheduler trước khi hàm didFinishLaunchingWithOptions kết thúc
     // Bắt buộc theo quy định của Apple và plugin workmanager_apple để tránh crash NSInternalInconsistencyException
@@ -38,6 +47,7 @@ import workmanager_apple
     if let controller = window?.rootViewController as? FlutterViewController {
       setupFallBridgeChannel(messenger: controller.binaryMessenger)
       setupCaregiverAlarmChannel(messenger: controller.binaryMessenger)
+      setupCaregiverAlertChannel(messenger: controller.binaryMessenger)
     }
 
     return result
@@ -52,15 +62,119 @@ import workmanager_apple
       guard let self = self else { return }
       switch call.method {
       case "start":
+        let args = call.arguments as? [String: Any]
+        let incidentId = args?["incidentId"] as? String ?? "careai_emergency"
+        let title = args?["title"] as? String ?? "CẢNH BÁO CẤP CỨU"
+        let body = args?["body"] as? String ?? "Người cao tuổi cần trợ giúp ngay."
+        let emergencyType = args?["emergencyType"] as? String ?? "EMERGENCY"
+
+        self.showCaregiverEmergencyNotification(incidentId: incidentId, title: title, body: body, emergencyType: emergencyType)
         self.startAlarmSound()
         result(nil)
       case "stop":
+        let args = call.arguments as? [String: Any]
+        let incidentId = args?["incidentId"] as? String
+        self.stopCaregiverEmergencyNotification(incidentId: incidentId)
         self.stopAlarmSound()
         result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }
     }
+  }
+
+  // MARK: - Quản lý Điều hướng Sự cố Khi Chạm Thông Báo (Caregiver Alert Channel)
+  private func setupCaregiverAlertChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "vn.careai.companion/caregiver_alert", binaryMessenger: messenger)
+    self.caregiverAlertChannel = channel
+
+    channel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
+      guard let self = self else { return }
+      if call.method == "getPendingIncident" {
+        let pending = self.pendingIncidentId
+        self.pendingIncidentId = nil
+        result(pending)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  // MARK: - Quản lý Thông báo Khẩn cấp Người Thân (Caregiver Emergency Local Notifications)
+  private func showCaregiverEmergencyNotification(
+    incidentId: String,
+    title: String,
+    body: String,
+    emergencyType: String
+  ) {
+    let content = UNMutableNotificationContent()
+    content.title = title.hasPrefix("🚨") ? title : "🚨 " + title
+    content.body = body
+    content.userInfo = [
+      "incidentId": incidentId,
+      "emergencyType": emergencyType
+    ]
+    // Sử dụng âm thanh còi hú mặc định của Apple hoặc file còi hú nếu có
+    if #available(iOS 12.0, *) {
+      content.sound = UNNotificationSound.defaultCriticalSound(withAudioVolume: 1.0)
+    } else {
+      content.sound = UNNotificationSound.defaultCritical
+    }
+    if #available(iOS 15.0, *) {
+      content.interruptionLevel = .critical
+    }
+
+    let request = UNNotificationRequest(
+      identifier: "careai_incident_\(incidentId)",
+      content: content,
+      trigger: nil
+    )
+
+    UNUserNotificationCenter.current().add(request) { error in
+      if let error = error {
+        NSLog("[CareAI-iOS] Lỗi đăng ký thông báo cấp cứu: %@", error.localizedDescription)
+      } else {
+        NSLog("[CareAI-iOS] Đã hiển thị thông báo cấp cứu thành công: %@", incidentId)
+      }
+    }
+  }
+
+  private func stopCaregiverEmergencyNotification(incidentId: String?) {
+    if let id = incidentId, !id.isEmpty {
+      let identifier = "careai_incident_\(id)"
+      UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
+      UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
+    } else {
+      UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+      UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+  }
+
+  // MARK: - UNUserNotificationCenterDelegate: Cho phép hiển thị thông báo ngay cả khi app đang mở hoặc chạy nền
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    if #available(iOS 14.0, *) {
+      completionHandler([.banner, .sound, .badge, .list])
+    } else {
+      completionHandler([.alert, .sound, .badge])
+    }
+  }
+
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    let userInfo = response.notification.request.content.userInfo
+    if let incidentId = userInfo["incidentId"] as? String, !incidentId.isEmpty {
+      NSLog("[CareAI-iOS] Người dùng chạm vào thông báo sự cố: %@", incidentId)
+      self.pendingIncidentId = incidentId
+      self.caregiverAlertChannel?.invokeMethod("openIncident", incidentId)
+    }
+    completionHandler()
   }
 
   private func startAlarmSound() {

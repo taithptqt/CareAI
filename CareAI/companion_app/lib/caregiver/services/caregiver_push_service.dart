@@ -54,6 +54,15 @@ Future<void> dispatchNativeCaregiverAlert(RemoteMessage message,
       package: 'vn.careai.companion',
       arguments: arguments,
     ).sendBroadcast();
+  } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+    const alarm = MethodChannel('vn.careai.companion/caregiver_alarm');
+    try {
+      if (arguments['eventType'] == 'ACKNOWLEDGED' || arguments['eventType'] == 'RESOLVED') {
+        await alarm.invokeMethod('stop', arguments);
+      } else {
+        await alarm.invokeMethod('start', arguments);
+      }
+    } catch (_) {}
   }
 }
 
@@ -75,7 +84,7 @@ class CaregiverPushService {
   String? visibleIncidentId;
 
   Future<void> initialize() async {
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
       _alertChannel.setMethodCallHandler((call) async {
         if (call.method == 'openIncident') {
           final id = call.arguments as String?;
