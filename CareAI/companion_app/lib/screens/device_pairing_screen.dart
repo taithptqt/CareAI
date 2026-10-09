@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import '../caregiver/screens/server_config_dialog.dart';
 import 'role_selection_screen.dart';
 import 'sos_button_screen.dart';
 
@@ -14,27 +13,12 @@ class DevicePairingScreen extends StatefulWidget {
 
 class _DevicePairingScreenState extends State<DevicePairingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _serverUrlController = TextEditingController(text: ApiService.internetTunnelUrl);
   final _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-    _loadExistingConfig();
-  }
-
-  Future<void> _loadExistingConfig() async {
-    final url = await ApiService.instance.getServerUrl();
-    if (mounted) {
-      _serverUrlController.text = url;
-    }
-  }
-
-  @override
   void dispose() {
-    _serverUrlController.dispose();
     _pinController.dispose();
     super.dispose();
   }
@@ -48,8 +32,9 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
     });
 
     try {
+      final serverUrl = await ApiService.instance.getServerUrl();
       final response = await ApiService.instance.pairDevice(
-        serverUrl: _serverUrlController.text.trim(),
+        serverUrl: serverUrl,
         pin: _pinController.text.trim(),
       );
 
@@ -110,22 +95,6 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
           backgroundColor: const Color(0xFF1E293B),
           foregroundColor: Colors.white,
           elevation: 0,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.dns_outlined, color: Colors.white),
-              tooltip: 'Cài đặt máy chủ',
-              onPressed: () async {
-                final changed = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => const ServerConfigDialog(),
-                );
-                if (changed == true && mounted) {
-                  final url = await ApiService.instance.getServerUrl();
-                  _serverUrlController.text = url;
-                }
-              },
-            ),
-          ],
         ),
       body: SafeArea(
         child: Center(
@@ -184,43 +153,7 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Máy chủ CareAI
-                  TextFormField(
-                    controller: _serverUrlController,
-                    decoration: InputDecoration(
-                      labelText: 'Địa chỉ máy chủ CareAI',
-                      hintText: 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net',
-                      prefixIcon: const Icon(Icons.dns_outlined),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.tune_outlined, color: Color(0xFF2563EB)),
-                        tooltip: 'Chọn máy chủ có sẵn',
-                        onPressed: () async {
-                          final changed = await showDialog<bool>(
-                            context: context,
-                            builder: (_) => const ServerConfigDialog(),
-                          );
-                          if (changed == true && mounted) {
-                            final url = await ApiService.instance.getServerUrl();
-                            _serverUrlController.text = url;
-                          }
-                        },
-                      ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    keyboardType: TextInputType.url,
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Vui lòng nhập địa chỉ máy chủ';
-                      }
-                      if (!val.startsWith('http://') && !val.startsWith('https://')) {
-                        return 'Địa chỉ phải bắt đầu bằng http:// hoặc https://';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
+
 
                   // Mã PIN 6 số
                   TextFormField(

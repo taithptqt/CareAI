@@ -3,15 +3,16 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_service.dart';
 import '../models/models.dart';
 
 class CaregiverApiService {
   static final CaregiverApiService instance = CaregiverApiService._init();
   CaregiverApiService._init();
 
-  static const String defaultInternetUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
-  static const String defaultUsbUrl = 'http://127.0.0.1:5097';
-  static const String defaultWifiUrl = 'http://192.168.0.105:5097';
+  static const String defaultInternetUrl = ApiService.internetTunnelUrl;
+  static const String defaultUsbUrl = ApiService.usbServerUrl;
+  static const String defaultWifiUrl = ApiService.wifiServerUrl;
 
   String _currentServerUrl = defaultInternetUrl;
   String get currentServerUrl => _currentServerUrl;

@@ -16,7 +16,6 @@ import '../services/sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../caregiver/screens/home_screen.dart';
 import '../caregiver/screens/login_screen.dart';
-import '../caregiver/screens/server_config_dialog.dart';
 import '../caregiver/services/caregiver_api_service.dart';
 import '../services/location_service.dart';
 import 'device_pairing_screen.dart';
@@ -469,49 +468,23 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
-        title: InkWell(
-          onTap: () async {
-            final changed = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => const ServerConfigDialog(),
-            );
-            if (changed == true || mounted) {
-              await _checkServerHealth();
-              setState(() {});
-            }
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _isServerOnline ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    _isServerOnline
-                        ? (ApiService.instance.activeServerUrl.contains('127.0.0.1')
-                            ? 'Trực tuyến (USB)'
-                            : (ApiService.instance.activeServerUrl.contains('azurewebsites.net') || ApiService.instance.activeServerUrl.startsWith('https://'))
-                                ? 'Trực tuyến (Azure Cloud)'
-                                : 'Trực tuyến (LAN)')
-                        : 'Ngoại tuyến (Offline)',
-                    style: const TextStyle(fontSize: 13, color: Colors.white70),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Icon(Icons.arrow_drop_down, color: Colors.white38, size: 18),
-              ],
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isServerOnline ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Text(
+              _isServerOnline ? 'Hệ Thống Trực Tuyến' : 'Ngoại Tuyến (Offline)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ],
         ),
         actions: [
           IconButton(
