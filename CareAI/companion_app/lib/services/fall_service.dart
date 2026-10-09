@@ -89,10 +89,13 @@ class FallService {
     }
   }
 
+  bool get _isSupportedPlatform =>
+      !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+
   /// Hủy cảnh báo ngã (Người dùng bấm nút "TÔI ỔN")
-  /// Gửi lệnh hủy AlarmManager Watchdog sang Native Android
+  /// Gửi lệnh hủy Watchdog Alarm sang Native Android / iOS
   Future<bool> cancelFallAlarm(String eventId) async {
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    if (!_isSupportedPlatform) {
       return false;
     }
     try {
@@ -107,7 +110,7 @@ class FallService {
 
   /// Dừng âm thanh còi hú y tế khẩn cấp
   Future<bool> stopEmergencySound([String? eventId]) async {
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    if (!_isSupportedPlatform) {
       return false;
     }
     try {
@@ -122,9 +125,9 @@ class FallService {
     }
   }
 
-  /// Kiểm tra quyền SCHEDULE_EXACT_ALARM trên Android 12+
+  /// Kiểm tra quyền SCHEDULE_EXACT_ALARM trên Android 12+ (trên iOS luôn true)
   Future<bool> checkExactAlarmPermission() async {
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    if (!_isSupportedPlatform) {
       return true;
     }
     try {
@@ -135,9 +138,9 @@ class FallService {
     }
   }
 
-  /// Kích hoạt mô phỏng sự cố ngã phần cứng Wear OS từ Companion App
+  /// Kích hoạt mô phỏng sự cố ngã phần cứng từ Companion App (Wear OS hoặc watchOS)
   Future<String?> simulateHardwareFall() async {
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    if (!_isSupportedPlatform) {
       return null;
     }
     try {
@@ -148,8 +151,54 @@ class FallService {
     }
   }
 
+  /// Lấy trạng thái kết nối thực tế tới Wear OS (Galaxy Watch) hoặc watchOS (Apple Watch)
+  Future<WatchStatus> getConnectedWatchStatus() async {
+    if (!_isSupportedPlatform) {
+      return const WatchStatus(isConnected: false);
+    }
+    try {
+      final res = await _fallChannel.invokeMethod<Map<dynamic, dynamic>>('getConnectedWatchStatus');
+      if (res != null) {
+        return WatchStatus.fromMap(res);
+      }
+      return const WatchStatus(isConnected: false);
+    } catch (e) {
+      return WatchStatus(isConnected: false, error: e.toString());
+    }
+  }
+
   void dispose() {
     _sensorSubscription?.cancel();
     _fallEventController.close();
+  }
+}
+
+/// Trạng thái kết nối phần cứng đồng hồ Wear OS (Galaxy Watch) qua Bluetooth Data Layer
+class WatchStatus {
+  final bool isConnected;
+  final String? watchName;
+  final String? nodeId;
+  final bool isNearby;
+  final int connectedCount;
+  final String? error;
+
+  const WatchStatus({
+    required this.isConnected,
+    this.watchName,
+    this.nodeId,
+    this.isNearby = false,
+    this.connectedCount = 0,
+    this.error,
+  });
+
+  factory WatchStatus.fromMap(Map<dynamic, dynamic> map) {
+    return WatchStatus(
+      isConnected: map['isConnected'] as bool? ?? false,
+      watchName: map['watchName'] as String?,
+      nodeId: map['nodeId'] as String?,
+      isNearby: map['isNearby'] as bool? ?? false,
+      connectedCount: map['connectedCount'] as int? ?? 0,
+      error: map['error'] as String?,
+    );
   }
 }

@@ -8,6 +8,8 @@ import workmanager_apple
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, WCSessionDelegate {
+  private var fallChannel: FlutterMethodChannel?
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -28,7 +30,63 @@ import workmanager_apple
     }
     #endif
 
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+
+    if let controller = window?.rootViewController as? FlutterViewController {
+      setupFallBridgeChannel(messenger: controller.binaryMessenger)
+    }
+
+    return result
+  }
+
+  private func setupFallBridgeChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "vn.careai.companion/fall_bridge", binaryMessenger: messenger)
+    self.fallChannel = channel
+
+    channel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
+      guard let self = self else { return }
+      switch call.method {
+      case "getConnectedWatchStatus":
+        if WCSession.isSupported() {
+          let session = WCSession.default
+          let isPaired = session.isPaired
+          let isReachable = session.isReachable
+          let isConnected = isPaired && isReachable
+          result([
+            "isConnected": isConnected,
+            "watchName": isPaired ? "Apple Watch" : nil,
+            "nodeId": isPaired ? "apple_watch_wcsession" : nil,
+            "isNearby": isReachable,
+            "connectedCount": isConnected ? 1 : (isPaired ? 1 : 0)
+          ])
+        } else {
+          result([
+            "isConnected": false,
+            "watchName": nil,
+            "nodeId": nil,
+            "isNearby": false,
+            "connectedCount": 0
+          ])
+        }
+      case "simulateHardwareFall":
+        let eventId = "FALL_SIM_IOS_\(Int64(Date().timeIntervalSince1970 * 1000))"
+        let payload: [String: Any] = [
+          "eventId": eventId,
+          "timestamp": Int64(Date().timeIntervalSince1970 * 1000),
+          "impactG": 3.6,
+          "source": "IN_APP_UI_SIMULATOR",
+          "isHardwareVerified": true
+        ]
+        self.fallChannel?.invokeMethod("onHardwareFallDetected", arguments: payload)
+        result(eventId)
+      case "cancelFallAlarm", "stopEmergencySound":
+        result(true)
+      case "checkExactAlarmPermission":
+        result(true)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -46,6 +104,10 @@ import workmanager_apple
 
   func sessionDidDeactivate(_ session: WCSession) {
     WCSession.default.activate()
+  }
+
+  func sessionReachabilityDidChange(_ session: WCSession) {
+    NSLog("[CareAI-iOS] WCSession reachability changed: %d", session.isReachable)
   }
 
   func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
@@ -106,6 +168,18 @@ import workmanager_apple
         ["metricType": "FALL", "value": 2.5, "unit": "G", "timestamp": triggeredAt]
       ]
     ]
+
+    // Chuyển tiếp sự kiện té ngã lên giao diện Flutter nếu ứng dụng đang mở
+    DispatchQueue.main.async { [weak self] in
+      let flutterPayload: [String: Any] = [
+        "eventId": eventId,
+        "timestamp": Int64(Date().timeIntervalSince1970 * 1000),
+        "impactG": 2.5,
+        "source": "APPLE_WATCH_HARDWARE",
+        "isHardwareVerified": true
+      ]
+      self?.fallChannel?.invokeMethod("onHardwareFallDetected", arguments: flutterPayload)
+    }
 
     do {
       request.httpBody = try JSONSerialization.data(withJSONObject: bodyJson)

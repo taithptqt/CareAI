@@ -21,6 +21,7 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.KeyEvent
 import androidx.core.content.ContextCompat
+import com.google.android.gms.wearable.Wearable
 import java.util.Locale
 
 import io.flutter.embedding.android.FlutterActivity
@@ -363,6 +364,45 @@ class MainActivity : FlutterActivity() {
                     Log.i("CareAI-MainActivity", "Mô phỏng sự cố ngã phần cứng từ giao diện Companion App. EventId=$eventId")
                     WearOsMessageReceiverService.handleFallPayload(this, rawJson, "IN_APP_UI_SIMULATOR")
                     result.success(eventId)
+                }
+                "getConnectedWatchStatus" -> {
+                    try {
+                        Wearable.getNodeClient(this).connectedNodes
+                            .addOnSuccessListener { nodes ->
+                                val activeNodes = nodes.filter { it.isNearby }.ifEmpty { nodes }
+                                if (activeNodes.isNotEmpty()) {
+                                    val watch = activeNodes[0]
+                                    result.success(mapOf(
+                                        "isConnected" to true,
+                                        "watchName" to watch.displayName,
+                                        "nodeId" to watch.id,
+                                        "isNearby" to watch.isNearby,
+                                        "connectedCount" to activeNodes.size
+                                    ))
+                                } else {
+                                    result.success(mapOf(
+                                        "isConnected" to false,
+                                        "watchName" to null,
+                                        "nodeId" to null,
+                                        "isNearby" to false,
+                                        "connectedCount" to 0
+                                    ))
+                                }
+                            }
+                            .addOnFailureListener { ex ->
+                                result.success(mapOf(
+                                    "isConnected" to false,
+                                    "error" to (ex.message ?: "Wearable API Failure"),
+                                    "connectedCount" to 0
+                                ))
+                            }
+                    } catch (ex: Exception) {
+                        result.success(mapOf(
+                            "isConnected" to false,
+                            "error" to (ex.message ?: "Exception"),
+                            "connectedCount" to 0
+                        ))
+                    }
                 }
                 else -> result.notImplemented()
             }
