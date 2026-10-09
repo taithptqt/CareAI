@@ -123,6 +123,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       setState(() {
         _watchStatus = status;
       });
+      if (status.isConnected) {
+        final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
+        unawaited(ApiService.instance.syncConnectedWatch(status.watchName ?? platformName));
+      }
       if (showFeedback) {
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
         final channelDesc = defaultTargetPlatform == TargetPlatform.iOS ? 'Bluetooth / Apple Watch App' : 'Bluetooth / Galaxy Wearable';
@@ -654,7 +658,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                           Text(
                             _watchStatus.isConnected
                                 ? (_watchStatus.watchName ?? _platformWatchTitle)
-                                : _platformWatchTitle,
+                                : 'Chưa kết nối đồng hồ',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -667,7 +671,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                           Text(
                             _watchStatus.isConnected
                                 ? '🟢 Đã kết nối · $_platformSensorLabel'
-                                : '⚪ Chưa kết nối (Chạm để kiểm tra)',
+                                : '⚪ $_platformWatchTitle (Chạm để kiểm tra)',
                             style: TextStyle(
                               fontSize: 11,
                               color: _watchStatus.isConnected

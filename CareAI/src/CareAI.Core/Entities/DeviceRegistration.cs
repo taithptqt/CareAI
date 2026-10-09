@@ -8,6 +8,7 @@ public class DeviceRegistration
 
     public string DeviceTokenHash { get; set; } = string.Empty; // SHA-256 lowercase 64 chars
     public string DeviceType { get; set; } = string.Empty;       // Smartwatch | CompanionPhone
+    public string? DeviceModel { get; set; }                     // Tên thương mại / model thiết bị thật (ví dụ Galaxy Watch6)
     public string FirmwareVersion { get; set; } = "1.0.0";
     public bool IsActive { get; set; } = true;
     public DateTime LastHeartbeat { get; set; } = DateTime.UtcNow;

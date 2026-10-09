@@ -65,6 +65,34 @@ public class DashboardController : ControllerBase
         var deviceStatus = isOnline ? "ONLINE" : "OFFLINE";
         var lastSyncedAt = activeDevices.Count > 0 ? (DateTime?)activeDevices.Max(d => d.LastHeartbeat) : null;
 
+        // Xác định tên định danh cụ thể của đồng hồ đeo tay
+        var watchDevice = activeDevices.FirstOrDefault(d =>
+            string.Equals(d.DeviceType, "Smartwatch", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(d.DeviceType, "AppleWatch", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(d.DeviceType, "GalaxyWatch", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(d.DeviceType, "WearOS", StringComparison.OrdinalIgnoreCase));
+
+        string? watchModel = null;
+        if (watchDevice != null)
+        {
+            if (!string.IsNullOrWhiteSpace(watchDevice.DeviceModel))
+            {
+                watchModel = watchDevice.DeviceModel;
+            }
+            else if (watchDevice.Id.StartsWith("DEV_DEMO_", StringComparison.OrdinalIgnoreCase))
+            {
+                watchModel = "Galaxy Watch (Mô phỏng)";
+            }
+            else if (string.Equals(watchDevice.DeviceType, "AppleWatch", StringComparison.OrdinalIgnoreCase))
+            {
+                watchModel = "Apple Watch";
+            }
+            else
+            {
+                watchModel = "Galaxy Watch";
+            }
+        }
+
         // Chỉ số sinh hiệu mới nhất
         var latestHr = await _db.HealthMeasurements
             .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "HEART_RATE")
@@ -170,7 +198,8 @@ public class DashboardController : ControllerBase
             lastSyncedAt,
             activeIncident != null ? IncidentDtoMapper.ToResponse(activeIncident, elder.FullName) : null,
             DemoHeartRate: demoHr != null ? new VitalSignDto(demoHr.MetricType, demoHr.Value, demoHr.Unit, demoHr.Timestamp, "YELLOW") : null,
-            DemoSpO2: demoSpo2 != null ? new VitalSignDto(demoSpo2.MetricType, demoSpo2.Value, demoSpo2.Unit, demoSpo2.Timestamp, "YELLOW") : null
+            DemoSpO2: demoSpo2 != null ? new VitalSignDto(demoSpo2.MetricType, demoSpo2.Value, demoSpo2.Unit, demoSpo2.Timestamp, "YELLOW") : null,
+            WatchModel: watchModel
         );
 
         return Ok(response);
