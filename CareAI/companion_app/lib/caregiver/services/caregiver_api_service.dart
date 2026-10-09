@@ -13,12 +13,12 @@ class CaregiverApiService {
   static const String defaultInternetUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
   static const String defaultWifiUrl = 'http://192.168.0.105:5097';
 
-  String _currentServerUrl = defaultInternetUrl;
+  String _currentServerUrl = defaultUsbUrl;
   String get currentServerUrl => _currentServerUrl;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _currentServerUrl = prefs.getString('caregiver_server_url') ?? defaultInternetUrl;
+    _currentServerUrl = prefs.getString('caregiver_server_url') ?? defaultUsbUrl;
   }
 
   Future<void> setServerUrl(String url) async {
@@ -85,36 +85,60 @@ class CaregiverApiService {
   Future<http.Response> _executeWithFailover(
     Future<http.Response> Function(String baseUrl) action,
   ) async {
-    try {
-      return await action(_currentServerUrl);
-    } catch (_) {
-      final fallbackUrls = [defaultInternetUrl, defaultUsbUrl]
-          .where((u) => u != _currentServerUrl)
-          .toList();
-      for (final altUrl in fallbackUrls) {
-        try {
-          final res = await action(altUrl);
-          _currentServerUrl = altUrl;
+    // Luôn ưu tiên Cáp USB trước, sau đó là Đám Mây Azure
+    final endpoints = {defaultUsbUrl, defaultInternetUrl, _currentServerUrl}.toList();
+    for (final url in endpoints) {
+      try {
+        final res = await action(url);
+        if (_currentServerUrl != url) {
+          _currentServerUrl = url;
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('caregiver_server_url', altUrl);
-          return res;
-        } catch (_) {}
+          await prefs.setString('caregiver_server_url', url);
+        }
+        return res;
+      } catch (_) {
+        // Tiếp tục thử kênh dự phòng tiếp theo
       }
-      rethrow;
     }
+    throw Exception('Không thể kết nối đến máy chủ CareAI qua Cáp USB hoặc Internet.');
   }
 
   // 1. Kiểm tra sức khỏe máy chủ (/health)
   Future<bool> checkHealth([String? targetUrl]) async {
-    final url = targetUrl ?? _currentServerUrl;
+    if (targetUrl != null) {
+      try {
+        final response = await http
+            .get(Uri.parse('$targetUrl/health'))
+            .timeout(const Duration(seconds: 3));
+        return response.statusCode == 200 && response.body.contains('Healthy');
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // Thử Cáp USB trước
     try {
       final response = await http
-          .get(Uri.parse('$url/health'))
+          .get(Uri.parse('$defaultUsbUrl/health'))
+          .timeout(const Duration(milliseconds: 1500));
+      if (response.statusCode == 200 && response.body.contains('Healthy')) {
+        _currentServerUrl = defaultUsbUrl;
+        return true;
+      }
+    } catch (_) {}
+
+    // Fallback sang Đám Mây Azure
+    try {
+      final response = await http
+          .get(Uri.parse('$defaultInternetUrl/health'))
           .timeout(const Duration(seconds: 3));
-      return response.statusCode == 200 && response.body.contains('Healthy');
-    } catch (_) {
-      return false;
-    }
+      if (response.statusCode == 200 && response.body.contains('Healthy')) {
+        _currentServerUrl = defaultInternetUrl;
+        return true;
+      }
+    } catch (_) {}
+
+    return false;
   }
 
   // 2. Đăng ký tài khoản Người thân (UC-01)
