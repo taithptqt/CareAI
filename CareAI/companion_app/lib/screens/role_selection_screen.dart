@@ -126,7 +126,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 subtitle: 'Thiết bị đồng hành (Companion)',
                 description:
                     'Kích hoạt phím bấm SOS cứu nạn khẩn cấp, cảm biến ngã phần cứng, còi hú y tế ICU 1350Hz và kết nối đồng hồ Galaxy Watch.',
-                badgeText: 'MẶC ĐỊNH CHO MÁY CỦA CỤ',
+                badgeText: 'MẶC ĐỊNH CHO MÁY NGƯỜI CAO TUỔI',
                 badgeColor: const Color(0xFFDC2626),
                 onTap: () => _selectRole(context, 'elder'),
               ),

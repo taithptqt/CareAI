@@ -172,7 +172,7 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Chọn Người cao tuổi (nếu có nhiều cụ)
+          // 1. Chọn Người cao tuổi (nếu có nhiều người)
           if (_elders.length > 1 || _selectedElderId != null) ...[
             Row(
               children: [

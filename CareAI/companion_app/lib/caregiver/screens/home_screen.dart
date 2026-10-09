@@ -225,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Họ và tên Cụ *', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Họ và tên Người cao tuổi *', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
                 ListTile(
@@ -283,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _loadElders();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã tạo hồ sơ Cụ thành công!'), backgroundColor: Colors.green),
+                      const SnackBar(content: Text('Đã tạo hồ sơ Người cao tuổi thành công!'), backgroundColor: Colors.green),
                     );
                   }
                 } catch (e) {
@@ -350,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Nhập mã 6 số này vào ứng dụng Companion của Cụ:'),
+                const Text('Nhập mã 6 số này vào ứng dụng Companion của Người cao tuổi:'),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -455,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Đã tham gia nhóm chăm sóc Cụ ${res.elderName} thành công!'),
+                              content: Text('Đã tham gia nhóm chăm sóc người cao tuổi ${res.elderName} thành công!'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -517,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       body: Column(
         children: [
-          // Banner Cảnh Báo Khẩn Cấp Bật Ngay Khi Cụ Ngã (UC-08 Quorum Alerting)
+          // Banner Cảnh Báo Khẩn Cấp Bật Ngay Khi Người Cao Tuổi Ngã (UC-08 Quorum Alerting)
           if (_currentEmergency != null) _buildStickyEmergencyAlert(),
 
           // Nội dung theo Tab
@@ -563,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               backgroundColor: const Color(0xFF0284C7),
               foregroundColor: Colors.white,
               icon: const Icon(Icons.person_add),
-              label: const Text('Thêm Cụ'),
+              label: const Text('Thêm Người Cao Tuổi'),
               onPressed: _showAddElderDialog,
             )
           : null,
@@ -1002,7 +1002,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
-            child: const Text('CHUYỂN SANG CỤ', style: TextStyle(color: Colors.white)),
+            child: const Text('CHẾ ĐỘ NGƯỜI CAO TUỔI', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1013,7 +1013,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(RoleSelectionScreen.prefSelectedRole, 'elder');
 
-      // Kiểm tra xem thiết bị này đã liên kết với một cụ thuộc tài khoản Người thân hiện tại hay chưa
+      // Kiểm tra xem thiết bị này đã liên kết với người cao tuổi thuộc tài khoản Người thân hiện tại hay chưa
       final currentElderProfileId = await ApiService.instance.getElderProfileId();
       List<ElderItem> eldersToCheck = _elders;
       if (eldersToCheck.isEmpty) {
@@ -1026,7 +1026,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           eldersToCheck.any((e) => e.id == currentElderProfileId);
 
       if (!isLinkedToCurrentCaregiver) {
-        // Phía cụ của tài khoản mới chưa liên kết vào thiết bị -> Hủy ghép đôi cũ và điều hướng sang màn hình nhập PIN
+        // Phía người cao tuổi của tài khoản mới chưa liên kết vào thiết bị -> Hủy ghép đôi cũ và điều hướng sang màn hình nhập PIN
         await ApiService.instance.unpair();
         if (!mounted) return;
         Navigator.pushReplacement(
@@ -1165,7 +1165,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               SizedBox(height: 2),
               Text(
-                'Bật quyền "Xuất hiện trên cùng" (Appear on top) để màn hình còi hú có thể bật sáng ngay lập tức khi cụ nhấn SOS.',
+                'Bật quyền "Xuất hiện trên cùng" (Appear on top) để màn hình còi hú có thể bật sáng ngay lập tức khi người cao tuổi nhấn SOS.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
               ),
               SizedBox(height: 10),

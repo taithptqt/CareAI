@@ -68,7 +68,7 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
         Navigator.pop(context);
         widget.onUpdated();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã cập nhật hồ sơ Cụ thành công!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Đã cập nhật hồ sơ Người cao tuổi thành công!'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
@@ -93,7 +93,7 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
             children: [
               Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
               SizedBox(width: 8),
-              Text('XÓA HỒ SƠ CỤ', style: TextStyle(color: Color(0xFFDC2626), fontSize: 16)),
+              Text('XÓA HỒ SƠ NGƯỜI CAO TUỔI', style: TextStyle(color: Color(0xFFDC2626), fontSize: 16)),
             ],
           ),
           content: SingleChildScrollView(
@@ -102,7 +102,7 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'CẢNH BÁO AN TOÀN:\nHành động này sẽ xóa mềm hồ sơ Cụ "${widget.elder.fullName}", ẩn danh hóa toàn bộ thông tin cá nhân (PII), ngắt kết nối mọi thiết bị và giải tán nhóm chăm sóc gia đình.',
+                  'CẢNH BÁO AN TOÀN:\nHành động này sẽ xóa mềm hồ sơ người cao tuổi "${widget.elder.fullName}", ẩn danh hóa toàn bộ thông tin cá nhân (PII), ngắt kết nối mọi thiết bị và giải tán nhóm chăm sóc gia đình.',
                   style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
                 ),
                 const SizedBox(height: 16),
@@ -189,7 +189,7 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Chỉnh Sửa Hồ Sơ Cụ',
+                      'Chỉnh Sửa Hồ Sơ Người Cao Tuổi',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                     ),
                     IconButton(
@@ -215,7 +215,7 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
 
                 TextField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Họ và tên Cụ *', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Họ và tên Người cao tuổi *', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
 

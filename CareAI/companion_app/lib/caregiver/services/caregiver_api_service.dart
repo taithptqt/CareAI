@@ -42,7 +42,7 @@ class CaregiverApiService {
     final prefs = await SharedPreferences.getInstance();
     final previousCaregiverId = prefs.getString('previous_caregiver_id') ?? prefs.getString('caregiver_id');
     if (previousCaregiverId != null && previousCaregiverId.isNotEmpty && previousCaregiverId != auth.caregiverId) {
-      // Đăng nhập bằng tài khoản Người thân khác -> Hủy thông tin ghép đôi của Cụ thuộc tài khoản cũ
+      // Đăng nhập bằng tài khoản Người thân khác -> Hủy thông tin ghép đôi của Người cao tuổi thuộc tài khoản cũ
       await ApiService.instance.unpair();
     }
     await prefs.setString('previous_caregiver_id', auth.caregiverId);
@@ -514,7 +514,7 @@ class CaregiverApiService {
     }
   }
 
-  // 7. Bảng điều khiển Sức khỏe Trực tiếp của Cụ (UC-10)
+  // 7. Bảng điều khiển Sức khỏe Trực tiếp của Người cao tuổi (UC-10)
   Future<ElderDashboard> getElderDashboard(String elderProfileId) async {
     final token = await getToken();
     final response = await _executeWithFailover((baseUrl) => http

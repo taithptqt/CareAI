@@ -114,8 +114,8 @@ class _HealthHistoryState extends State<_HealthHistory> with AutomaticKeepAliveC
         const SizedBox(height: 8),
         Text(heart ? 'Trung bình đêm: $value nhịp/phút; mức thường ngày: $baseline.' : 'Ghi nhận $value bước; mức buổi sáng thường ngày: $baseline.'),
         const SizedBox(height: 8),
-        Text(heart ? 'Hãy hỏi cụ ngủ có ngon không, có cảm thấy khó chịu không; trao đổi với nhân viên y tế nếu có lo ngại.'
-          : 'Hãy hỏi thăm sinh hoạt buổi sáng và kiểm tra cụ có đeo thiết bị đúng cách không.'),
+        Text(heart ? 'Hãy hỏi xem người cao tuổi ngủ có ngon không, có cảm thấy khó chịu không; trao đổi với nhân viên y tế nếu có lo ngại.'
+          : 'Hãy hỏi thăm sinh hoạt buổi sáng và kiểm tra xem người cao tuổi có đeo thiết bị đúng cách không.'),
       ],
     )));
   }

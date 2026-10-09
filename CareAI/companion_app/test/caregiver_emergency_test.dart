@@ -39,10 +39,10 @@ void main() {
     expect(find.text('185 bpm'), findsOneWidget);
     expect(find.text('Số 8 Nguyễn Trãi'), findsOneWidget);
     expect(find.text('Chưa có dữ liệu'), findsWidgets);
-    await tester.scrollUntilVisible(find.text('Chưa có số liên hệ của cụ'), 200,
+    await tester.scrollUntilVisible(find.text('Chưa có số liên hệ của người cao tuổi'), 200,
         scrollable: find.byType(Scrollable).first);
     final callButton = tester.widget<FilledButton>(find.widgetWithText(
-      FilledButton, 'Chưa có số liên hệ của cụ'));
+      FilledButton, 'Chưa có số liên hệ của người cao tuổi'));
     expect(callButton.onPressed, isNull);
     expect(find.text('Gọi cấp cứu 115'), findsOneWidget);
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));

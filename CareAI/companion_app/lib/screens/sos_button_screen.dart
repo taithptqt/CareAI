@@ -151,7 +151,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
     if (mounted) {
       setState(() {
-        _elderName = name ?? 'Cụ cao tuổi';
+        _elderName = name ?? 'Người cao tuổi';
         _deviceId = devId ?? '';
         _lastSyncTime = lastSync;
       });
@@ -562,7 +562,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                           onTap: () async {
                             final loc = await LocationService.instance.getCurrentLocation();
                             if (mounted) setState(() => _currentGps = loc.coordinatesFormatted);
-                            await LocationService.instance.openGoogleMaps(loc.latitude, loc.longitude, label: 'Vị trí Cụ: $_elderName');
+                            await LocationService.instance.openGoogleMaps(loc.latitude, loc.longitude, label: 'Vị trí Người cao tuổi: $_elderName');
                           },
                           borderRadius: BorderRadius.circular(6),
                           child: Padding(

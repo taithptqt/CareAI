@@ -215,7 +215,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         actions: [
           IconButton(
             icon: const Icon(Icons.history_rounded, color: Color(0xFF38BDF8)),
-            tooltip: 'Lịch sử sự cố của cụ',
+            tooltip: 'Lịch sử sự cố của người cao tuổi',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -1924,7 +1924,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   onPressed: () => LocationService.instance.openGoogleMaps(
                     coord.latitude,
                     coord.longitude,
-                    label: 'Vị trí Cụ ${d.fullName}',
+                    label: 'Vị trí ${d.fullName}',
                   ),
                 ),
               ),
@@ -2034,7 +2034,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Chưa ghi nhận phiên ngủ đêm qua từ thiết bị đeo hoặc cụ đang trong khung giờ thức ban ngày.',
+                      'Chưa ghi nhận phiên ngủ đêm qua từ thiết bị đeo hoặc người cao tuổi đang trong khung giờ thức ban ngày.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                     ),
                   ),
@@ -2607,7 +2607,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           ),
           const SizedBox(height: 6),
           const Text(
-            'Nhập mã PIN 6 số này vào điện thoại hoặc Galaxy Watch của Cụ để kích hoạt liên kết:',
+            'Nhập mã PIN 6 số này vào điện thoại hoặc Galaxy Watch của Người cao tuổi để kích hoạt liên kết:',
             style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
           ),
           const SizedBox(height: 12),

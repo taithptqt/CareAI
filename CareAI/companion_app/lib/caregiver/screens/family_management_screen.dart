@@ -97,7 +97,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Gửi mã 6 ký tự này cho người thân để cùng chăm sóc Cụ ${widget.elderName}:',
+                'Gửi mã 6 ký tự này cho người thân để cùng chăm sóc ${widget.elderName}:',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               ),
@@ -184,7 +184,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Thu Hồi Quyền Chăm Sóc'),
         content: Text(
-          'Bạn có chắc chắn muốn thu hồi quyền của "${member.fullName}" khỏi nhóm chăm sóc Cụ ${widget.elderName}?\nThành viên này sẽ không thể theo dõi chỉ số hay nhận cảnh báo nữa.',
+          'Bạn có chắc chắn muốn thu hồi quyền của "${member.fullName}" khỏi nhóm chăm sóc ${widget.elderName}?\nThành viên này sẽ không thể theo dõi chỉ số hay nhận cảnh báo nữa.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),

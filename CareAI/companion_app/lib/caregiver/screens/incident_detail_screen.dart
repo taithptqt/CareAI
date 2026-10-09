@@ -200,7 +200,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
           maxLines: 3,
           decoration: const InputDecoration(
             labelText: 'Ghi chú lâm sàng bắt buộc *',
-            hintText: 'VD: Cụ đã an toàn, huyết áp đo lại bình thường...',
+            hintText: 'VD: Người cao tuổi đã an toàn, huyết áp đo lại bình thường...',
             border: OutlineInputBorder(),
           ),
         ),
@@ -540,9 +540,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                     _row(snapshot?.currentGpsIsSimulated == true
                             ? 'GPS MÔ PHỎNG'
                             : 'GPS mới nhất', rescueGps ??
-                        'Chưa nhận được GPS từ điện thoại cụ'),
+                        'Chưa nhận được GPS từ điện thoại người cao tuổi'),
                     if (snapshot?.currentGpsIsSimulated == true)
-                      const Text('Vị trí do emulator hoặc ứng dụng mô phỏng cung cấp; không phải vị trí thật của cụ.',
+                      const Text('Vị trí do emulator hoặc ứng dụng mô phỏng cung cấp; không phải vị trí thật của người cao tuổi.',
                         style: TextStyle(color: Color(0xFFB45309), fontWeight: FontWeight.w600)),
                     if (snapshot?.currentGpsAccuracyMeters != null)
                       _row('Sai số ước tính',
@@ -614,7 +614,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                     fontWeight: FontWeight.bold, fontSize: 14)),
                   const SizedBox(height: 8),
                   if (_photoBytes == null)
-                    const Text('Chưa có ảnh. Ảnh sẽ xuất hiện nếu điện thoại của cụ được cấp quyền camera và đang mở ứng dụng.',
+                    const Text('Chưa có ảnh. Ảnh sẽ xuất hiện nếu điện thoại của người cao tuổi được cấp quyền camera và đang mở ứng dụng.',
                       style: TextStyle(color: Color(0xFF64748B)))
                   else
                     ClipRRect(borderRadius: BorderRadius.circular(10),
@@ -637,8 +637,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
               icon: const Icon(Icons.phone),
               label: Text(
                 _contactNumber?.isNotEmpty == true
-                    ? 'Gọi số liên hệ của cụ: $_contactNumber'
-                    : 'Chưa có số liên hệ của cụ',
+                    ? 'Gọi số liên hệ của người cao tuổi: $_contactNumber'
+                    : 'Chưa có số liên hệ của người cao tuổi',
               ),
             ),
             const SizedBox(height: 8),

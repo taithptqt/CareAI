@@ -41,7 +41,7 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ghép đôi thành công cho Cụ: ${response.fullName}'),
+            content: Text('Ghép đôi thành công cho Người cao tuổi: ${response.fullName}'),
             backgroundColor: Colors.green.shade700,
           ),
         );
