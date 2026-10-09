@@ -303,6 +303,7 @@ class ElderDashboard {
   final String? lastKnownGpsLocation;
   final DateTime? lastSyncedAt;
   final Incident? activeEmergency;
+  final String? watchModel;
 
   ElderDashboard({
     required this.elderProfileId,
@@ -320,6 +321,7 @@ class ElderDashboard {
     this.lastKnownGpsLocation,
     this.lastSyncedAt,
     this.activeEmergency,
+    this.watchModel,
   });
 
   factory ElderDashboard.fromJson(Map<String, dynamic> json) {
@@ -339,6 +341,7 @@ class ElderDashboard {
       lastKnownGpsLocation: json['lastKnownGpsLocation'],
       lastSyncedAt: json['lastSyncedAt'] != null ? DateTime.tryParse(json['lastSyncedAt']) : null,
       activeEmergency: json['activeEmergency'] != null ? Incident.fromJson(json['activeEmergency']) : null,
+      watchModel: json['watchModel'] as String?,
     );
   }
 }

@@ -103,6 +103,36 @@ class ApiService {
     await prefs.remove('elder_name');
   }
 
+  /// Đồng bộ tên đồng hồ thông minh đang kết nối qua Bluetooth lên máy chủ
+  Future<bool> syncConnectedWatch(String watchModel) async {
+    final deviceId = await getDeviceId();
+    final deviceToken = await getDeviceToken();
+    if (deviceId == null || deviceToken == null) return false;
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'X-DeviceId': deviceId,
+      'X-Device-Token': deviceToken,
+    };
+    final body = jsonEncode({'watchModel': watchModel});
+    final endpoints = _getEndpointsToTry();
+
+    for (final url in endpoints) {
+      try {
+        final response = await http.post(
+          Uri.parse('$url/api/v1/devices/sync-watch'),
+          headers: headers,
+          body: body,
+        ).timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200) {
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
   /// Danh sách URL thử nghiệm theo thứ tự ưu tiên:
   /// Ưu tiên Cáp USB (127.0.0.1:5097), sau đó chuyển tiếp sang Đám Mây Azure (Internet 24/7) và Wi-Fi LAN.
   List<String> _getEndpointsToTry() {

@@ -125,6 +125,7 @@ public class DevicesController : ControllerBase
             existingDevice.ElderProfileId = elder.Id;
             existingDevice.DeviceTokenHash = tokenHash;
             existingDevice.DeviceType = request.DeviceType ?? "Smartwatch";
+            existingDevice.DeviceModel = request.DeviceModel ?? existingDevice.DeviceModel;
             existingDevice.FirmwareVersion = request.FirmwareVersion ?? "1.0.0";
             existingDevice.IsActive = true;
             existingDevice.LastHeartbeat = now;
@@ -138,6 +139,7 @@ public class DevicesController : ControllerBase
                 ElderProfileId = elder.Id,
                 DeviceTokenHash = tokenHash,
                 DeviceType = request.DeviceType ?? "Smartwatch",
+                DeviceModel = request.DeviceModel,
                 FirmwareVersion = request.FirmwareVersion ?? "1.0.0",
                 IsActive = true,
                 LastHeartbeat = now,
@@ -274,5 +276,62 @@ public class DevicesController : ControllerBase
         }
 
         return Ok(new { status = "ALIVE", deviceId = authenticatedDeviceId, serverTime = DateTime.UtcNow });
+    }
+
+    /// <summary>
+    /// Đồng bộ tên định danh đồng hồ kết nối qua Bluetooth từ trạm trung chuyển (Companion Phone)
+    /// </summary>
+    [HttpPost("sync-watch")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SyncWatch([FromBody] SyncWatchRequest request, CancellationToken ct)
+    {
+        var authenticatedDeviceId = HttpContext.Items["ValidatedDeviceId"] as string;
+        if (string.IsNullOrEmpty(authenticatedDeviceId))
+        {
+            return Unauthorized(new { error = "Không tìm thấy danh tính thiết bị đã xác thực." });
+        }
+
+        var companionDevice = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == authenticatedDeviceId, ct);
+        if (companionDevice == null)
+        {
+            return NotFound(new { error = "Không tìm thấy thiết bị trạm trung chuyển." });
+        }
+
+        var watchDevice = await _db.DeviceRegistrations.FirstOrDefaultAsync(d =>
+            d.ElderProfileId == companionDevice.ElderProfileId &&
+            (d.DeviceType == "Smartwatch" || d.DeviceType == "AppleWatch" || d.DeviceType == "GalaxyWatch" || d.DeviceType == "WearOS"), ct);
+
+        var now = DateTime.UtcNow;
+        if (watchDevice != null)
+        {
+            watchDevice.DeviceModel = request.WatchModel;
+            watchDevice.LastHeartbeat = now;
+            watchDevice.UpdatedAt = now;
+        }
+        else if (!string.IsNullOrWhiteSpace(request.WatchModel))
+        {
+            _db.DeviceRegistrations.Add(new DeviceRegistration
+            {
+                Id = $"WATCH_{companionDevice.Id.Replace("DEV_", "")}",
+                ElderProfileId = companionDevice.ElderProfileId,
+                DeviceTokenHash = companionDevice.DeviceTokenHash,
+                DeviceType = "Smartwatch",
+                DeviceModel = request.WatchModel,
+                FirmwareVersion = "1.0.0",
+                IsActive = true,
+                LastHeartbeat = now,
+                RegisteredAt = now,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} cho Cụ {ElderId}",
+            authenticatedDeviceId, request.WatchModel, companionDevice.ElderProfileId);
+
+        return Ok(new { status = "SYNCED", watchModel = request.WatchModel });
     }
 }

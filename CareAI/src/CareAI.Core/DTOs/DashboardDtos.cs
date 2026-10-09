@@ -58,5 +58,6 @@ public record ElderDashboardResponse(
     DateTime? LastSyncedAt,
     IncidentResponseDto? ActiveEmergency,
     VitalSignDto? DemoHeartRate = null,
-    VitalSignDto? DemoSpO2 = null
+    VitalSignDto? DemoSpO2 = null,
+    string? WatchModel = null
 );

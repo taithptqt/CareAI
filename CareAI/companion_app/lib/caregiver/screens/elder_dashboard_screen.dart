@@ -458,11 +458,19 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                     ),
                     const Text(' • ', style: TextStyle(color: Color(0xFF64748B))),
-                    const Icon(Icons.watch_rounded, size: 14, color: Color(0xFF38BDF8)),
+                    Icon(
+                      Icons.watch_rounded,
+                      size: 14,
+                      color: d.watchModel != null ? const Color(0xFF38BDF8) : const Color(0xFF64748B),
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      d.lastSyncedAt == null ? 'Chưa ghép đồng hồ' : 'Đồng hồ CareAI',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF38BDF8), fontWeight: FontWeight.w500),
+                      d.watchModel ?? 'Chưa kết nối đồng hồ',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: d.watchModel != null ? const Color(0xFF38BDF8) : const Color(0xFF94A3B8),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),

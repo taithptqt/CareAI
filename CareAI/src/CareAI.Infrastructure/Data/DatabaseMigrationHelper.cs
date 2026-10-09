@@ -422,6 +422,12 @@ public static class DatabaseMigrationHelper
         ALTER TABLE ElderProfiles ADD PairingPinHash NVARCHAR(128) NULL;
     END;
 
+    -- Bổ sung cột DeviceModel cho DeviceRegistrations
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('DeviceRegistrations') AND name = 'DeviceModel')
+    BEGIN
+        ALTER TABLE DeviceRegistrations ADD DeviceModel NVARCHAR(100) NULL;
+    END;
+
     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FamilyInvitations')
     BEGIN
         CREATE TABLE FamilyInvitations (
