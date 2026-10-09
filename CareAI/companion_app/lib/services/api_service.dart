@@ -18,7 +18,7 @@ class ApiService {
   static const String internetTunnelUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
   static const String wifiServerUrl = 'http://192.168.0.105:5097';
 
-  String _activeServerUrl = internetTunnelUrl;
+  String _activeServerUrl = usbServerUrl;
   String get activeServerUrl => _activeServerUrl;
 
   Future<String> getServerUrl() async {
@@ -104,9 +104,9 @@ class ApiService {
   }
 
   /// Danh sách URL thử nghiệm theo thứ tự ưu tiên:
-  /// Ưu tiên Đám Mây Azure (Internet 24/7), sau đó chuyển tiếp Cáp USB và Wi-Fi LAN.
+  /// Ưu tiên Cáp USB (127.0.0.1:5097), sau đó chuyển tiếp sang Đám Mây Azure (Internet 24/7) và Wi-Fi LAN.
   List<String> _getEndpointsToTry() {
-    return [internetTunnelUrl, usbServerUrl, wifiServerUrl];
+    return [usbServerUrl, internetTunnelUrl, wifiServerUrl];
   }
 
   /// Gửi tín hiệu SOS Fast-Lane với cơ chế Chuyển mạch Dự phòng Kép (Dual-Failover)
