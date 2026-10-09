@@ -66,7 +66,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
       });
       _sounding = _urgent;
     } on MissingPluginException {
-      // Widget tests and non-Android platforms have no native alarm channel.
+      // Fallback khi chạy Flutter widget tests không có kênh native siren (iOS và Android đã hỗ trợ đầy đủ).
     } catch (error) {
       debugPrint('[CareAI] Không thể điều khiển còi: $error');
     }

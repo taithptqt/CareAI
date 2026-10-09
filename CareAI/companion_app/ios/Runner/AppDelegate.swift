@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import WatchConnectivity
 import UserNotifications
+import AVFoundation
 #if canImport(workmanager_apple)
 import workmanager_apple
 #endif
@@ -9,6 +10,8 @@ import workmanager_apple
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, WCSessionDelegate {
   private var fallChannel: FlutterMethodChannel?
+  private var caregiverAlarmChannel: FlutterMethodChannel?
+  private var alarmAudioPlayer: AVAudioPlayer?
 
   override func application(
     _ application: UIApplication,
@@ -34,9 +37,134 @@ import workmanager_apple
 
     if let controller = window?.rootViewController as? FlutterViewController {
       setupFallBridgeChannel(messenger: controller.binaryMessenger)
+      setupCaregiverAlarmChannel(messenger: controller.binaryMessenger)
     }
 
     return result
+  }
+
+  // MARK: - Quản lý Còi hú cấp cứu Y tế (ICU Medical Emergency Siren) cho iOS
+  private func setupCaregiverAlarmChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "vn.careai.companion/caregiver_alarm", binaryMessenger: messenger)
+    self.caregiverAlarmChannel = channel
+
+    channel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
+      guard let self = self else { return }
+      switch call.method {
+      case "start":
+        self.startAlarmSound()
+        result(nil)
+      case "stop":
+        self.stopAlarmSound()
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private func startAlarmSound() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      if self.alarmAudioPlayer?.isPlaying == true {
+        return
+      }
+
+      do {
+        // Cấu hình âm thanh chế độ .playback để còi hú phát âm lượng tối đa ngay cả khi bật công tắc im lặng (Silent/Mute Switch)
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+        try session.setActive(true)
+
+        var player: AVAudioPlayer?
+
+        // 1. Thử tải file âm thanh còi hú y tế từ Flutter Assets
+        let assetKey = FlutterDartProject.lookupKey(forAsset: "assets/audio/careai_emergency_alarm.wav")
+        if let assetPath = Bundle.main.path(forResource: assetKey, ofType: nil) {
+          player = try? AVAudioPlayer(contentsOf: URL(fileURLWithPath: assetPath))
+        }
+
+        // 2. Thử tải file trực tiếp từ Resource Bundle của ứng dụng iOS
+        if player == nil, let resourceUrl = Bundle.main.url(forResource: "careai_emergency_alarm", withExtension: "wav") {
+          player = try? AVAudioPlayer(contentsOf: resourceUrl)
+        }
+
+        // 3. Dự phòng 100% tự động: Tổng hợp sóng âm còi hú y tế ICU hai nhịp (960Hz / 1350Hz) trực tiếp trong RAM
+        if player == nil {
+          let synthWav = self.generateMedicalAlarmWavData()
+          player = try? AVAudioPlayer(data: synthWav)
+        }
+
+        if let p = player {
+          p.numberOfLoops = -1 // Phát lặp vô hạn cho tới khi có người tiếp nhận sự cố hoặc bấm tắt còi
+          p.volume = 1.0
+          p.prepareToPlay()
+          p.play()
+          self.alarmAudioPlayer = p
+          NSLog("[CareAI-iOS] Đã kích hoạt còi hú cấp cứu y tế ICU thành công.")
+        }
+      } catch {
+        NSLog("[CareAI-iOS] Không thể khởi động còi hú cấp cứu: %@", error.localizedDescription)
+      }
+    }
+  }
+
+  private func stopAlarmSound() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      if let player = self.alarmAudioPlayer {
+        player.stop()
+        self.alarmAudioPlayer = nil
+        NSLog("[CareAI-iOS] Đã tắt còi hú cấp cứu y tế.")
+      }
+      try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+  }
+
+  /// Tạo file WAV 16-bit PCM trong bộ nhớ với tần số còi hú cấp cứu ICU nhịp đôi 960Hz và 1350Hz chuẩn y tế
+  private func generateMedicalAlarmWavData(durationSeconds: Double = 1.0) -> Data {
+    let sampleRate: Double = 44100.0
+    let totalSamples = Int(sampleRate * durationSeconds)
+    var pcmData = Data()
+    pcmData.reserveCapacity(totalSamples * 2)
+
+    for i in 0..<totalSamples {
+      let t = Double(i) / sampleRate
+      // Chu kỳ 400ms: 200ms tần số 960Hz, 200ms tần số 1350Hz (tạo âm thanh hú dồn dập chuẩn cấp cứu)
+      let phase = t.truncatingRemainder(dividingBy: 0.4)
+      let freq: Double = phase < 0.2 ? 960.0 : 1350.0
+      let sampleValue = sin(2.0 * Double.pi * freq * t)
+      let int16Sample = Int16(max(-32767.0, min(32767.0, sampleValue * 30000.0)))
+      withUnsafeBytes(of: int16Sample.littleEndian) { pcmData.append(contentsOf: $0) }
+    }
+
+    var wavData = Data()
+    let dataSize = UInt32(pcmData.count)
+    let chunkSize = UInt32(36 + dataSize)
+
+    wavData.append(contentsOf: [0x52, 0x49, 0x46, 0x46]) // "RIFF"
+    withUnsafeBytes(of: chunkSize.littleEndian) { wavData.append(contentsOf: $0) }
+    wavData.append(contentsOf: [0x57, 0x41, 0x56, 0x45]) // "WAVE"
+    wavData.append(contentsOf: [0x66, 0x6D, 0x74, 0x20]) // "fmt "
+    let subchunk1Size: UInt32 = 16
+    withUnsafeBytes(of: subchunk1Size.littleEndian) { wavData.append(contentsOf: $0) }
+    let audioFormat: UInt16 = 1 // PCM
+    withUnsafeBytes(of: audioFormat.littleEndian) { wavData.append(contentsOf: $0) }
+    let numChannels: UInt16 = 1 // Mono
+    withUnsafeBytes(of: numChannels.littleEndian) { wavData.append(contentsOf: $0) }
+    let sampleRateInt: UInt32 = 44100
+    withUnsafeBytes(of: sampleRateInt.littleEndian) { wavData.append(contentsOf: $0) }
+    let byteRate: UInt32 = 44100 * 2
+    withUnsafeBytes(of: byteRate.littleEndian) { wavData.append(contentsOf: $0) }
+    let blockAlign: UInt16 = 2
+    withUnsafeBytes(of: blockAlign.littleEndian) { wavData.append(contentsOf: $0) }
+    let bitsPerSample: UInt16 = 16
+    withUnsafeBytes(of: bitsPerSample.littleEndian) { wavData.append(contentsOf: $0) }
+    wavData.append(contentsOf: [0x64, 0x61, 0x74, 0x61]) // "data"
+    withUnsafeBytes(of: dataSize.littleEndian) { wavData.append(contentsOf: $0) }
+    wavData.append(pcmData)
+
+    return wavData
   }
 
   private func setupFallBridgeChannel(messenger: FlutterBinaryMessenger) {
@@ -77,9 +205,11 @@ import workmanager_apple
           "source": "IN_APP_UI_SIMULATOR",
           "isHardwareVerified": true
         ]
+        self.startAlarmSound()
         self.fallChannel?.invokeMethod("onHardwareFallDetected", arguments: payload)
         result(eventId)
       case "cancelFallAlarm", "stopEmergencySound":
+        self.stopAlarmSound()
         result(true)
       case "checkExactAlarmPermission":
         result(true)
@@ -169,8 +299,9 @@ import workmanager_apple
       ]
     ]
 
-    // Chuyển tiếp sự kiện té ngã lên giao diện Flutter nếu ứng dụng đang mở
+    // Chuyển tiếp sự kiện té ngã lên giao diện Flutter nếu ứng dụng đang mở và kích hoạt còi hú y tế
     DispatchQueue.main.async { [weak self] in
+      self?.startAlarmSound()
       let flutterPayload: [String: Any] = [
         "eventId": eventId,
         "timestamp": Int64(Date().timeIntervalSince1970 * 1000),

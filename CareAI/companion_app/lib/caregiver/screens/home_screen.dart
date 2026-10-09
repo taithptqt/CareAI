@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         });
         _alarmCycles[incident.id] = cycle;
       } on MissingPluginException {
-        // Flutter widget tests and platforms other than Android have no native siren.
+        // Fallback khi chạy Flutter widget tests không có kênh native siren (iOS và Android đã hỗ trợ đầy đủ).
       } catch (error) {
         debugPrint('[CAREGIVER-APP] Không thể bật còi: $error');
       }
