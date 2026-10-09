@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../caregiver/screens/server_config_dialog.dart';
 import 'role_selection_screen.dart';
 import 'sos_button_screen.dart';
 
@@ -109,6 +110,22 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
           backgroundColor: const Color(0xFF1E293B),
           foregroundColor: Colors.white,
           elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.dns_outlined, color: Colors.white),
+              tooltip: 'Cài đặt máy chủ',
+              onPressed: () async {
+                final changed = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => const ServerConfigDialog(),
+                );
+                if (changed == true && mounted) {
+                  final url = await ApiService.instance.getServerUrl();
+                  _serverUrlController.text = url;
+                }
+              },
+            ),
+          ],
         ),
       body: SafeArea(
         child: Center(
@@ -174,6 +191,20 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                       labelText: 'Địa chỉ máy chủ CareAI',
                       hintText: 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net',
                       prefixIcon: const Icon(Icons.dns_outlined),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.tune_outlined, color: Color(0xFF2563EB)),
+                        tooltip: 'Chọn máy chủ có sẵn',
+                        onPressed: () async {
+                          final changed = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => const ServerConfigDialog(),
+                          );
+                          if (changed == true && mounted) {
+                            final url = await ApiService.instance.getServerUrl();
+                            _serverUrlController.text = url;
+                          }
+                        },
+                      ),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
                       fillColor: Colors.white,

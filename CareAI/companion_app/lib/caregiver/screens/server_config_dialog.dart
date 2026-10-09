@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/caregiver_api_service.dart';
+import '../../services/api_service.dart';
 
 class ServerConfigDialog extends StatefulWidget {
   const ServerConfigDialog({super.key});
@@ -17,7 +18,10 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
   @override
   void initState() {
     super.initState();
-    _urlController.text = CaregiverApiService.instance.currentServerUrl;
+    final initialUrl = CaregiverApiService.instance.currentServerUrl.isNotEmpty
+        ? CaregiverApiService.instance.currentServerUrl
+        : ApiService.instance.activeServerUrl;
+    _urlController.text = initialUrl;
     _testHealth(_urlController.text);
   }
 
@@ -58,17 +62,17 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
             ),
             const SizedBox(height: 12),
             _buildPresetButton(
-              title: 'Cáp USB (Cục bộ)',
-              subtitle: CaregiverApiService.defaultUsbUrl,
-              icon: Icons.usb,
-              url: CaregiverApiService.defaultUsbUrl,
-            ),
-            const SizedBox(height: 8),
-            _buildPresetButton(
               title: 'Đám Mây Azure (Chính Thức)',
               subtitle: CaregiverApiService.defaultInternetUrl,
               icon: Icons.cloud,
               url: CaregiverApiService.defaultInternetUrl,
+            ),
+            const SizedBox(height: 8),
+            _buildPresetButton(
+              title: 'Cáp USB (Cục bộ)',
+              subtitle: CaregiverApiService.defaultUsbUrl,
+              icon: Icons.usb,
+              url: CaregiverApiService.defaultUsbUrl,
             ),
             const SizedBox(height: 8),
             _buildPresetButton(
@@ -119,7 +123,9 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7)),
           onPressed: () async {
-            await CaregiverApiService.instance.setServerUrl(_urlController.text.trim());
+            final targetUrl = _urlController.text.trim();
+            await CaregiverApiService.instance.setServerUrl(targetUrl);
+            await ApiService.instance.setServerUrl(targetUrl);
             if (context.mounted) Navigator.pop(context, true);
           },
           child: const Text('Lưu & Áp Dụng', style: TextStyle(color: Colors.white)),

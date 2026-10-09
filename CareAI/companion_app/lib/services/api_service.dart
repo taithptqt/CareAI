@@ -14,15 +14,35 @@ class ApiService {
   static final ApiService instance = ApiService._init();
   ApiService._init();
 
-  static const String usbServerUrl = 'http://127.0.0.1:5097';
   static const String internetTunnelUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
+  static const String usbServerUrl = 'http://127.0.0.1:5097';
   static const String wifiServerUrl = 'http://192.168.0.105:5097';
 
-  String _activeServerUrl = usbServerUrl;
+  String _activeServerUrl = internetTunnelUrl;
   String get activeServerUrl => _activeServerUrl;
 
   Future<String> getServerUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isExplicit = prefs.getBool('elder_server_url_explicitly_set') ?? false;
+    final saved = prefs.getString('server_base_url');
+    if (saved != null && saved.isNotEmpty) {
+      if (!isExplicit && saved == usbServerUrl) {
+        _activeServerUrl = internetTunnelUrl;
+        await prefs.setString('server_base_url', internetTunnelUrl);
+        return internetTunnelUrl;
+      }
+      _activeServerUrl = saved;
+      return saved;
+    }
     return _activeServerUrl;
+  }
+
+  Future<void> setServerUrl(String url) async {
+    final normalized = url.trim().replaceAll(RegExp(r'/+$'), '');
+    _activeServerUrl = normalized;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('server_base_url', normalized);
+    await prefs.setBool('elder_server_url_explicitly_set', true);
   }
 
   Future<String?> getDeviceId() async {
@@ -134,9 +154,9 @@ class ApiService {
   }
 
   /// Danh sách URL thử nghiệm theo thứ tự ưu tiên:
-  /// Ưu tiên Cáp USB (127.0.0.1:5097), sau đó chuyển tiếp sang Đám Mây Azure (Internet 24/7) và Wi-Fi LAN.
+  /// Ưu tiên Đám Mây Azure (Internet 24/7), sau đó chuyển tiếp sang Cáp USB và Wi-Fi LAN.
   List<String> _getEndpointsToTry() {
-    return [usbServerUrl, internetTunnelUrl, wifiServerUrl];
+    return [internetTunnelUrl, usbServerUrl, wifiServerUrl];
   }
 
   /// Gửi tín hiệu SOS Fast-Lane với cơ chế Chuyển mạch Dự phòng Kép (Dual-Failover)
@@ -386,44 +406,40 @@ class ApiService {
     return false;
   }
 
-  /// Kiểm tra trạng thái máy chủ (/healthz) - Ưu tiên Cáp USB trước, sau đó tới Internet Tunnel, rồi Wi-Fi LAN
+  /// Kiểm tra trạng thái máy chủ (/healthz) - Ưu tiên Đám mây Azure trước, sau đó tới Cáp USB (nếu cắm), rồi Wi-Fi LAN
   Future<bool> checkServerHealth() async {
-    // 1. Thử kênh ưu tiên cao nhất: Cáp USB
-    try {
-      final response = await http.get(
-        Uri.parse('$usbServerUrl/healthz'),
-      ).timeout(const Duration(milliseconds: 2000));
+    final prefs = await SharedPreferences.getInstance();
+    final pairedUrl = prefs.getString('server_base_url');
 
-      if (response.statusCode == 200) {
-        _activeServerUrl = usbServerUrl;
-        return true;
-      }
-    } catch (_) {}
+    final endpoints = {
+      if (pairedUrl != null && pairedUrl.isNotEmpty) pairedUrl,
+      internetTunnelUrl,
+      usbServerUrl,
+      wifiServerUrl,
+    };
 
-    // 2. Thử kênh đám mây Internet (Hoạt động trên MỌI Wi-Fi & 4G/5G)
-    try {
-      final response = await http.get(
-        Uri.parse('$internetTunnelUrl/healthz'),
-      ).timeout(const Duration(milliseconds: 3000));
-
-      if (response.statusCode == 200) {
-        _activeServerUrl = internetTunnelUrl;
-        return true;
-      }
-    } catch (_) {}
-
-    // 3. Thử kênh Wi-Fi mạng LAN
-    try {
-      final response = await http.get(
-        Uri.parse('$wifiServerUrl/healthz'),
-      ).timeout(const Duration(milliseconds: 2000));
-
-      if (response.statusCode == 200) {
-        _activeServerUrl = wifiServerUrl;
-        return true;
-      }
-    } catch (_) {}
+    for (final url in endpoints) {
+      try {
+        final timeoutMs = url.contains('127.0.0.1') ? 800 : 3000;
+        final res = await http.get(Uri.parse('$url/healthz')).timeout(Duration(milliseconds: timeoutMs));
+        if (res.statusCode == 200) {
+          _activeServerUrl = url;
+          return true;
+        }
+      } catch (_) {}
+    }
 
     return false;
+  }
+
+  /// Kiểm tra nhanh trạng thái một URL cụ thể
+  Future<bool> checkHealth(String url) async {
+    final normalized = url.trim().replaceAll(RegExp(r'/+$'), '');
+    try {
+      final res = await http.get(Uri.parse('$normalized/healthz')).timeout(const Duration(seconds: 4));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 }

@@ -9,16 +9,23 @@ class CaregiverApiService {
   static final CaregiverApiService instance = CaregiverApiService._init();
   CaregiverApiService._init();
 
-  static const String defaultUsbUrl = 'http://127.0.0.1:5097';
   static const String defaultInternetUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
+  static const String defaultUsbUrl = 'http://127.0.0.1:5097';
   static const String defaultWifiUrl = 'http://192.168.0.105:5097';
 
-  String _currentServerUrl = defaultUsbUrl;
+  String _currentServerUrl = defaultInternetUrl;
   String get currentServerUrl => _currentServerUrl;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _currentServerUrl = prefs.getString('caregiver_server_url') ?? defaultUsbUrl;
+    final isExplicit = prefs.getBool('caregiver_server_url_explicitly_set') ?? false;
+    final saved = prefs.getString('caregiver_server_url');
+    if (saved == null || (!isExplicit && saved == defaultUsbUrl)) {
+      _currentServerUrl = defaultInternetUrl;
+      await prefs.setString('caregiver_server_url', defaultInternetUrl);
+    } else {
+      _currentServerUrl = saved;
+    }
   }
 
   Future<void> setServerUrl(String url) async {
@@ -26,6 +33,7 @@ class CaregiverApiService {
     _currentServerUrl = normalized;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('caregiver_server_url', normalized);
+    await prefs.setBool('caregiver_server_url_explicitly_set', true);
   }
 
   // Quản lý Token JWT
@@ -85,8 +93,8 @@ class CaregiverApiService {
   Future<http.Response> _executeWithFailover(
     Future<http.Response> Function(String baseUrl) action,
   ) async {
-    // Luôn ưu tiên Cáp USB trước, sau đó là Đám Mây Azure
-    final endpoints = {defaultUsbUrl, defaultInternetUrl, _currentServerUrl}.toList();
+    // Ưu tiên URL đang kích hoạt và Đám Mây Azure (Internet 24/7), sau đó chuyển tiếp cáp USB và LAN
+    final endpoints = {_currentServerUrl, defaultInternetUrl, defaultUsbUrl, defaultWifiUrl}.toList();
     for (final url in endpoints) {
       try {
         final res = await action(url);
@@ -100,7 +108,7 @@ class CaregiverApiService {
         // Tiếp tục thử kênh dự phòng tiếp theo
       }
     }
-    throw Exception('Không thể kết nối đến máy chủ CareAI qua Cáp USB hoặc Internet.');
+    throw Exception('Không thể kết nối đến máy chủ CareAI qua Đám Mây Azure hoặc Cáp USB.');
   }
 
   // 1. Kiểm tra sức khỏe máy chủ (/health)
@@ -116,27 +124,20 @@ class CaregiverApiService {
       }
     }
 
-    // Thử Cáp USB trước
-    try {
-      final response = await http
-          .get(Uri.parse('$defaultUsbUrl/health'))
-          .timeout(const Duration(milliseconds: 1500));
-      if (response.statusCode == 200 && response.body.contains('Healthy')) {
-        _currentServerUrl = defaultUsbUrl;
-        return true;
-      }
-    } catch (_) {}
-
-    // Fallback sang Đám Mây Azure
-    try {
-      final response = await http
-          .get(Uri.parse('$defaultInternetUrl/health'))
-          .timeout(const Duration(seconds: 3));
-      if (response.statusCode == 200 && response.body.contains('Healthy')) {
-        _currentServerUrl = defaultInternetUrl;
-        return true;
-      }
-    } catch (_) {}
+    // Ưu tiên URL đang kích hoạt và Đám Mây Azure trước, sau đó tới Cáp USB và Wi-Fi LAN
+    final candidates = {_currentServerUrl, defaultInternetUrl, defaultUsbUrl, defaultWifiUrl};
+    for (final url in candidates) {
+      try {
+        final timeoutMs = url.contains('127.0.0.1') ? 800 : 3000;
+        final response = await http
+            .get(Uri.parse('$url/health'))
+            .timeout(Duration(milliseconds: timeoutMs));
+        if (response.statusCode == 200 && response.body.contains('Healthy')) {
+          _currentServerUrl = url;
+          return true;
+        }
+      } catch (_) {}
+    }
 
     return false;
   }
