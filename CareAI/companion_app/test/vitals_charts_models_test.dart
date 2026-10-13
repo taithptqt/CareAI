@@ -73,5 +73,43 @@ void main() {
       expect(data.peakHour, 7);
       expect(data.peakSteps, 820);
     });
+
+    test('ElderDashboard deserializes watchStatus and watchDisconnectReason correctly', () {
+      final jsonBtOff = {
+        'elderProfileId': 'ELDER_001',
+        'fullName': 'Cụ Lê Thị Bình',
+        'age': 81,
+        'statusBadgeColor': 'GREEN',
+        'deviceStatus': 'ONLINE',
+        'todaySteps': 3200,
+        'stepGoal': 6000,
+        'watchModel': 'Galaxy Watch6',
+        'watchStatus': 'DISCONNECTED',
+        'watchDisconnectReason': 'BLUETOOTH_OFF',
+      };
+
+      final dashboardBtOff = ElderDashboard.fromJson(jsonBtOff);
+      expect(dashboardBtOff.watchModel, 'Galaxy Watch6');
+      expect(dashboardBtOff.watchStatus, 'DISCONNECTED');
+      expect(dashboardBtOff.watchDisconnectReason, 'BLUETOOTH_OFF');
+
+      final jsonSignalLost = {
+        'elderProfileId': 'ELDER_002',
+        'fullName': 'Cụ Trần Văn Nam',
+        'age': 78,
+        'statusBadgeColor': 'GREEN',
+        'deviceStatus': 'ONLINE',
+        'todaySteps': 1500,
+        'stepGoal': 6000,
+        'watchModel': 'Apple Watch Series 9',
+        'watchStatus': 'DISCONNECTED',
+        'watchDisconnectReason': 'SIGNAL_LOST',
+      };
+
+      final dashboardSignalLost = ElderDashboard.fromJson(jsonSignalLost);
+      expect(dashboardSignalLost.watchModel, 'Apple Watch Series 9');
+      expect(dashboardSignalLost.watchStatus, 'DISCONNECTED');
+      expect(dashboardSignalLost.watchDisconnectReason, 'SIGNAL_LOST');
+    });
   });
 }

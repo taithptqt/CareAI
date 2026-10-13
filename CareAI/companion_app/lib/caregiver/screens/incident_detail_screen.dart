@@ -326,20 +326,39 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     final isAck = _incident.isAcknowledged;
     final alertState = _incident.alertState;
 
+    final type = _incident.emergencyType.toUpperCase();
+    final isStaleIncident = type.contains('STALE') || type.contains('OFFLINE');
+    final isVitalIncident = type.contains('OXYGEN') || type.contains('SPO2') || type.contains('TACHYCARDIA') || type.contains('BRADYCARDIA') || type.contains('SURGE') || type.contains('HYPERTENSION');
+
     Color appBarColor;
-    if (_urgent) {
-      appBarColor = Colors.red.shade700;
-    } else if (isResolved) {
+    if (isResolved) {
       appBarColor = const Color(0xFF0F766E);
     } else if (isAck) {
       appBarColor = Colors.amber.shade800;
+    } else if (_urgent) {
+      appBarColor = Colors.red.shade700;
+    } else if (isStaleIncident) {
+      appBarColor = const Color(0xFFD97706);
+    } else if (isVitalIncident) {
+      appBarColor = const Color(0xFFEA580C);
     } else {
       appBarColor = const Color(0xFF0284C7);
     }
 
+    final String appBarTitle;
+    if (isResolved) {
+      appBarTitle = 'Chi tiết sự cố đã đóng';
+    } else if (isStaleIncident) {
+      appBarTitle = 'Chi tiết mất tín hiệu thiết bị';
+    } else if (isVitalIncident) {
+      appBarTitle = 'Chi tiết cảnh báo sinh hiệu';
+    } else {
+      appBarTitle = 'Cứu hộ khẩn cấp';
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(isResolved ? 'Chi tiết sự cố đã đóng' : 'Cứu hộ khẩn cấp'),
+        title: Text(appBarTitle),
         backgroundColor: appBarColor,
         foregroundColor: Colors.white,
         actions: [
@@ -357,7 +376,11 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
           children: [
             // 1. Thẻ Tiêu đề Sự Cố
             Card(
-              color: _urgent ? Colors.red.shade50 : (isResolved ? const Color(0xFFF0FDF4) : Colors.orange.shade50),
+              color: isResolved
+                  ? const Color(0xFFF0FDF4)
+                  : (isStaleIncident
+                      ? const Color(0xFFFFFBEB)
+                      : (_urgent ? Colors.red.shade50 : (isVitalIncident ? const Color(0xFFFFF7ED) : Colors.orange.shade50))),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -365,7 +388,11 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                   children: [
                     Icon(
                       _emergencyIcon(_incident.emergencyType),
-                      color: _urgent ? Colors.red.shade700 : (isResolved ? const Color(0xFF16A34A) : Colors.orange.shade800),
+                      color: isResolved
+                          ? const Color(0xFF16A34A)
+                          : (isStaleIncident
+                              ? const Color(0xFFD97706)
+                              : (_urgent ? Colors.red.shade700 : (isVitalIncident ? const Color(0xFFEA580C) : Colors.orange.shade800))),
                       size: 44,
                     ),
                     const SizedBox(height: 8),
@@ -385,6 +412,12 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                       const Text(
                         'CẦN TIẾP NHẬN NGAY',
                         style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                      ),
+                    ] else if (isStaleIncident && !isResolved) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'CẦN KIỂM TRA KẾT NỐI VÀ TIẾP NHẬN',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD97706), fontSize: 13),
                       ),
                     ],
                   ],

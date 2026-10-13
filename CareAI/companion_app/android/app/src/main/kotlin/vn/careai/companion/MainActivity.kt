@@ -21,6 +21,10 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.KeyEvent
 import androidx.core.content.ContextCompat
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import com.google.android.gms.wearable.Node
+import com.google.android.gms.wearable.NodeClient
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import org.json.JSONObject
@@ -33,6 +37,58 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val FALL_BRIDGE_CHANNEL = "vn.careai.companion/fall_bridge"
     private var fallMethodChannel: MethodChannel? = null
+
+    // Event-Driven Watchdog: Lắng nghe sự kiện kết nối/ngắt kết nối đồng hồ Wear OS thời gian thực (0.1 giây)
+    private val watchNodeListener = object : NodeClient.OnNodeChangedListener {
+        override fun onPeerConnected(node: Node) {
+            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Đồng hồ vừa kết nối tức thì: ${node.displayName} (${node.id})")
+            runOnUiThread {
+                fallMethodChannel?.invokeMethod("onWatchConnectionChanged", mapOf(
+                    "isConnected" to true,
+                    "watchName" to node.displayName,
+                    "nodeId" to node.id,
+                    "isNearby" to node.isNearby,
+                    "connectedCount" to 1
+                ))
+            }
+        }
+
+        override fun onPeerDisconnected(node: Node) {
+            Log.w("CareAI-MainActivity", "[EVENT-DRIVEN] Đồng hồ vừa ngắt kết nối tức thì (0.1s): ${node.displayName} (${node.id})")
+            runOnUiThread {
+                fallMethodChannel?.invokeMethod("onWatchConnectionChanged", mapOf(
+                    "isConnected" to false,
+                    "watchName" to node.displayName,
+                    "nodeId" to node.id,
+                    "isNearby" to false,
+                    "connectedCount" to 0
+                ))
+            }
+        }
+    }
+
+    private val bluetoothStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                BluetoothAdapter.ACTION_STATE_CHANGED -> {
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    if (state == BluetoothAdapter.STATE_OFF || state == BluetoothAdapter.STATE_TURNING_OFF) {
+                        Log.w("CareAI-MainActivity", "[EVENT-DRIVEN] Bluetooth điện thoại vừa tắt -> Báo ngắt kết nối đồng hồ 0.1s")
+                        runOnUiThread {
+                            fallMethodChannel?.invokeMethod("onWatchConnectionChanged", mapOf(
+                                "isConnected" to false,
+                                "watchName" to null,
+                                "nodeId" to null,
+                                "isNearby" to false,
+                                "connectedCount" to 0,
+                                "reason" to "BLUETOOTH_OFF"
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     private val TTS_BRIDGE_CHANNEL = "vn.careai.companion/tts_bridge"
     private var ttsMethodChannel: MethodChannel? = null
@@ -96,6 +152,14 @@ class MainActivity : FlutterActivity() {
             registerReceiver(fallEventReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(fallEventReceiver, filter)
+        }
+
+        // Đăng ký bộ lọc sự kiện phần cứng Bluetooth (bắt ngắt kết nối trong 0.1s)
+        val btFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(bluetoothStateReceiver, btFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(bluetoothStateReceiver, btFilter)
         }
 
         // Tải trước file âm thanh còi hú y tế vào RAM phần cứng (SoundPool) để sẵn sàng 0ms latency
@@ -227,6 +291,12 @@ class MainActivity : FlutterActivity() {
             unregisterReceiver(fallEventReceiver)
         } catch (_: Exception) {}
         try {
+            unregisterReceiver(bluetoothStateReceiver)
+        } catch (_: Exception) {}
+        try {
+            Wearable.getNodeClient(this).removeListener(watchNodeListener)
+        } catch (_: Exception) {}
+        try {
             textToSpeech?.stop()
             textToSpeech?.shutdown()
             textToSpeech = null
@@ -304,6 +374,12 @@ class MainActivity : FlutterActivity() {
         }
 
         fallMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FALL_BRIDGE_CHANNEL)
+        try {
+            Wearable.getNodeClient(this).addListener(watchNodeListener)
+            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Đã kích hoạt lắng nghe NodeClient thời gian thực cho Galaxy Watch!")
+        } catch (e: Exception) {
+            Log.w("CareAI-MainActivity", "Không thể đăng ký watchNodeListener: ${e.message}")
+        }
         pendingFallPayload?.let {
             fallMethodChannel?.invokeMethod("onHardwareFallDetected", it)
             pendingFallPayload = null

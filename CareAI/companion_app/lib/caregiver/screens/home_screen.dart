@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await _alarm.invokeMethod<void>('start', {
           'incidentId': incident.id,
           'alertCycleNumber': cycle,
-          'title': 'CẤP CỨU: ${incident.elderName}',
+          'title': _emergencyAlarmTitle(incident),
           'body': _emergencyDescription(incident),
           'emergencyType': incident.emergencyType,
         });
@@ -167,6 +167,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         debugPrint('[CAREGIVER-APP] Không thể bật còi: $error');
       }
     }
+  }
+
+  String _emergencyAlarmTitle(Incident incident) {
+    final type = incident.emergencyType.toUpperCase();
+    if (type.contains('STALE') || type.contains('OFFLINE')) {
+      return 'MẤT TÍN HIỆU: ${incident.elderName}';
+    }
+    if (type.contains('FALL')) {
+      return 'TÉ NGÃ: ${incident.elderName}';
+    }
+    if (type.contains('LOW_OXYGEN') || type.contains('LOWOXYGEN') || type.contains('OXYGEN') || type.contains('SPO2')) {
+      return 'SPO2 THẤP: ${incident.elderName}';
+    }
+    if (type.contains('TACHYCARDIA')) {
+      return 'NHỊP TIM NHANH: ${incident.elderName}';
+    }
+    if (type.contains('BRADYCARDIA')) {
+      return 'NHỊP TIM CHẬM: ${incident.elderName}';
+    }
+    if (type.contains('SURGE')) {
+      return 'TIM TĂNG VỌT: ${incident.elderName}';
+    }
+    if (type.contains('HYPERTENSION')) {
+      return 'TĂNG HUYẾT ÁP: ${incident.elderName}';
+    }
+    return 'CẤP CỨU: ${incident.elderName}';
   }
 
   String _emergencyDescription(Incident incident) {
@@ -573,17 +599,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildStickyEmergencyAlert() {
     final inc = _currentEmergency!;
     final count = _activeIncidents.where((i) => i.isOpen && i.severity == 'Critical').length;
+    final type = inc.emergencyType.toUpperCase();
+    final isStale = type.contains('STALE') || type.contains('OFFLINE');
+
+    final headerTitle = isStale ? 'CẢNH BÁO MẤT TÍN HIỆU' : 'BÁO ĐỘNG KHẨN CẤP';
+    final headerIcon = isStale ? Icons.wifi_off_rounded : Icons.notification_important;
+    final bannerBg = isStale ? const Color(0xFFB45309) : const Color(0xFFB91C1C);
+    final btnTextColor = isStale ? const Color(0xFF92400E) : const Color(0xFF991B1B);
+    final btnLabel = isStale ? 'KIỂM TRA VÀ TIẾP NHẬN SỰ CỐ' : 'XEM VÀ TIẾP NHẬN SỰ CỐ';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: const BoxDecoration(color: Color(0xFFB91C1C)),
+      decoration: BoxDecoration(color: bannerBg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(children: [
-            Icon(Icons.notification_important, color: Colors.white, size: 22),
-            SizedBox(width: 8),
-            Text('BÁO ĐỘNG KHẨN CẤP', style: TextStyle(
+          Row(children: [
+            Icon(headerIcon, color: Colors.white, size: 22),
+            const SizedBox(width: 8),
+            Text(headerTitle, style: const TextStyle(
               color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
           ]),
           const SizedBox(height: 8),
@@ -601,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF991B1B),
+              foregroundColor: btnTextColor,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
             onPressed: () async {
@@ -612,8 +647,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (changed == true) unawaited(_loadActiveIncidents());
             },
             icon: const Icon(Icons.open_in_new),
-            label: const Text('XEM VÀ TIẾP NHẬN SỰ CỐ',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+            label: Text(btnLabel,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -833,16 +868,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
           final inc = _activeIncidents[idx - 1];
           final isOpen = inc.isOpen;
+          final type = inc.emergencyType.toUpperCase();
+          final isStale = type.contains('STALE') || type.contains('OFFLINE');
+          final isVitals = type.contains('OXYGEN') || type.contains('SPO2') || type.contains('TACHYCARDIA') || type.contains('BRADYCARDIA') || type.contains('SURGE') || type.contains('HYPERTENSION');
+
+          final Color cardColor;
+          final Color iconBgColor;
+          if (isOpen) {
+            if (isStale) {
+              cardColor = const Color(0xFFFFFBEB); // Amber 50
+              iconBgColor = const Color(0xFFD97706); // Amber 600
+            } else if (isVitals) {
+              cardColor = const Color(0xFFFFF7ED); // Orange 50
+              iconBgColor = const Color(0xFFEA580C); // Orange 600
+            } else {
+              cardColor = const Color(0xFFFEF2F2); // Red 50
+              iconBgColor = const Color(0xFFDC2626); // Red 600
+            }
+          } else {
+            cardColor = Colors.white;
+            iconBgColor = const Color(0xFF059669); // Emerald 600 khi đã tiếp nhận
+          }
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: isOpen ? 3 : 1,
-            color: isOpen ? const Color(0xFFFEF2F2) : Colors.white,
+            color: cardColor,
             child: ListTile(
               contentPadding: const EdgeInsets.all(14),
               leading: CircleAvatar(
-                backgroundColor: isOpen ? const Color(0xFFDC2626) : Colors.amber[700],
+                backgroundColor: iconBgColor,
                 child: Icon(
                   _emergencyIcon(inc.emergencyType),
                   color: Colors.white,
@@ -863,7 +919,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     isOpen ? 'Trạng thái: CHƯA TIẾP NHẬN' : 'Trạng thái: ĐÃ TIẾP NHẬN',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isOpen ? Colors.red[700] : Colors.amber[800],
+                      color: isOpen ? iconBgColor : const Color(0xFF059669),
                     ),
                   ),
                 ],

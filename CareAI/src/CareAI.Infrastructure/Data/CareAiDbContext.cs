@@ -124,6 +124,7 @@ public class CareAiDbContext : DbContext
             b.Property(d => d.DeviceTokenHash).HasMaxLength(128).IsRequired();
             b.Property(d => d.DeviceType).HasMaxLength(50).IsRequired();
             b.Property(d => d.DeviceModel).HasMaxLength(100);
+            b.Property(d => d.DisconnectReason).HasMaxLength(50);
             b.Property(d => d.FirmwareVersion).HasMaxLength(50).HasDefaultValue("1.0.0");
             b.HasOne(d => d.ElderProfile)
                 .WithMany(e => e.Devices)

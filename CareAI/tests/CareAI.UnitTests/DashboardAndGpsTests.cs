@@ -435,6 +435,123 @@ public class DashboardAndGpsTests : IDisposable
         Assert.Equal("GRAY", response.StatusColor);
     }
 
+    [Fact]
+    public async Task Fact_WatchStatus_ReturnsNotPaired_WhenNoWatch()
+    {
+        var controller = CreateController(_authCaregiverId);
+        var result = await controller.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ElderDashboardResponse>(okResult.Value);
+        Assert.Null(response.WatchModel);
+        Assert.Equal("NOT_PAIRED", response.WatchStatus);
+    }
+
+    [Fact]
+    public async Task Fact_WatchStatus_ReturnsOnline_WhenWatchActiveWithinStaleWindow()
+    {
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = "WATCH_ACTIVE_01",
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "hash123",
+            DeviceType = "Smartwatch",
+            DeviceModel = "Galaxy Watch6",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow.AddMinutes(-2), // 2 phút < 5 phút Stale
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var result = await controller.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ElderDashboardResponse>(okResult.Value);
+        Assert.Equal("Galaxy Watch6", response.WatchModel);
+        Assert.Equal("ONLINE", response.WatchStatus);
+    }
+
+    [Fact]
+    public async Task Fact_WatchStatus_ReturnsDisconnected_WhenWatchHeartbeatExceedsStaleWindow()
+    {
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = "WATCH_STALE_01",
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "hash123",
+            DeviceType = "Smartwatch",
+            DeviceModel = "Apple Watch Ultra",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow.AddHours(-4), // 4 giờ > StaleWindow
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var result = await controller.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ElderDashboardResponse>(okResult.Value);
+        Assert.Equal("Apple Watch Ultra", response.WatchModel);
+        Assert.Equal("DISCONNECTED", response.WatchStatus);
+        Assert.Equal("SIGNAL_LOST", response.WatchDisconnectReason);
+    }
+
+    [Fact]
+    public async Task Fact_WatchStatus_ReturnsDisconnected_WithBluetoothOffReason()
+    {
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = "WATCH_BTOFF_01",
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "hash123",
+            DeviceType = "Smartwatch",
+            DeviceModel = "Galaxy Watch6",
+            DisconnectReason = "BLUETOOTH_OFF",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow.AddHours(-1),
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var result = await controller.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ElderDashboardResponse>(okResult.Value);
+        Assert.Equal("Galaxy Watch6", response.WatchModel);
+        Assert.Equal("DISCONNECTED", response.WatchStatus);
+        Assert.Equal("BLUETOOTH_OFF", response.WatchDisconnectReason);
+    }
+
+    [Fact]
+    public async Task Fact_WatchStatus_ReturnsOnline_ClearsDisconnectReason()
+    {
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = "WATCH_ONLINE_RECONNECTED_01",
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "hash123",
+            DeviceType = "Smartwatch",
+            DeviceModel = "Galaxy Watch6",
+            DisconnectReason = "BLUETOOTH_OFF", // Trước đó từng có reason nhưng giờ đã kết nối lại
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow.AddMinutes(-1), // Vẫn còn sống trong StaleWindow
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var controller = CreateController(_authCaregiverId);
+        var result = await controller.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ElderDashboardResponse>(okResult.Value);
+        Assert.Equal("Galaxy Watch6", response.WatchModel);
+        Assert.Equal("ONLINE", response.WatchStatus);
+        Assert.Null(response.WatchDisconnectReason);
+    }
+
     public void Dispose()
     {
         _db.Dispose();

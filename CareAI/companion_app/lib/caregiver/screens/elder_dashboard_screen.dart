@@ -458,20 +458,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                     ),
                     const Text(' • ', style: TextStyle(color: Color(0xFF64748B))),
-                    Icon(
-                      Icons.watch_rounded,
-                      size: 14,
-                      color: d.watchModel != null ? const Color(0xFF38BDF8) : const Color(0xFF64748B),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      d.watchModel ?? 'Chưa kết nối đồng hồ',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: d.watchModel != null ? const Color(0xFF38BDF8) : const Color(0xFF94A3B8),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    _buildWatchStatusBadge(d),
                   ],
                 ),
               ],
@@ -479,6 +466,102 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildWatchStatusBadge(ElderDashboard d) {
+    final status = d.watchStatus;
+    final isOnline = status == 'ONLINE';
+    final isDisconnected = status == 'DISCONNECTED';
+
+    if (isOnline) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.watch_rounded, size: 14, color: Color(0xFF10B981)),
+          const SizedBox(width: 4),
+          Text(
+            d.watchModel ?? 'Đồng hồ thông minh',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF38BDF8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.only(left: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xFF064E3B),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+            ),
+            child: const Text(
+              'Trực tuyến',
+              style: TextStyle(fontSize: 10, color: Color(0xFF6EE7B7), fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (isDisconnected) {
+      final isBtOff = d.watchDisconnectReason == 'BLUETOOTH_OFF';
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isBtOff ? Icons.bluetooth_disabled_rounded : Icons.watch_off_outlined,
+            size: 14,
+            color: isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            d.watchModel ?? 'Đồng hồ thông minh',
+            style: TextStyle(
+              fontSize: 12,
+              color: isBtOff ? const Color(0xFFF87171) : const Color(0xFFFBBF24),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.only(left: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: isBtOff ? const Color(0xFF7F1D1D) : const Color(0xFF78350F),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                width: 0.8,
+              ),
+            ),
+            child: Text(
+              isBtOff ? 'Đã tắt Bluetooth' : 'Mất tín hiệu',
+              style: TextStyle(
+                fontSize: 10,
+                color: isBtOff ? const Color(0xFFFECACA) : const Color(0xFFFDE68A),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.watch_rounded, size: 14, color: Color(0xFF64748B)),
+        const SizedBox(width: 4),
+        Text(
+          d.watchModel ?? 'Chưa ghép nối đồng hồ',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF94A3B8),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 
@@ -650,8 +733,22 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final hr = d.latestHeartRate;
     final oxygen = d.latestSpO2;
     final messages = <String>[];
+
+    if (d.watchStatus == 'DISCONNECTED') {
+      final model = d.watchModel ?? 'Đồng hồ';
+      if (d.watchDisconnectReason == 'BLUETOOTH_OFF') {
+        messages.add('Bluetooth trên điện thoại của ${d.fullName} đang bị tắt. Hãy nhắc người thân bật lại Bluetooth trên điện thoại để đồng hồ $model kết nối bảo vệ.');
+      } else {
+        messages.add('Đồng hồ $model đang mất tín hiệu kết nối. Hãy nhắc người thân kiểm tra (đồng hồ hết pin, quên đeo hoặc để xa điện thoại >10m).');
+      }
+    } else if (d.watchStatus == 'NOT_PAIRED') {
+      messages.add('Chưa ghép nối đồng hồ đeo tay. Hãy ghép nối Galaxy Watch hoặc Apple Watch để theo dõi nhịp tim và cảnh báo té ngã.');
+    }
+
     if (hr == null && oxygen == null) {
-      messages.add('Chưa có mẫu nhịp tim hoặc SpO₂. Kiểm tra kết nối đồng hồ, quyền truy cập sức khỏe và mạng.');
+      if (d.watchStatus != 'DISCONNECTED' && d.watchStatus != 'NOT_PAIRED') {
+        messages.add('Chưa có mẫu nhịp tim hoặc SpO₂. Kiểm tra kết nối đồng hồ, quyền truy cập sức khỏe và mạng.');
+      }
     } else {
       if (hr == null) messages.add('Chưa có mẫu nhịp tim. Kiểm tra quyền cảm biến nhịp tim trên đồng hồ.');
       if (oxygen == null) messages.add('Chưa có mẫu SpO₂. Kiểm tra quyền cảm biến SpO₂ và khả năng đo của đồng hồ.');
@@ -2658,16 +2755,110 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     );
   }
 
-  // --- BANNER CẢNH BÁO KHẨN CẤP ---
+  // --- BANNER CẢNH BÁO KHẨN CẤP / SỰ CỐ RIÊNG TỪNG LOẠI ---
   Widget _buildEmergencyAlertBanner(Incident inc) {
+    final type = inc.emergencyType.toUpperCase();
+    final isStale = type.contains('STALE') || type.contains('OFFLINE');
+    final isFall = type.contains('FALL');
+    final isOxygen = type.contains('LOW_OXYGEN') || type.contains('LOWOXYGEN') || type.contains('OXYGEN') || type.contains('SPO2');
+    final isTachy = type.contains('TACHYCARDIA');
+    final isBrady = type.contains('BRADYCARDIA');
+    final isSurge = type.contains('SURGE');
+    final isBp = type.contains('HYPERTENSION') || type.contains('BLOOD_PRESSURE');
+
+    // Xác định giao diện chuyên biệt dựa trên từng loại sự cố
+    final Color bgColor;
+    final Color borderColor;
+    final Color titleColor;
+    final Color timeColor;
+    final Color btnColor;
+    final IconData iconData;
+    final String titleText;
+    final String btnText;
+
+    if (isStale) {
+      bgColor = const Color(0xFF451A03); // Vàng hổ phách trầm
+      borderColor = const Color(0xFFF59E0B);
+      titleColor = const Color(0xFFFDE68A);
+      timeColor = const Color(0xFFFEF3C7);
+      btnColor = const Color(0xFFD97706);
+      iconData = Icons.wifi_off_rounded;
+      titleText = 'CẢNH BÁO THIẾT BỊ MẤT TÍN HIỆU!';
+      btnText = 'KIỂM TRA KẾT NỐI & XỬ LÝ';
+    } else if (isFall) {
+      bgColor = const Color(0xFF450A0A); // Đỏ cấp cứu té ngã
+      borderColor = const Color(0xFFEF4444);
+      titleColor = const Color(0xFFFCA5A5);
+      timeColor = const Color(0xFFFECACA);
+      btnColor = const Color(0xFFDC2626);
+      iconData = Icons.warning_rounded;
+      titleText = 'PHÁT HIỆN TÉ NGÃ KHẨN CẤP!';
+      btnText = 'MỞ CHI TIẾT CỨU HỘ & XỬ LÝ';
+    } else if (isOxygen) {
+      bgColor = const Color(0xFF2E1065); // Tím sẫm oxy máu
+      borderColor = const Color(0xFFA855F7);
+      titleColor = const Color(0xFFE9D5FF);
+      timeColor = const Color(0xFFF3E8FF);
+      btnColor = const Color(0xFF7E22CE);
+      iconData = Icons.air_rounded;
+      titleText = 'CẢNH BÁO OXY MÁU (SpO₂) THẤP!';
+      btnText = 'KIỂM TRA OXY MÁU & XỬ LÝ';
+    } else if (isTachy) {
+      bgColor = const Color(0xFF431407); // Đỏ cam nhịp tim nhanh
+      borderColor = const Color(0xFFEA580C);
+      titleColor = const Color(0xFFFED7AA);
+      timeColor = const Color(0xFFFFEDD5);
+      btnColor = const Color(0xFFC2410C);
+      iconData = Icons.monitor_heart_rounded;
+      titleText = 'CẢNH BÁO NHỊP TIM QUÁ NHANH!';
+      btnText = 'KIỂM TRA NHỊP TIM & XỬ LÝ';
+    } else if (isBrady) {
+      bgColor = const Color(0xFF431407); // Cam hổ phách nhịp tim chậm
+      borderColor = const Color(0xFFF97316);
+      titleColor = const Color(0xFFFED7AA);
+      timeColor = const Color(0xFFFFEDD5);
+      btnColor = const Color(0xFFEA580C);
+      iconData = Icons.monitor_heart_rounded;
+      titleText = 'CẢNH BÁO NHỊP TIM QUÁ CHẬM!';
+      btnText = 'KIỂM TRA NHỊP TIM & XỬ LÝ';
+    } else if (isSurge) {
+      bgColor = const Color(0xFF431407); // Cam đỏ nhịp tim tăng vọt
+      borderColor = const Color(0xFFFB923C);
+      titleColor = const Color(0xFFFED7AA);
+      timeColor = const Color(0xFFFFEDD5);
+      btnColor = const Color(0xFFC2410C);
+      iconData = Icons.monitor_heart_rounded;
+      titleText = 'CẢNH BÁO NHỊP TIM TĂNG ĐỘT BIẾN!';
+      btnText = 'KIỂM TRA NHỊP TIM & XỬ LÝ';
+    } else if (isBp) {
+      bgColor = const Color(0xFF451A03); // Cam đỏ cơn tăng huyết áp
+      borderColor = const Color(0xFFF97316);
+      titleColor = const Color(0xFFFED7AA);
+      timeColor = const Color(0xFFFFEDD5);
+      btnColor = const Color(0xFFEA580C);
+      iconData = Icons.speed_rounded;
+      titleText = 'CẢNH BÁO CƠN TĂNG HUYẾT ÁP!';
+      btnText = 'KIỂM TRA HUYẾT ÁP & XỬ LÝ';
+    } else {
+      // Mặc định cho SOS khẩn cấp (MANUAL_SOS)
+      bgColor = const Color(0xFF450A0A);
+      borderColor = const Color(0xFFEF4444);
+      titleColor = const Color(0xFFFCA5A5);
+      timeColor = const Color(0xFFFECACA);
+      btnColor = const Color(0xFFDC2626);
+      iconData = Icons.emergency_rounded;
+      titleText = 'BÁO ĐỘNG SOS KHẨN CẤP!';
+      btnText = 'MỞ CHI TIẾT CỨU HỘ & XỬ LÝ';
+    }
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF450A0A),
+        color: bgColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFEF4444), width: 2),
+        border: Border.all(color: borderColor, width: 2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+            color: borderColor.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -2679,18 +2870,20 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         children: [
           Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+              Icon(iconData, color: borderColor, size: 24),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  inc.emergencyType == 'FALL_DETECTED' ? 'PHÁT HIỆN TÉ NGÃ KHẨN CẤP!' : 'BÁO ĐỘNG SOS TỪ THIẾT BỊ!',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFFFCA5A5)),
+                  titleText,
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: inc.isOpen ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+                  color: inc.isOpen
+                      ? (isStale ? const Color(0xFFD97706) : const Color(0xFFDC2626))
+                      : const Color(0xFF059669),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -2703,19 +2896,19 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           const SizedBox(height: 8),
           Text(
             'Thời gian: ${DateFormat('HH:mm:ss dd/MM').format(inc.triggeredAt.toLocal())}',
-            style: const TextStyle(fontSize: 12, color: Color(0xFFFECACA)),
+            style: TextStyle(fontSize: 12, color: timeColor),
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
+                backgroundColor: btnColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-              label: const Text('MỞ CHI TIẾT CỨU HỘ & XỬ LÝ', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: Text(btnText, style: const TextStyle(fontWeight: FontWeight.bold)),
               onPressed: () async {
                 final changed = await Navigator.push(
                   context,

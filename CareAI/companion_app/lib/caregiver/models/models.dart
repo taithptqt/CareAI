@@ -304,6 +304,8 @@ class ElderDashboard {
   final DateTime? lastSyncedAt;
   final Incident? activeEmergency;
   final String? watchModel;
+  final String? watchStatus; // NOT_PAIRED | ONLINE | DISCONNECTED
+  final String? watchDisconnectReason; // BLUETOOTH_OFF | SIGNAL_LOST
 
   ElderDashboard({
     required this.elderProfileId,
@@ -322,6 +324,8 @@ class ElderDashboard {
     this.lastSyncedAt,
     this.activeEmergency,
     this.watchModel,
+    this.watchStatus,
+    this.watchDisconnectReason,
   });
 
   factory ElderDashboard.fromJson(Map<String, dynamic> json) {
@@ -342,6 +346,8 @@ class ElderDashboard {
       lastSyncedAt: json['lastSyncedAt'] != null ? DateTime.tryParse(json['lastSyncedAt']) : null,
       activeEmergency: json['activeEmergency'] != null ? Incident.fromJson(json['activeEmergency']) : null,
       watchModel: json['watchModel'] as String?,
+      watchStatus: json['watchStatus'] as String?,
+      watchDisconnectReason: json['watchDisconnectReason'] as String?,
     );
   }
 }

@@ -376,7 +376,41 @@ import workmanager_apple
   }
 
   func sessionReachabilityDidChange(_ session: WCSession) {
-    NSLog("[CareAI-iOS] WCSession reachability changed: %d", session.isReachable)
+    let reachable = session.isReachable
+    let paired = session.isPaired
+    NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession reachability changed: reachable=%d, paired=%d", reachable, paired)
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      let isConnected = paired && reachable
+      let payload: [String: Any] = [
+        "isConnected": isConnected,
+        "watchName": "Apple Watch",
+        "nodeId": paired ? "apple_watch_wcsession" : nil,
+        "isNearby": reachable,
+        "connectedCount": isConnected ? 1 : (paired ? 1 : 0),
+        "reason": isConnected ? "CONNECTED" : (paired ? "UNREACHABLE" : "NOT_PAIRED")
+      ]
+      self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: payload)
+    }
+  }
+
+  func sessionWatchStateDidChange(_ session: WCSession) {
+    let reachable = session.isReachable
+    let paired = session.isPaired
+    NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession watch state changed: reachable=%d, paired=%d", reachable, paired)
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      let isConnected = paired && reachable
+      let payload: [String: Any] = [
+        "isConnected": isConnected,
+        "watchName": "Apple Watch",
+        "nodeId": paired ? "apple_watch_wcsession" : nil,
+        "isNearby": reachable,
+        "connectedCount": isConnected ? 1 : (paired ? 1 : 0),
+        "reason": isConnected ? "CONNECTED" : (paired ? "UNREACHABLE" : "NOT_PAIRED")
+      ]
+      self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: payload)
+    }
   }
 
   func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {

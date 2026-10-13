@@ -73,6 +73,8 @@ public class DashboardController : ControllerBase
             string.Equals(d.DeviceType, "WearOS", StringComparison.OrdinalIgnoreCase));
 
         string? watchModel = null;
+        string watchStatus = "NOT_PAIRED";
+        string? watchDisconnectReason = null;
         if (watchDevice != null)
         {
             if (!string.IsNullOrWhiteSpace(watchDevice.DeviceModel))
@@ -91,6 +93,10 @@ public class DashboardController : ControllerBase
             {
                 watchModel = "Galaxy Watch";
             }
+
+            var isWatchOnline = watchDevice.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfterFor(watchDevice.DeviceType));
+            watchStatus = isWatchOnline ? "ONLINE" : "DISCONNECTED";
+            watchDisconnectReason = isWatchOnline ? null : (watchDevice.DisconnectReason ?? "SIGNAL_LOST");
         }
 
         // Chỉ số sinh hiệu mới nhất
@@ -199,7 +205,9 @@ public class DashboardController : ControllerBase
             activeIncident != null ? IncidentDtoMapper.ToResponse(activeIncident, elder.FullName) : null,
             DemoHeartRate: demoHr != null ? new VitalSignDto(demoHr.MetricType, demoHr.Value, demoHr.Unit, demoHr.Timestamp, "YELLOW") : null,
             DemoSpO2: demoSpo2 != null ? new VitalSignDto(demoSpo2.MetricType, demoSpo2.Value, demoSpo2.Unit, demoSpo2.Timestamp, "YELLOW") : null,
-            WatchModel: watchModel
+            WatchModel: watchModel,
+            WatchStatus: watchStatus,
+            WatchDisconnectReason: watchDisconnectReason
         );
 
         return Ok(response);

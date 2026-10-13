@@ -75,6 +75,8 @@ public static class DatabaseMigrationHelper
             ElderProfileId NVARCHAR(50) NOT NULL,
             DeviceTokenHash NVARCHAR(128) NOT NULL,
             DeviceType NVARCHAR(50) NOT NULL,
+            DeviceModel NVARCHAR(100) NULL,
+            DisconnectReason NVARCHAR(50) NULL,
             FirmwareVersion NVARCHAR(50) NOT NULL DEFAULT '1.0.0',
             IsActive BIT NOT NULL DEFAULT 1,
             LastHeartbeat DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -426,6 +428,12 @@ public static class DatabaseMigrationHelper
     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('DeviceRegistrations') AND name = 'DeviceModel')
     BEGIN
         ALTER TABLE DeviceRegistrations ADD DeviceModel NVARCHAR(100) NULL;
+    END;
+
+    -- Bổ sung cột DisconnectReason cho DeviceRegistrations (phân biệt tắt Bluetooth chủ động vs mất sóng BLE)
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('DeviceRegistrations') AND name = 'DisconnectReason')
+    BEGIN
+        ALTER TABLE DeviceRegistrations ADD DisconnectReason NVARCHAR(50) NULL;
     END;
 
     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FamilyInvitations')

@@ -14,6 +14,9 @@ class FallService {
   final _fallEventController = StreamController<FallEvent>.broadcast();
   Stream<FallEvent> get onFallDetected => _fallEventController.stream;
 
+  final _watchStatusController = StreamController<WatchStatus>.broadcast();
+  Stream<WatchStatus> get onWatchConnectionChanged => _watchStatusController.stream;
+
   StreamSubscription<AccelerometerEvent>? _sensorSubscription;
   bool _isPhoneFallDetectorEnabled = false;
 
@@ -21,13 +24,17 @@ class FallService {
   bool _freeFallDetected = false;
   DateTime? _freeFallTime;
 
-  /// Khởi tạo lắng nghe Fall Bridge từ Native Kotlin (Samsung Galaxy Watch)
+  /// Khởi tạo lắng nghe Fall Bridge và Sự kiện kết nối Đồng hồ tức thì từ Native
   void initialize() {
     _fallChannel.setMethodCallHandler((call) async {
       if (call.method == 'onHardwareFallDetected') {
         final rawMap = Map<String, dynamic>.from(call.arguments as Map);
         final event = FallEvent.fromMap(rawMap, isHardware: true);
         _fallEventController.add(event);
+      } else if (call.method == 'onWatchConnectionChanged') {
+        final rawMap = Map<String, dynamic>.from(call.arguments as Map);
+        final status = WatchStatus.fromMap(rawMap);
+        _watchStatusController.add(status);
       }
     });
   }
@@ -194,6 +201,7 @@ class FallService {
   void dispose() {
     _sensorSubscription?.cancel();
     _fallEventController.close();
+    _watchStatusController.close();
   }
 }
 
@@ -205,6 +213,7 @@ class WatchStatus {
   final bool isNearby;
   final int connectedCount;
   final String? error;
+  final String? reason;
 
   const WatchStatus({
     required this.isConnected,
@@ -213,6 +222,7 @@ class WatchStatus {
     this.isNearby = false,
     this.connectedCount = 0,
     this.error,
+    this.reason,
   });
 
   factory WatchStatus.fromMap(Map<dynamic, dynamic> map) {
@@ -223,6 +233,7 @@ class WatchStatus {
       isNearby: map['isNearby'] as bool? ?? false,
       connectedCount: map['connectedCount'] as int? ?? 0,
       error: map['error'] as String?,
+      reason: map['reason'] as String?,
     );
   }
 }

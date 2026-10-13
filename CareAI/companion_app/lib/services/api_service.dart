@@ -205,8 +205,12 @@ class ApiService {
     } catch (_) {}
   }
 
-  /// Đồng bộ tên đồng hồ thông minh đang kết nối qua Bluetooth lên máy chủ
-  Future<bool> syncConnectedWatch(String watchModel) async {
+  /// Đồng bộ tên và trạng thái kết nối của đồng hồ thông minh lên máy chủ
+  Future<bool> syncConnectedWatch(
+    String watchModel, {
+    bool isConnected = true,
+    String? disconnectReason,
+  }) async {
     final deviceId = await getDeviceId();
     final deviceToken = await getDeviceToken();
     if (deviceId == null || deviceToken == null) return false;
@@ -216,7 +220,14 @@ class ApiService {
       'X-DeviceId': deviceId,
       'X-Device-Token': deviceToken,
     };
-    final body = jsonEncode({'watchModel': watchModel});
+    final bodyMap = <String, dynamic>{
+      'watchModel': watchModel,
+      'isConnected': isConnected,
+    };
+    if (disconnectReason != null) {
+      bodyMap['disconnectReason'] = disconnectReason;
+    }
+    final body = jsonEncode(bodyMap);
     final endpoints = _getEndpointsToTry();
 
     for (final url in endpoints) {

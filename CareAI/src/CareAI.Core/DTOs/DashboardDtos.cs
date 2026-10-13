@@ -59,5 +59,7 @@ public record ElderDashboardResponse(
     IncidentResponseDto? ActiveEmergency,
     VitalSignDto? DemoHeartRate = null,
     VitalSignDto? DemoSpO2 = null,
-    string? WatchModel = null
+    string? WatchModel = null,
+    string? WatchStatus = null, // NOT_PAIRED | ONLINE | DISCONNECTED
+    string? WatchDisconnectReason = null // BLUETOOTH_OFF | SIGNAL_LOST | null
 );

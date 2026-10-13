@@ -9,6 +9,7 @@ using CareAI.API.Middlewares;
 using CareAI.Core.DTOs;
 using CareAI.Core.Entities;
 using CareAI.Infrastructure.Data;
+using CareAI.Infrastructure.Engines;
 
 namespace CareAI.API.Controllers;
 
@@ -304,10 +305,21 @@ public class DevicesController : ControllerBase
             (d.DeviceType == "Smartwatch" || d.DeviceType == "AppleWatch" || d.DeviceType == "GalaxyWatch" || d.DeviceType == "WearOS"), ct);
 
         var now = DateTime.UtcNow;
+        var isConnected = request.IsConnected ?? true;
+
         if (watchDevice != null)
         {
-            watchDevice.DeviceModel = request.WatchModel;
-            watchDevice.LastHeartbeat = now;
+            if (!string.IsNullOrWhiteSpace(request.WatchModel))
+            {
+                watchDevice.DeviceModel = request.WatchModel;
+            }
+
+            watchDevice.DisconnectReason = isConnected ? null : request.DisconnectReason;
+
+            // Nếu đồng hồ bị ngắt kết nối với Companion Phone -> lùi LastHeartbeat để đánh dấu DISCONNECTED ngay tức thì
+            watchDevice.LastHeartbeat = isConnected
+                ? now
+                : now.Subtract(DeviceStaleEngine.StaleAfterFor(watchDevice.DeviceType).Add(TimeSpan.FromMinutes(2)));
             watchDevice.UpdatedAt = now;
         }
         else if (!string.IsNullOrWhiteSpace(request.WatchModel))
@@ -319,9 +331,10 @@ public class DevicesController : ControllerBase
                 DeviceTokenHash = companionDevice.DeviceTokenHash,
                 DeviceType = "Smartwatch",
                 DeviceModel = request.WatchModel,
+                DisconnectReason = isConnected ? null : request.DisconnectReason,
                 FirmwareVersion = "1.0.0",
                 IsActive = true,
-                LastHeartbeat = now,
+                LastHeartbeat = isConnected ? now : now.Subtract(TimeSpan.FromHours(1)),
                 RegisteredAt = now,
                 CreatedAt = now,
                 UpdatedAt = now
@@ -329,9 +342,9 @@ public class DevicesController : ControllerBase
         }
 
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} cho Cụ {ElderId}",
-            authenticatedDeviceId, request.WatchModel, companionDevice.ElderProfileId);
+        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}) cho Cụ {ElderId}",
+            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, companionDevice.ElderProfileId);
 
-        return Ok(new { status = "SYNCED", watchModel = request.WatchModel });
+        return Ok(new { status = "SYNCED", watchModel = request.WatchModel, isConnected, disconnectReason = request.DisconnectReason });
     }
 }
