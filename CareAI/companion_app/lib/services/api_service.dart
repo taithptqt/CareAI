@@ -120,14 +120,69 @@ class ApiService {
 
       return pairResponse;
     } else {
-      String errorMessage = 'Ghép nối thất bại (Mã: ${response.statusCode})';
-      try {
-        final errJson = jsonDecode(response.body);
-        if (errJson is Map && errJson.containsKey('error')) {
-          errorMessage = errJson['error'];
+      throw HttpException(_extractDeviceError(response.body, response.statusCode));
+    }
+  }
+
+  String _extractDeviceError(String responseBody, int statusCode) {
+    final trimmed = responseBody.trim();
+    if (trimmed.isEmpty) {
+      return _defaultDeviceErrorForStatus(statusCode);
+    }
+
+    if (trimmed.startsWith('<') || trimmed.contains('<html') || trimmed.contains('<!DOCTYPE')) {
+      final titleMatch = RegExp(r'<title>(.*?)</title>', caseSensitive: false).firstMatch(trimmed);
+      final pageTitle = titleMatch?.group(1)?.trim();
+      if (pageTitle != null && pageTitle.isNotEmpty && !pageTitle.toLowerCase().contains('error')) {
+        return '$pageTitle (Mã: $statusCode)';
+      }
+      return _defaultDeviceErrorForStatus(statusCode);
+    }
+
+    try {
+      final data = jsonDecode(trimmed);
+      if (data is Map) {
+        if (data['detail'] != null && data['detail'].toString().trim().isNotEmpty) {
+          return data['detail'].toString().trim();
         }
-      } catch (_) {}
-      throw HttpException(errorMessage);
+        if (data['error'] != null && data['error'].toString().trim().isNotEmpty) {
+          return data['error'].toString().trim();
+        }
+        if (data['message'] != null && data['message'].toString().trim().isNotEmpty) {
+          return data['message'].toString().trim();
+        }
+        if (data['title'] != null && data['title'].toString().trim().isNotEmpty) {
+          return data['title'].toString().trim();
+        }
+      }
+    } catch (_) {}
+
+    return _defaultDeviceErrorForStatus(statusCode, fallbackText: trimmed);
+  }
+
+  String _defaultDeviceErrorForStatus(int statusCode, {String? fallbackText}) {
+    if (fallbackText != null && fallbackText.isNotEmpty && fallbackText.length < 120 && !fallbackText.startsWith('<')) {
+      return fallbackText;
+    }
+    switch (statusCode) {
+      case 400:
+        return 'Thông tin yêu cầu không hợp lệ hoặc thiếu dữ liệu (Mã 400).';
+      case 401:
+        return 'Xác thực thiết bị thất bại hoặc token không hợp lệ (Mã 401).';
+      case 404:
+        return 'Mã PIN ghép nối không tồn tại hoặc đã hết hạn (Mã 404).';
+      case 409:
+        return 'Thiết bị đã tồn tại hoặc đang có phiên xung đột (Mã 409).';
+      case 500:
+        return 'Máy chủ nội bộ hoặc cơ sở dữ liệu gặp sự cố (Mã 500). Vui lòng thử lại sau.';
+      case 502:
+        return 'Cổng kết nối máy chủ không khả dụng (Bad Gateway 502).';
+      case 503:
+        return 'Cơ sở dữ liệu đám mây đang tạm dừng hoặc máy chủ đang bảo trì (Mã 503).';
+      case 504:
+        return 'Hết thời gian chờ phản hồi từ máy chủ (Gateway Timeout 504).';
+      default:
+        return 'Yêu cầu thất bại với mã lỗi HTTP $statusCode.';
     }
   }
 

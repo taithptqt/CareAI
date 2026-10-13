@@ -216,8 +216,8 @@ class CaregiverApiService {
       await saveAuth(auth);
       return auth;
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Đăng ký thất bại (Mã lỗi: ${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -244,12 +244,15 @@ class CaregiverApiService {
       final auth = AuthResponse.fromJson(data);
       await saveAuth(auth);
       return auth;
+    } else if (response.statusCode == 401) {
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err.isNotEmpty ? err : 'Email hoặc mật khẩu không chính xác.');
     } else if (response.statusCode == 423) {
-      final err = _extractError(response.body);
+      final err = _extractError(response.body, response.statusCode);
       throw Exception(err.isNotEmpty ? err : 'Tài khoản đã bị tạm khóa 15 phút do nhập sai mật khẩu quá 5 lần.');
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Email hoặc mật khẩu không chính xác');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -270,8 +273,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return;
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể gửi yêu cầu đặt lại mật khẩu');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -298,8 +301,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return;
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Đặt lại mật khẩu thất bại');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -332,8 +335,8 @@ class CaregiverApiService {
     } else if (response.statusCode == 403) {
       throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền chỉnh sửa hồ sơ.');
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Cập nhật hồ sơ thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -352,8 +355,8 @@ class CaregiverApiService {
     } else if (response.statusCode == 403) {
       throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền tạo mã mời gia đình.');
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể tạo mã mời gia đình (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -376,9 +379,12 @@ class CaregiverApiService {
       return AcceptInvitationResponse.fromJson(jsonDecode(response.body));
     } else if (response.statusCode == 409) {
       throw Exception('Bạn đã là thành viên trong nhóm chăm sóc của người cao tuổi này.');
-    } else {
-      final err = _extractError(response.body);
+    } else if (response.statusCode == 400 || response.statusCode == 404) {
+      final err = _extractError(response.body, response.statusCode);
       throw Exception(err.isNotEmpty ? err : 'Mã mời không chính xác hoặc đã hết hạn (24 giờ).');
+    } else {
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -398,8 +404,8 @@ class CaregiverApiService {
     } else if (response.statusCode == 403) {
       throw Exception('Bạn không có quyền xem nhóm gia đình này.');
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể tải danh sách thành viên (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -418,8 +424,8 @@ class CaregiverApiService {
     } else if (response.statusCode == 403) {
       throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền thu hồi thành viên.');
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Thu hồi quyền thành viên thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -438,8 +444,8 @@ class CaregiverApiService {
     } else if (response.statusCode == 403) {
       throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền hủy ghép nối thiết bị.');
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Hủy ghép nối thiết bị thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -461,13 +467,13 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return DeleteElderResponse.fromJson(jsonDecode(response.body));
     } else if (response.statusCode == 400) {
-      final err = _extractError(response.body);
+      final err = _extractError(response.body, response.statusCode);
       throw Exception(err.isNotEmpty ? err : 'Mật khẩu xác nhận cấp 2 không chính xác.');
     } else if (response.statusCode == 403) {
       throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền xóa hồ sơ người cao tuổi.');
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Xóa hồ sơ thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -493,7 +499,8 @@ class CaregiverApiService {
       await logout();
       throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     } else {
-      throw Exception('Không thể tải danh sách người cao tuổi (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -529,8 +536,8 @@ class CaregiverApiService {
     if (response.statusCode == 201) {
       return ElderItem.fromJson(jsonDecode(response.body));
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Tạo hồ sơ thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -548,8 +555,8 @@ class CaregiverApiService {
       final data = jsonDecode(response.body);
       return data['pin'] ?? '';
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể sinh mã PIN (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -566,7 +573,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return ElderDashboard.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Không thể tải bảng điều khiển sức khỏe (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -583,7 +591,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return HeartRate24hData.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Không thể tải chuỗi nhịp tim 24h (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -600,7 +609,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return BloodPressureHistoryData.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Không thể tải lịch sử huyết áp (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -617,7 +627,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return Spo224hData.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Không thể tải chuỗi SpO2 24h (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -634,7 +645,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return HourlyStepsData.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Không thể tải dữ liệu vận động 24h (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -651,7 +663,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return SleepSummaryData.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Không thể tải tổng kết giấc ngủ (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -669,7 +682,8 @@ class CaregiverApiService {
       final List<dynamic> list = jsonDecode(response.body);
       return list.cast<Map<String, dynamic>>();
     } else {
-      throw Exception('Không thể tải dữ liệu sinh hiệu thô (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -687,7 +701,8 @@ class CaregiverApiService {
       final List<dynamic> list = jsonDecode(response.body);
       return list.map((e) => Incident.fromJson(e as Map<String, dynamic>)).toList();
     } else {
-      throw Exception('Không thể tải sự cố khẩn cấp (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -704,7 +719,8 @@ class CaregiverApiService {
       }),
     ).timeout(const Duration(seconds: 10)));
     if (response.statusCode != 200) {
-      throw Exception('Không thể lưu địa chỉ nhà (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -717,8 +733,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return Incident.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     }
-    throw Exception(_extractError(response.body).isNotEmpty
-        ? _extractError(response.body) : 'Không thể tải sự cố (${response.statusCode})');
+    final err = _extractError(response.body, response.statusCode);
+    throw Exception(err);
   }
 
   Future<Uint8List?> getIncidentPhoto(String id) async {
@@ -729,7 +745,8 @@ class CaregiverApiService {
     ).timeout(const Duration(seconds: 8)));
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
-      throw Exception('Không thể tải ảnh sự cố (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
     return response.bodyBytes;
   }
@@ -743,7 +760,8 @@ class CaregiverApiService {
       body: jsonEncode({'pushToken': pushToken, 'deviceModel': 'Android caregiver app'}),
     ).timeout(const Duration(seconds: 8)));
     if (response.statusCode != 200) {
-      throw Exception('Không thể đăng ký thông báo (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -756,7 +774,8 @@ class CaregiverApiService {
       body: jsonEncode({'pushToken': pushToken}),
     ).timeout(const Duration(seconds: 8)));
     if (response.statusCode != 204) {
-      throw Exception('Không thể hủy đăng ký thông báo (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -782,11 +801,9 @@ class CaregiverApiService {
 
     if (response.statusCode == 200) {
       return;
-    } else if (response.statusCode == 409) {
-      throw Exception(_extractError(response.body));
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Tiếp nhận sự cố thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -813,8 +830,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return;
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Đóng sự cố thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -831,8 +848,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return ThresholdData.fromJson(jsonDecode(response.body));
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể lấy thông tin ngưỡng (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -849,8 +866,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return ThresholdRecommendation.fromJson(jsonDecode(response.body));
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể phân tích ngưỡng thích nghi (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -887,8 +904,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return ThresholdData.fromJson(jsonDecode(response.body));
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Cập nhật ngưỡng thất bại (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -933,8 +950,8 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return PagedIncidents.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể tải lịch sử sự cố (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
@@ -949,17 +966,92 @@ class CaregiverApiService {
     if (response.statusCode == 200) {
       return IncidentHeartRateWindow.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     } else {
-      final err = _extractError(response.body);
-      throw Exception(err.isNotEmpty ? err : 'Không thể tải chuỗi nhịp tim sự cố (${response.statusCode})');
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
     }
   }
 
-  String _extractError(String responseBody) {
+  String _extractError(String responseBody, [int? statusCode]) {
+    final trimmed = responseBody.trim();
+    if (trimmed.isEmpty) {
+      return _defaultMessageForStatus(statusCode);
+    }
+
+    // Nếu trả về HTML (ví dụ: màn hình lỗi mặc định của IIS/Azure/Kestrel)
+    if (trimmed.startsWith('<') || trimmed.contains('<html') || trimmed.contains('<!DOCTYPE')) {
+      final titleMatch = RegExp(r'<title>(.*?)</title>', caseSensitive: false).firstMatch(trimmed);
+      final pageTitle = titleMatch?.group(1)?.trim();
+      if (pageTitle != null && pageTitle.isNotEmpty && !pageTitle.toLowerCase().contains('error')) {
+        return '$pageTitle (Mã lỗi: ${statusCode ?? 500})';
+      }
+      return _defaultMessageForStatus(statusCode);
+    }
+
     try {
-      final data = jsonDecode(responseBody);
-      return data['error'] ?? data['message'] ?? '';
-    } catch (_) {
-      return responseBody;
+      final data = jsonDecode(trimmed);
+      if (data is Map) {
+        if (data['error'] != null && data['error'].toString().trim().isNotEmpty) {
+          return data['error'].toString().trim();
+        }
+        if (data['message'] != null && data['message'].toString().trim().isNotEmpty) {
+          return data['message'].toString().trim();
+        }
+        if (data['detail'] != null && data['detail'].toString().trim().isNotEmpty) {
+          return data['detail'].toString().trim();
+        }
+        if (data['title'] != null && data['title'].toString().trim().isNotEmpty) {
+          return data['title'].toString().trim();
+        }
+        // Trường hợp ASP.NET Core Validation Errors: { "errors": { "Email": ["..."] } }
+        if (data['errors'] is Map) {
+          final errMap = data['errors'] as Map;
+          final messages = <String>[];
+          for (final entry in errMap.entries) {
+            if (entry.value is List) {
+              messages.addAll((entry.value as List).map((e) => e.toString()));
+            } else if (entry.value != null) {
+              messages.add(entry.value.toString());
+            }
+          }
+          if (messages.isNotEmpty) {
+            return messages.join(', ');
+          }
+        }
+      }
+    } catch (_) {}
+
+    return _defaultMessageForStatus(statusCode, fallbackText: trimmed);
+  }
+
+  String _defaultMessageForStatus(int? statusCode, {String? fallbackText}) {
+    if (fallbackText != null && fallbackText.isNotEmpty && fallbackText.length < 120 && !fallbackText.startsWith('<')) {
+      return fallbackText;
+    }
+    switch (statusCode) {
+      case 400:
+        return 'Yêu cầu không hợp lệ hoặc thiếu dữ liệu bắt buộc (Mã 400).';
+      case 401:
+        return 'Email hoặc mật khẩu không chính xác hoặc phiên đã hết hạn (Mã 401).';
+      case 403:
+        return 'Bạn không có quyền thực hiện thao tác này (Mã 403).';
+      case 404:
+        return 'Không tìm thấy thông tin yêu cầu trên hệ thống (Mã 404).';
+      case 409:
+        return 'Dữ liệu bị xung đột hoặc đã tồn tại trên hệ thống (Mã 409).';
+      case 423:
+        return 'Tài khoản đã bị tạm khóa 15 phút do nhập sai mật khẩu quá 5 lần.';
+      case 500:
+        return 'Máy chủ nội bộ hoặc cơ sở dữ liệu gặp sự cố (Mã 500). Vui lòng thử lại sau.';
+      case 502:
+        return 'Cổng kết nối máy chủ không khả dụng (Bad Gateway 502).';
+      case 503:
+        return 'Dịch vụ máy chủ hoặc CSDL đang bảo trì/tạm dừng (Service Unavailable 503).';
+      case 504:
+        return 'Hết thời gian chờ phản hồi từ máy chủ (Gateway Timeout 504).';
+      default:
+        return statusCode != null
+            ? 'Yêu cầu thất bại với mã lỗi HTTP $statusCode.'
+            : 'Không thể kết nối đến máy chủ CareAI.';
     }
   }
 }
