@@ -73,100 +73,112 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
+        useSafeArea: true,
         backgroundColor: Colors.transparent,
         builder: (ctx) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: 24 + MediaQuery.of(ctx).viewInsets.bottom,
               ),
-              const SizedBox(height: 20),
-              const Icon(Icons.mark_email_read_outlined, size: 48, color: Color(0xFF0284C7)),
-              const SizedBox(height: 12),
-              const Text(
-                'Mã Mời Gia Đình 24 Giờ',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Gửi mã 6 ký tự này cho người thân để cùng chăm sóc ${widget.elderName}:',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2FE),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF0284C7), width: 2),
-                ),
-                child: Text(
-                  res.invitationCode,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 8,
-                    color: Color(0xFF0284C7),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF94A3B8)),
-                  const SizedBox(width: 4),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  ),
+                  const SizedBox(height: 20),
+                  const Icon(Icons.mark_email_read_outlined, size: 48, color: Color(0xFF0284C7)),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Mã Mời Gia Đình 24 Giờ',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 6),
                   Text(
-                    'Hết hạn lúc: ${DateFormat('HH:mm - dd/MM/yyyy').format(res.expiresAt.toLocal())}',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    'Gửi mã 6 ký tự này cho người thân để cùng chăm sóc ${widget.elderName}:',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2FE),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF0284C7), width: 2),
+                    ),
+                    child: Text(
+                      res.invitationCode,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                        color: Color(0xFF0284C7),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF94A3B8)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Hết hạn lúc: ${DateFormat('HH:mm - dd/MM/yyyy').format(res.expiresAt.toLocal())}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.copy, size: 18),
+                          label: const Text('Sao Chép Mã'),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: res.invitationCode));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã sao chép mã mời vào bộ nhớ tạm!'), backgroundColor: Colors.green),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('Xong'),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Sao Chép Mã'),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: res.invitationCode));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Đã sao chép mã mời vào bộ nhớ tạm!'), backgroundColor: Colors.green),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0284C7),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Xong'),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       );
@@ -231,7 +243,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: SafeArea(child: _buildBody()),
       floatingActionButton: _isCurrentUserPrimary
           ? FloatingActionButton.extended(
               backgroundColor: const Color(0xFF0284C7),
@@ -268,7 +280,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
       children: [
         // Role Info Banner
         Container(
