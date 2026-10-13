@@ -16,10 +16,35 @@ import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.WearableListenerService
 import org.json.JSONObject
 
 class WearOsMessageReceiverService : WearableListenerService() {
+
+    override fun onPeerConnected(peer: Node) {
+        super.onPeerConnected(peer)
+        Log.i("CareAI-WearReceiver", "[EVENT-DRIVEN] Đồng hồ vừa kết nối tức thì: ${peer.displayName} (${peer.id})")
+        sendBroadcast(Intent("vn.careai.companion.WATCH_CONNECTION_CHANGED").apply {
+            setPackage(packageName)
+            putExtra("isConnected", true)
+            putExtra("watchName", peer.displayName)
+            putExtra("nodeId", peer.id)
+            putExtra("isNearby", peer.isNearby)
+        })
+    }
+
+    override fun onPeerDisconnected(peer: Node) {
+        super.onPeerDisconnected(peer)
+        Log.w("CareAI-WearReceiver", "[EVENT-DRIVEN] Đồng hồ vừa ngắt kết nối tức thì: ${peer.displayName} (${peer.id})")
+        sendBroadcast(Intent("vn.careai.companion.WATCH_CONNECTION_CHANGED").apply {
+            setPackage(packageName)
+            putExtra("isConnected", false)
+            putExtra("watchName", peer.displayName)
+            putExtra("nodeId", peer.id)
+            putExtra("isNearby", peer.isNearby)
+        })
+    }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         if (messageEvent.path == "/careai/fall_detected") {

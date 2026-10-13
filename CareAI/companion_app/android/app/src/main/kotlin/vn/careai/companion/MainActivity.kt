@@ -24,7 +24,6 @@ import androidx.core.content.ContextCompat
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import com.google.android.gms.wearable.Node
-import com.google.android.gms.wearable.NodeClient
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import org.json.JSONObject
@@ -39,29 +38,22 @@ class MainActivity : FlutterActivity() {
     private var fallMethodChannel: MethodChannel? = null
 
     // Event-Driven Watchdog: Lắng nghe sự kiện kết nối/ngắt kết nối đồng hồ Wear OS thời gian thực (0.1 giây)
-    private val watchNodeListener = object : NodeClient.OnNodeChangedListener {
-        override fun onPeerConnected(node: Node) {
-            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Đồng hồ vừa kết nối tức thì: ${node.displayName} (${node.id})")
+    private val watchConnectionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != "vn.careai.companion.WATCH_CONNECTION_CHANGED") return
+            val isConnected = intent.getBooleanExtra("isConnected", false)
+            val watchName = intent.getStringExtra("watchName") ?: "Galaxy Watch"
+            val nodeId = intent.getStringExtra("nodeId") ?: ""
+            val isNearby = intent.getBooleanExtra("isNearby", false)
+            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Nhận sự kiện đồng hồ: isConnected=$isConnected, watch=$watchName (0.1s)")
             runOnUiThread {
                 fallMethodChannel?.invokeMethod("onWatchConnectionChanged", mapOf(
-                    "isConnected" to true,
-                    "watchName" to node.displayName,
-                    "nodeId" to node.id,
-                    "isNearby" to node.isNearby,
-                    "connectedCount" to 1
-                ))
-            }
-        }
-
-        override fun onPeerDisconnected(node: Node) {
-            Log.w("CareAI-MainActivity", "[EVENT-DRIVEN] Đồng hồ vừa ngắt kết nối tức thì (0.1s): ${node.displayName} (${node.id})")
-            runOnUiThread {
-                fallMethodChannel?.invokeMethod("onWatchConnectionChanged", mapOf(
-                    "isConnected" to false,
-                    "watchName" to node.displayName,
-                    "nodeId" to node.id,
-                    "isNearby" to false,
-                    "connectedCount" to 0
+                    "isConnected" to isConnected,
+                    "watchName" to watchName,
+                    "nodeId" to nodeId,
+                    "isNearby" to isNearby,
+                    "connectedCount" to (if (isConnected) 1 else 0),
+                    "reason" to (if (isConnected) "CONNECTED" else "UNREACHABLE")
                 ))
             }
         }
@@ -294,7 +286,7 @@ class MainActivity : FlutterActivity() {
             unregisterReceiver(bluetoothStateReceiver)
         } catch (_: Exception) {}
         try {
-            Wearable.getNodeClient(this).removeListener(watchNodeListener)
+            unregisterReceiver(watchConnectionReceiver)
         } catch (_: Exception) {}
         try {
             textToSpeech?.stop()
@@ -375,10 +367,15 @@ class MainActivity : FlutterActivity() {
 
         fallMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FALL_BRIDGE_CHANNEL)
         try {
-            Wearable.getNodeClient(this).addListener(watchNodeListener)
-            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Đã kích hoạt lắng nghe NodeClient thời gian thực cho Galaxy Watch!")
+            val watchFilter = IntentFilter("vn.careai.companion.WATCH_CONNECTION_CHANGED")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(watchConnectionReceiver, watchFilter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(watchConnectionReceiver, watchFilter)
+            }
+            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Đã kích hoạt lắng nghe WATCH_CONNECTION_CHANGED thời gian thực!")
         } catch (e: Exception) {
-            Log.w("CareAI-MainActivity", "Không thể đăng ký watchNodeListener: ${e.message}")
+            Log.w("CareAI-MainActivity", "Không thể đăng ký watchConnectionReceiver: ${e.message}")
         }
         pendingFallPayload?.let {
             fallMethodChannel?.invokeMethod("onHardwareFallDetected", it)
