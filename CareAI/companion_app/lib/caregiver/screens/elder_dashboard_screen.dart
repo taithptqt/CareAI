@@ -477,10 +477,44 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final isDisconnected = status == 'DISCONNECTED';
 
     if (isOnline) {
+      final isCharging = d.isWatchCharging == true;
+      final isWorn = d.isWatchWorn;
+      final batteryPct = d.watchBatteryLevel;
+
+      final IconData iconData;
+      final Color iconColor;
+      final Color badgeBg;
+      final Color badgeBorder;
+      final Color badgeTextColor;
+      final String badgeText;
+
+      if (isCharging) {
+        iconData = Icons.battery_charging_full_rounded;
+        iconColor = const Color(0xFF38BDF8);
+        badgeBg = const Color(0xFF0C4A6E);
+        badgeBorder = const Color(0xFF38BDF8);
+        badgeTextColor = const Color(0xFF7DD3FC);
+        badgeText = batteryPct == 100 ? 'Sạc đầy 100%' : 'Đang sạc ${batteryPct != null ? "$batteryPct%" : ""}';
+      } else if (isWorn == false) {
+        iconData = Icons.watch_off_outlined;
+        iconColor = const Color(0xFFF59E0B);
+        badgeBg = const Color(0xFF78350F);
+        badgeBorder = const Color(0xFFF59E0B);
+        badgeTextColor = const Color(0xFFFDE68A);
+        badgeText = 'Đã tháo${batteryPct != null ? " · $batteryPct%" : ""}';
+      } else {
+        iconData = Icons.watch_rounded;
+        iconColor = const Color(0xFF10B981);
+        badgeBg = const Color(0xFF064E3B);
+        badgeBorder = const Color(0xFF10B981);
+        badgeTextColor = const Color(0xFF6EE7B7);
+        badgeText = 'Trên cổ tay${batteryPct != null ? " · $batteryPct%" : ""}';
+      }
+
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.watch_rounded, size: 14, color: Color(0xFF10B981)),
+          Icon(iconData, size: 14, color: iconColor),
           const SizedBox(width: 4),
           Text(
             d.watchModel ?? 'Đồng hồ thông minh',
@@ -494,13 +528,13 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             margin: const EdgeInsets.only(left: 6),
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
-              color: const Color(0xFF064E3B),
+              color: badgeBg,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+              border: Border.all(color: badgeBorder, width: 0.8),
             ),
-            child: const Text(
-              'Trực tuyến',
-              style: TextStyle(fontSize: 10, color: Color(0xFF6EE7B7), fontWeight: FontWeight.bold),
+            child: Text(
+              badgeText,
+              style: TextStyle(fontSize: 10, color: badgeTextColor, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -745,6 +779,17 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       }
     } else if (d.watchStatus == 'NOT_PAIRED') {
       messages.add('Chưa ghép nối đồng hồ đeo tay. Hãy ghép nối Galaxy Watch hoặc Apple Watch để theo dõi nhịp tim và cảnh báo té ngã.');
+    } else if (d.watchStatus == 'ONLINE') {
+      final model = d.watchModel ?? 'Đồng hồ';
+      if (d.isWatchCharging == true) {
+        if (d.watchBatteryLevel == 100) {
+          messages.add('Đồng hồ $model đã sạc đầy 100%. Hãy nhắc người thân đeo lại vào cổ tay để tiếp tục giám sát an toàn.');
+        } else {
+          messages.add('Đồng hồ $model đang được cắm sạc (${d.watchBatteryLevel ?? 0}%). Tính năng đo sinh hiệu tạm dừng trong lúc sạc.');
+        }
+      } else if (d.isWatchWorn == false) {
+        messages.add('Đồng hồ $model đang được tháo khỏi cổ tay${d.watchBatteryLevel != null ? " (Pin ${d.watchBatteryLevel}%)" : ""}. Hãy nhắc người thân đeo lại để hệ thống bảo vệ liên tục.');
+      }
     }
 
     if (hr == null && oxygen == null) {

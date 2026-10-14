@@ -77,6 +77,9 @@ public static class DatabaseMigrationHelper
             DeviceType NVARCHAR(50) NOT NULL,
             DeviceModel NVARCHAR(100) NULL,
             DisconnectReason NVARCHAR(50) NULL,
+            IsWatchWorn BIT NULL,
+            IsWatchCharging BIT NULL,
+            WatchBatteryLevel INT NULL,
             FirmwareVersion NVARCHAR(50) NOT NULL DEFAULT '1.0.0',
             IsActive BIT NOT NULL DEFAULT 1,
             LastHeartbeat DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -434,6 +437,22 @@ public static class DatabaseMigrationHelper
     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('DeviceRegistrations') AND name = 'DisconnectReason')
     BEGIN
         ALTER TABLE DeviceRegistrations ADD DisconnectReason NVARCHAR(50) NULL;
+    END;
+
+    -- Bổ sung các cột trạng thái đeo, sạc và pin đồng hồ cho DeviceRegistrations
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('DeviceRegistrations') AND name = 'IsWatchWorn')
+    BEGIN
+        ALTER TABLE DeviceRegistrations ADD IsWatchWorn BIT NULL;
+    END;
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('DeviceRegistrations') AND name = 'IsWatchCharging')
+    BEGIN
+        ALTER TABLE DeviceRegistrations ADD IsWatchCharging BIT NULL;
+    END;
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('DeviceRegistrations') AND name = 'WatchBatteryLevel')
+    BEGIN
+        ALTER TABLE DeviceRegistrations ADD WatchBatteryLevel INT NULL;
     END;
 
     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FamilyInvitations')

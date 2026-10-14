@@ -475,7 +475,34 @@ import workmanager_apple
   }
 
   private func handleWatchRelay(_ payload: [String: Any]) {
-    if let action = payload["action"] as? String, action == "WATCH_DEVICE_INFO" {
+    guard let action = payload["action"] as? String else { return }
+
+    if action == "WATCH_TELEMETRY" {
+      let isWorn = payload["isWorn"] as? Bool
+      let isCharging = payload["isCharging"] as? Bool
+      let batteryLevel = payload["batteryLevel"] as? Int
+      let watchModel = payload["watchModel"] as? String ?? "Apple Watch"
+      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: worn=%@, charging=%@, battery=%@", String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel))
+
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
+        var map: [String: Any] = [
+          "isConnected": true,
+          "watchName": watchModel,
+          "nodeId": "apple_watch_wcsession",
+          "isNearby": true,
+          "connectedCount": 1,
+          "reason": "CONNECTED"
+        ]
+        if let isWorn = isWorn { map["isWorn"] = isWorn }
+        if let isCharging = isCharging { map["isCharging"] = isCharging }
+        if let batteryLevel = batteryLevel { map["batteryLevel"] = batteryLevel }
+        self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: map)
+      }
+      return
+    }
+
+    if action == "WATCH_DEVICE_INFO" {
       if let watchName = payload["watchName"] as? String, !watchName.isEmpty {
         UserDefaults.standard.set(watchName, forKey: "careai_apple_watch_name")
         NSLog("[CareAI-iOS] Đã nhận diện tên phần cứng Apple Watch từ watchOS: %@", watchName)
@@ -484,7 +511,8 @@ import workmanager_apple
       return
     }
 
-    guard let action = payload["action"] as? String, action == "EMERGENCY_SOS" else { return }
+    guard action == "EMERGENCY_SOS" else { return }
+
     let packetId = payload["packetId"] as? String ?? "SOS_WATCH_\(Int64(Date().timeIntervalSince1970 * 1000))"
     let eventId = payload["eventId"] as? String ?? packetId
     let emergencyType = payload["emergencyType"] as? String ?? "FALL_DETECTED"

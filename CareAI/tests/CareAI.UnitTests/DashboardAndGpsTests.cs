@@ -552,6 +552,96 @@ public class DashboardAndGpsTests : IDisposable
         Assert.Null(response.WatchDisconnectReason);
     }
 
+    [Fact]
+    public async Task Fact_WatchTelemetry_SyncsWornChargingAndBattery_ReturnsInDashboard()
+    {
+        var companionId = "DEV_COMPANION_TEST_01";
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = companionId,
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "companion_hash",
+            DeviceType = "CompanionPhone",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow,
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var devicesController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devicesController.HttpContext.Items["ValidatedDeviceId"] = companionId;
+
+        // Bắn gói tin đồng bộ viễn trắc đồng hồ: Đang đeo, không sạc, pin 88%
+        var syncResult = await devicesController.SyncWatch(
+            new SyncWatchRequest("Galaxy Watch6", IsConnected: true, DisconnectReason: null, IsWorn: true, IsCharging: false, BatteryLevel: 88),
+            CancellationToken.None);
+
+        var okSync = Assert.IsType<OkObjectResult>(syncResult);
+        Assert.NotNull(okSync.Value);
+
+        // Truy vấn Dashboard của người thân để kiểm tra dữ liệu viễn trắc đã được cập nhật
+        var dashboardController = CreateController(_authCaregiverId);
+        var dashResult = await dashboardController.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okDash = Assert.IsType<OkObjectResult>(dashResult);
+        var response = Assert.IsType<ElderDashboardResponse>(okDash.Value);
+
+        Assert.Equal("Galaxy Watch6", response.WatchModel);
+        Assert.Equal("ONLINE", response.WatchStatus);
+        Assert.True(response.IsWatchWorn);
+        Assert.False(response.IsWatchCharging);
+        Assert.Equal(88, response.WatchBatteryLevel);
+    }
+
+    [Fact]
+    public async Task Fact_WatchTelemetry_UnwornAndCharging_ReturnsCorrectValues()
+    {
+        var companionId = "DEV_COMPANION_TEST_02";
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = companionId,
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "companion_hash_2",
+            DeviceType = "CompanionPhone",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow,
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var devicesController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devicesController.HttpContext.Items["ValidatedDeviceId"] = companionId;
+
+        // Báo trạng thái cắm sạc trên bàn (tháo khỏi cổ tay, đang sạc 100%)
+        await devicesController.SyncWatch(
+            new SyncWatchRequest("Apple Watch Series 9", IsConnected: true, DisconnectReason: null, IsWorn: false, IsCharging: true, BatteryLevel: 100),
+            CancellationToken.None);
+
+        var dashboardController = CreateController(_authCaregiverId);
+        var dashResult = await dashboardController.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okDash = Assert.IsType<OkObjectResult>(dashResult);
+        var response = Assert.IsType<ElderDashboardResponse>(okDash.Value);
+
+        Assert.Equal("Apple Watch Series 9", response.WatchModel);
+        Assert.Equal("ONLINE", response.WatchStatus);
+        Assert.False(response.IsWatchWorn);
+        Assert.True(response.IsWatchCharging);
+        Assert.Equal(100, response.WatchBatteryLevel);
+    }
+
     public void Dispose()
     {
         _db.Dispose();

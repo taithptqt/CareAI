@@ -194,7 +194,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         _lastPairedWatchName = effectiveName;
         await prefs.setString('last_paired_watch_name', effectiveName);
 
-        unawaited(ApiService.instance.syncConnectedWatch(effectiveName, isConnected: true));
+        unawaited(ApiService.instance.syncConnectedWatch(
+          effectiveName,
+          isConnected: true,
+          isWorn: status.isWorn,
+          isCharging: status.isCharging,
+          batteryLevel: status.batteryLevel,
+        ));
         unawaited(() async {
           final serverUrl = await ApiService.instance.getServerUrl();
           final devId = await ApiService.instance.getDeviceId();
@@ -775,40 +781,77 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 final watchTitle = isConnected
                     ? (_watchStatus.watchName ?? _lastPairedWatchName ?? _platformWatchTitle)
                     : (isDisconnected ? _lastPairedWatchName! : 'Chưa ghép nối đồng hồ');
-                final statusSubtext = isConnected
-                    ? '🟢 Đã kết nối · $_platformSensorLabel'
-                    : (isDisconnected
-                        ? (isBtOff
-                            ? '🔴 Bluetooth đang tắt · Gạt bật để kết nối đồng hồ'
-                            : '🔴 Mất tín hiệu đồng hồ · Kiểm tra Bluetooth/Pin')
-                        : '⚪ $_platformWatchTitle (Chạm để quét & kiểm tra)');
-                final borderColor = isConnected
-                    ? const Color(0xFF22C55E).withValues(alpha: 0.6)
-                    : (isDisconnected
-                        ? (isBtOff
-                            ? const Color(0xFFEF4444).withValues(alpha: 0.7)
-                            : const Color(0xFFF59E0B).withValues(alpha: 0.7))
-                        : const Color(0xFF475569).withValues(alpha: 0.4));
-                final iconBgColor = isConnected
-                    ? const Color(0xFF14532D).withValues(alpha: 0.5)
-                    : (isDisconnected
-                        ? (isBtOff
-                            ? const Color(0xFF7F1D1D).withValues(alpha: 0.5)
-                            : const Color(0xFF78350F).withValues(alpha: 0.5))
-                        : const Color(0xFF1E293B));
-                final iconColor = isConnected
-                    ? const Color(0xFF4ADE80)
-                    : (isDisconnected
-                        ? (isBtOff ? const Color(0xFFF87171) : const Color(0xFFFBBF24))
-                        : const Color(0xFF94A3B8));
-                final iconData = isDisconnected
-                    ? (isBtOff ? Icons.bluetooth_disabled_rounded : Icons.watch_off_outlined)
-                    : Icons.watch;
-                final subtextColor = isConnected
-                    ? const Color(0xFF4ADE80)
-                    : (isDisconnected
-                        ? (isBtOff ? const Color(0xFFF87171) : const Color(0xFFFBBF24))
-                        : const Color(0xFF94A3B8));
+
+                final String statusSubtext;
+                final Color borderColor;
+                final Color iconBgColor;
+                final Color iconColor;
+                final IconData iconData;
+                final Color subtextColor;
+
+                if (isConnected) {
+                  final batteryPct = _watchStatus.batteryLevel;
+                  final isCharging = _watchStatus.isCharging == true;
+                  final isWorn = _watchStatus.isWorn;
+
+                  if (isCharging) {
+                    if (batteryPct == 100) {
+                      statusSubtext = '🔋 Đã sạc đầy 100% · Nhớ đeo lại vào tay';
+                      borderColor = const Color(0xFF10B981).withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFF064E3B).withValues(alpha: 0.6);
+                      iconColor = const Color(0xFF34D399);
+                      subtextColor = const Color(0xFF6EE7B7);
+                      iconData = Icons.battery_charging_full_rounded;
+                    } else {
+                      final pctStr = batteryPct != null ? ' ($batteryPct%)' : '';
+                      statusSubtext = '⚡ Đang sạc pin$pctStr · Tạm dừng sinh hiệu';
+                      borderColor = const Color(0xFF38BDF8).withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFF0C4A6E).withValues(alpha: 0.6);
+                      iconColor = const Color(0xFF38BDF8);
+                      subtextColor = const Color(0xFF7DD3FC);
+                      iconData = Icons.battery_charging_full_rounded;
+                    }
+                  } else if (isWorn == false) {
+                    final pctStr = batteryPct != null ? ' · Pin $batteryPct%' : '';
+                    statusSubtext = '🟡 Đã tháo khỏi cổ tay$pctStr';
+                    borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.8);
+                    iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.6);
+                    iconColor = const Color(0xFFFBBF24);
+                    subtextColor = const Color(0xFFFDE68A);
+                    iconData = Icons.watch_off_outlined;
+                  } else {
+                    final pctStr = batteryPct != null ? ' (Pin $batteryPct%)' : '';
+                    statusSubtext = '🟢 Đã kết nối · Trên cổ tay$pctStr · $_platformSensorLabel';
+                    borderColor = const Color(0xFF22C55E).withValues(alpha: 0.6);
+                    iconBgColor = const Color(0xFF14532D).withValues(alpha: 0.5);
+                    iconColor = const Color(0xFF4ADE80);
+                    subtextColor = const Color(0xFF4ADE80);
+                    iconData = Icons.watch;
+                  }
+                } else if (isDisconnected) {
+                  if (isBtOff) {
+                    statusSubtext = '🔴 Bluetooth đang tắt · Gạt bật để kết nối đồng hồ';
+                    borderColor = const Color(0xFFEF4444).withValues(alpha: 0.7);
+                    iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.5);
+                    iconColor = const Color(0xFFF87171);
+                    subtextColor = const Color(0xFFF87171);
+                    iconData = Icons.bluetooth_disabled_rounded;
+                  } else {
+                    statusSubtext = '🔴 Mất tín hiệu đồng hồ · Kiểm tra Bluetooth/Pin';
+                    borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.7);
+                    iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.5);
+                    iconColor = const Color(0xFFFBBF24);
+                    subtextColor = const Color(0xFFFBBF24);
+                    iconData = Icons.watch_off_outlined;
+                  }
+                } else {
+                  statusSubtext = '⚪ $_platformWatchTitle (Chạm để quét & kiểm tra)';
+                  borderColor = const Color(0xFF475569).withValues(alpha: 0.4);
+                  iconBgColor = const Color(0xFF1E293B);
+                  iconColor = const Color(0xFF94A3B8);
+                  subtextColor = const Color(0xFF94A3B8);
+                  iconData = Icons.watch;
+                }
 
                 return InkWell(
                   onTap: () => _checkWatchStatus(showFeedback: true),

@@ -78,6 +78,34 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         }
     }
 
+    func relayWatchTelemetry(isWorn: Bool, isCharging: Bool, batteryLevel: Int) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        let payload: [String: Any] = [
+            "action": "WATCH_TELEMETRY",
+            "isWorn": isWorn,
+            "isCharging": isCharging,
+            "batteryLevel": batteryLevel,
+            "watchModel": WKInterfaceDevice.current().name
+        ]
+        if session.activationState == .activated {
+            session.transferUserInfo(payload)
+            if session.isReachable {
+                session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
+        }
+    }
+
+    func syncCurrentBatteryAndWearState() {
+        let device = WKInterfaceDevice.current()
+        device.isBatteryMonitoringEnabled = true
+        let rawLevel = device.batteryLevel
+        let batteryLevel = rawLevel >= 0 ? Int(rawLevel * 100) : 100
+        let isCharging = (device.batteryState == .charging || device.batteryState == .full)
+        let isWorn = !isCharging
+        relayWatchTelemetry(isWorn: isWorn, isCharging: isCharging, batteryLevel: batteryLevel)
+    }
+
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
         handleIncomingCredentials(applicationContext)
     }

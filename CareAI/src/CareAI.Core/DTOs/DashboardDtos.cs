@@ -61,5 +61,8 @@ public record ElderDashboardResponse(
     VitalSignDto? DemoSpO2 = null,
     string? WatchModel = null,
     string? WatchStatus = null, // NOT_PAIRED | ONLINE | DISCONNECTED
-    string? WatchDisconnectReason = null // BLUETOOTH_OFF | SIGNAL_LOST | null
+    string? WatchDisconnectReason = null, // BLUETOOTH_OFF | SIGNAL_LOST | null
+    bool? IsWatchWorn = null, // true = đang đeo trên cổ tay, false = đã tháo, null = chưa xác định
+    bool? IsWatchCharging = null, // true = đang sạc, false = không sạc, null = chưa xác định
+    int? WatchBatteryLevel = null // 0 - 100%, null = chưa xác định
 );

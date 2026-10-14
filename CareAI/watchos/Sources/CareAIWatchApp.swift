@@ -17,13 +17,15 @@ struct CareAIWatchApp: App {
 struct ContentView: View {
     @ObservedObject var sync: HealthSync
     @Environment(\.scenePhase) private var scenePhase
-    // Cấu hình URL Azure App Service mặc định và mã PIN ghép nối mẫu để tiện kiểm thử trên Simulator
+    // Cấu hình URL Azure App Service mặc định
     @State private var backend = UserDefaults.standard.string(forKey: "backend") ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
-    @State private var pin = "581983"
+    @State private var pin = ""
     @State private var pairing = false
     @State private var pairingError: String?
     @State private var isPaired = KeychainToken.load() != nil
     @State private var showSettings = false
+
+    private var pinChars: [Character] { Array(pin) }
 
     private var statusColor: Color {
         if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 {
@@ -68,38 +70,136 @@ struct ContentView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
                     Spacer()
-                    if isPaired {
-                        Button(action: { showSettings.toggle() }) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 11))
-                                .foregroundColor(.gray)
-                        }
-                        .buttonStyle(.plain)
+                    Button(action: { showSettings.toggle() }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(showSettings ? Color(red: 0.22, green: 0.74, blue: 0.97) : .gray)
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 4)
 
                 if !isPaired {
-                    // Màn hình ghép nối
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Ghép Nối Thiết Bị").font(.caption).bold()
-                        TextField("HTTPS backend URL", text: $backend)
-                            .textContentType(.URL)
-                            .font(.system(size: 10))
-                        TextField("Mã PIN 6 số", text: $pin)
-                            .font(.system(size: 11))
-                        Button(pairing ? "Đang ghép nối…" : "Ghép Nối Đồng Hồ") {
-                            Task { await pairWatch() }
+                    // Màn hình ghép nối trực quan với Bàn phím số cảm ứng trực tiếp (Numeric Keypad)
+                    VStack(spacing: 5) {
+                        Text("Ghép Nối Thiết Bị")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+
+                        Text("Nhập mã PIN 6 số tạo từ app người thân")
+                            .font(.system(size: 8))
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+
+                        // 6 ô hiển thị số PIN
+                        HStack(spacing: 4) {
+                            ForEach(0..<6, id: \.self) { index in
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.white.opacity(0.12))
+                                        .frame(width: 19, height: 23)
+                                    if index < pinChars.count {
+                                        Text(String(pinChars[index]))
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(.white)
+                                    } else {
+                                        Circle()
+                                            .fill(Color.gray.opacity(0.4))
+                                            .frame(width: 4, height: 4)
+                                    }
+                                }
+                            }
                         }
-                        .tint(Color.blue)
-                        .disabled(pairing)
+                        .padding(.vertical, 2)
+
+                        // Bàn phím số cảm ứng trực tiếp (Numeric Keypad 3x4)
+                        VStack(spacing: 3) {
+                            HStack(spacing: 3) {
+                                keypadButton("1")
+                                keypadButton("2")
+                                keypadButton("3")
+                            }
+                            HStack(spacing: 3) {
+                                keypadButton("4")
+                                keypadButton("5")
+                                keypadButton("6")
+                            }
+                            HStack(spacing: 3) {
+                                keypadButton("7")
+                                keypadButton("8")
+                                keypadButton("9")
+                            }
+                            HStack(spacing: 3) {
+                                Button(action: clearPin) {
+                                    Text("C")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(Color.orange)
+                                        .frame(maxWidth: .infinity, minHeight: 24)
+                                        .background(Color.white.opacity(0.08))
+                                        .cornerRadius(5)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(pairing)
+
+                                keypadButton("0")
+
+                                Button(action: deletePinDigit) {
+                                    Image(systemName: "delete.left.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(Color.red.opacity(0.9))
+                                        .frame(maxWidth: .infinity, minHeight: 24)
+                                        .background(Color.white.opacity(0.08))
+                                        .cornerRadius(5)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(pairing)
+                            }
+                        }
+
+                        // Nút Ghép Nối
+                        Button(action: { Task { await pairWatch() } }) {
+                            HStack {
+                                if pairing {
+                                    ProgressView()
+                                        .scaleEffect(0.6)
+                                    Text("Đang ghép nối…")
+                                        .font(.system(size: 10, weight: .bold))
+                                } else {
+                                    Text("Ghép Nối Đồng Hồ")
+                                        .font(.system(size: 10, weight: .bold))
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 26)
+                            .background(pin.count == 6 && !pairing ? Color.blue : Color.blue.opacity(0.3))
+                            .foregroundColor(.white)
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(pairing || pin.count != 6)
+
                         if let pairingError {
-                            Text(pairingError).font(.system(size: 9)).foregroundStyle(.red)
+                            Text(pairingError)
+                                .font(.system(size: 8))
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
                         }
                     }
                     .padding(6)
                     .background(Color.white.opacity(0.05))
                     .cornerRadius(8)
+
+                    // Cấu hình máy chủ nâng cao (chỉ hiển thị khi bấm icon bánh răng cài đặt)
+                    if showSettings {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Cấu Hình Máy Chủ Nâng Cao").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
+                            TextField("HTTPS backend URL", text: $backend)
+                                .textContentType(.URL)
+                                .font(.system(size: 9))
+                        }
+                        .padding(6)
+                        .background(Color.white.opacity(0.03))
+                        .cornerRadius(6)
+                    }
                 } else {
                     // 2. Badge trạng thái giám sát / cảnh báo
                     Text(statusTitle)
@@ -255,11 +355,15 @@ struct ContentView: View {
     }
 
     private func pairWatch() async {
+        let trimmedPin = pin.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedPin.count == 6, trimmedPin.allSatisfy(\.isNumber) else {
+            pairingError = "Mã PIN phải gồm đúng 6 chữ số"
+            return
+        }
         let base = backend.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard base.hasPrefix("https://"), let url = URL(string: base + "/api/v1/devices/pair"),
-              pin.count == 6, pin.allSatisfy(\.isNumber) else {
-            pairingError = "Nhập URL HTTPS và mã PIN 6 số"
+        guard base.hasPrefix("https://"), let url = URL(string: base + "/api/v1/devices/pair") else {
+            pairingError = "Địa chỉ máy chủ HTTPS không hợp lệ"
             return
         }
         pairing = true
@@ -270,7 +374,7 @@ struct ContentView: View {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(PairRequest(
-                deviceId: deviceId, pairingPin: pin, deviceType: "AppleWatch"))
+                deviceId: deviceId, pairingPin: trimmedPin, deviceType: "AppleWatch"))
             let (data, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
                 pairingError = "Ghép nối thất bại. Kiểm tra PIN và Server."
@@ -290,6 +394,36 @@ struct ContentView: View {
         } catch {
             pairingError = "Lỗi ghép nối: \(error.localizedDescription)"
         }
+    }
+
+    private func keypadButton(_ digit: String) -> some View {
+        Button(action: { appendPinDigit(digit) }) {
+            Text(digit)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity, minHeight: 24)
+                .background(Color.white.opacity(0.12))
+                .cornerRadius(5)
+        }
+        .buttonStyle(.plain)
+        .disabled(pairing)
+    }
+
+    private func appendPinDigit(_ digit: String) {
+        guard pin.count < 6 else { return }
+        pin.append(digit)
+        pairingError = nil
+    }
+
+    private func deletePinDigit() {
+        guard !pin.isEmpty else { return }
+        pin.removeLast()
+        pairingError = nil
+    }
+
+    private func clearPin() {
+        pin = ""
+        pairingError = nil
     }
 }
 

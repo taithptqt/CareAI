@@ -111,5 +111,52 @@ void main() {
       expect(dashboardSignalLost.watchStatus, 'DISCONNECTED');
       expect(dashboardSignalLost.watchDisconnectReason, 'SIGNAL_LOST');
     });
+
+    test('ElderDashboard deserializes isWatchWorn, isWatchCharging, and watchBatteryLevel correctly', () {
+      final jsonWornCharging = {
+        'elderProfileId': 'ELDER_003',
+        'fullName': 'Cụ Phạm Gia Huy',
+        'age': 82,
+        'statusBadgeColor': 'GREEN',
+        'deviceStatus': 'ONLINE',
+        'todaySteps': 4100,
+        'stepGoal': 6000,
+        'watchModel': 'Galaxy Watch7',
+        'watchStatus': 'ONLINE',
+        'isWatchWorn': false,
+        'isWatchCharging': true,
+        'watchBatteryLevel': 100,
+      };
+
+      final dashboard = ElderDashboard.fromJson(jsonWornCharging);
+      expect(dashboard.watchModel, 'Galaxy Watch7');
+      expect(dashboard.watchStatus, 'ONLINE');
+      expect(dashboard.isWatchWorn, isFalse);
+      expect(dashboard.isWatchCharging, isTrue);
+      expect(dashboard.watchBatteryLevel, 100);
+
+      final jsonOnWrist = {
+        'elderProfileId': 'ELDER_004',
+        'fullName': 'Cụ Hoàng Kim Chi',
+        'age': 79,
+        'statusBadgeColor': 'GREEN',
+        'deviceStatus': 'ONLINE',
+        'todaySteps': 5200,
+        'stepGoal': 6000,
+        'watchModel': 'Apple Watch Series 10',
+        'watchStatus': 'ONLINE',
+        'isWatchWorn': true,
+        'isWatchCharging': false,
+        'watchBatteryLevel': 75,
+      };
+
+      final dashboardOnWrist = ElderDashboard.fromJson(jsonOnWrist);
+      expect(dashboardOnWrist.watchModel, 'Apple Watch Series 10');
+      expect(dashboardOnWrist.watchStatus, 'ONLINE');
+      expect(dashboardOnWrist.isWatchWorn, isTrue);
+      expect(dashboardOnWrist.isWatchCharging, isFalse);
+      expect(dashboardOnWrist.watchBatteryLevel, 75);
+    });
   });
 }
+

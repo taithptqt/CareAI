@@ -45,16 +45,31 @@ class MainActivity : FlutterActivity() {
             val watchName = intent.getStringExtra("watchName") ?: "Galaxy Watch"
             val nodeId = intent.getStringExtra("nodeId") ?: ""
             val isNearby = intent.getBooleanExtra("isNearby", false)
-            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Nhận sự kiện đồng hồ: isConnected=$isConnected, watch=$watchName (0.1s)")
+            val reason = intent.getStringExtra("reason") ?: (if (isConnected) "CONNECTED" else "UNREACHABLE")
+
+            val payload = mutableMapOf<String, Any?>(
+                "isConnected" to isConnected,
+                "watchName" to watchName,
+                "nodeId" to nodeId,
+                "isNearby" to isNearby,
+                "connectedCount" to (if (isConnected) 1 else 0),
+                "reason" to reason
+            )
+
+            if (intent.hasExtra("isWorn")) {
+                payload["isWorn"] = intent.getBooleanExtra("isWorn", true)
+            }
+            if (intent.hasExtra("isCharging")) {
+                payload["isCharging"] = intent.getBooleanExtra("isCharging", false)
+            }
+            if (intent.hasExtra("batteryLevel")) {
+                val b = intent.getIntExtra("batteryLevel", -1)
+                if (b >= 0) payload["batteryLevel"] = b
+            }
+
+            Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Nhận sự kiện đồng hồ: isConnected=$isConnected, watch=$watchName, worn=${payload["isWorn"]}, charging=${payload["isCharging"]}, battery=${payload["batteryLevel"]} (0.1s)")
             runOnUiThread {
-                fallMethodChannel?.invokeMethod("onWatchConnectionChanged", mapOf(
-                    "isConnected" to isConnected,
-                    "watchName" to watchName,
-                    "nodeId" to nodeId,
-                    "isNearby" to isNearby,
-                    "connectedCount" to (if (isConnected) 1 else 0),
-                    "reason" to (if (isConnected) "CONNECTED" else "UNREACHABLE")
-                ))
+                fallMethodChannel?.invokeMethod("onWatchConnectionChanged", payload)
             }
         }
     }

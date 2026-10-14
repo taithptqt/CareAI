@@ -50,6 +50,28 @@ class WearOsMessageReceiverService : WearableListenerService() {
         if (messageEvent.path == "/careai/fall_detected") {
             val rawJson = String(messageEvent.data, Charsets.UTF_8)
             handleFallPayload(this, rawJson, "MESSAGE_CLIENT_FAST_LANE")
+        } else if (messageEvent.path == "/careai/watch_telemetry") {
+            val rawJson = String(messageEvent.data, Charsets.UTF_8)
+            try {
+                val json = JSONObject(rawJson)
+                val isWorn = if (json.has("isWorn")) json.getBoolean("isWorn") else null
+                val isCharging = if (json.has("isCharging")) json.getBoolean("isCharging") else null
+                val batteryLevel = if (json.has("batteryLevel")) json.getInt("batteryLevel") else null
+                val watchName = json.optString("watchName", "Galaxy Watch")
+
+                Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%")
+                sendBroadcast(Intent("vn.careai.companion.WATCH_CONNECTION_CHANGED").apply {
+                    setPackage(packageName)
+                    putExtra("isConnected", true)
+                    putExtra("watchName", watchName)
+                    putExtra("reason", "CONNECTED")
+                    if (isWorn != null) putExtra("isWorn", isWorn)
+                    if (isCharging != null) putExtra("isCharging", isCharging)
+                    if (batteryLevel != null) putExtra("batteryLevel", batteryLevel)
+                })
+            } catch (e: Exception) {
+                Log.e("CareAI-WearReceiver", "Lỗi phân tích /careai/watch_telemetry: ${e.message}")
+            }
         }
     }
 

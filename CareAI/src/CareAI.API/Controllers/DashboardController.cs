@@ -75,6 +75,10 @@ public class DashboardController : ControllerBase
         string? watchModel = null;
         string watchStatus = "NOT_PAIRED";
         string? watchDisconnectReason = null;
+        bool? isWatchWorn = null;
+        bool? isWatchCharging = null;
+        int? watchBatteryLevel = null;
+
         if (watchDevice != null)
         {
             if (!string.IsNullOrWhiteSpace(watchDevice.DeviceModel))
@@ -97,6 +101,17 @@ public class DashboardController : ControllerBase
             var isWatchOnline = watchDevice.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfterFor(watchDevice.DeviceType));
             watchStatus = isWatchOnline ? "ONLINE" : "DISCONNECTED";
             watchDisconnectReason = isWatchOnline ? null : (watchDevice.DisconnectReason ?? "SIGNAL_LOST");
+
+            isWatchWorn = watchDevice.IsWatchWorn;
+            isWatchCharging = watchDevice.IsWatchCharging;
+            watchBatteryLevel = watchDevice.WatchBatteryLevel;
+
+            if (watchDevice.Id.StartsWith("DEV_DEMO_", StringComparison.OrdinalIgnoreCase))
+            {
+                isWatchWorn ??= true;
+                isWatchCharging ??= false;
+                watchBatteryLevel ??= 85;
+            }
         }
 
         // Chỉ số sinh hiệu mới nhất
@@ -207,7 +222,10 @@ public class DashboardController : ControllerBase
             DemoSpO2: demoSpo2 != null ? new VitalSignDto(demoSpo2.MetricType, demoSpo2.Value, demoSpo2.Unit, demoSpo2.Timestamp, "YELLOW") : null,
             WatchModel: watchModel,
             WatchStatus: watchStatus,
-            WatchDisconnectReason: watchDisconnectReason
+            WatchDisconnectReason: watchDisconnectReason,
+            IsWatchWorn: isWatchWorn,
+            IsWatchCharging: isWatchCharging,
+            WatchBatteryLevel: watchBatteryLevel
         );
 
         return Ok(response);

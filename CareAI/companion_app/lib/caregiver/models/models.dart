@@ -306,6 +306,9 @@ class ElderDashboard {
   final String? watchModel;
   final String? watchStatus; // NOT_PAIRED | ONLINE | DISCONNECTED
   final String? watchDisconnectReason; // BLUETOOTH_OFF | SIGNAL_LOST
+  final bool? isWatchWorn; // true = đang đeo, false = đã tháo, null = chưa xác định
+  final bool? isWatchCharging; // true = đang sạc, false = không sạc, null = chưa xác định
+  final int? watchBatteryLevel; // 0 - 100, null = chưa xác định
 
   ElderDashboard({
     required this.elderProfileId,
@@ -326,6 +329,9 @@ class ElderDashboard {
     this.watchModel,
     this.watchStatus,
     this.watchDisconnectReason,
+    this.isWatchWorn,
+    this.isWatchCharging,
+    this.watchBatteryLevel,
   });
 
   factory ElderDashboard.fromJson(Map<String, dynamic> json) {
@@ -348,6 +354,9 @@ class ElderDashboard {
       watchModel: json['watchModel'] as String?,
       watchStatus: json['watchStatus'] as String?,
       watchDisconnectReason: json['watchDisconnectReason'] as String?,
+      isWatchWorn: (json['isWatchWorn'] ?? json['IsWatchWorn']) as bool?,
+      isWatchCharging: (json['isWatchCharging'] ?? json['IsWatchCharging']) as bool?,
+      watchBatteryLevel: (json['watchBatteryLevel'] ?? json['WatchBatteryLevel']) as int?,
     );
   }
 }

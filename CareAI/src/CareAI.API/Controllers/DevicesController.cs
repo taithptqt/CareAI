@@ -315,6 +315,9 @@ public class DevicesController : ControllerBase
             }
 
             watchDevice.DisconnectReason = isConnected ? null : request.DisconnectReason;
+            if (request.IsWorn.HasValue) watchDevice.IsWatchWorn = request.IsWorn.Value;
+            if (request.IsCharging.HasValue) watchDevice.IsWatchCharging = request.IsCharging.Value;
+            if (request.BatteryLevel.HasValue) watchDevice.WatchBatteryLevel = request.BatteryLevel.Value;
 
             // Nếu đồng hồ bị ngắt kết nối với Companion Phone -> lùi LastHeartbeat để đánh dấu DISCONNECTED ngay tức thì
             watchDevice.LastHeartbeat = isConnected
@@ -324,7 +327,7 @@ public class DevicesController : ControllerBase
         }
         else if (!string.IsNullOrWhiteSpace(request.WatchModel))
         {
-            _db.DeviceRegistrations.Add(new DeviceRegistration
+            watchDevice = new DeviceRegistration
             {
                 Id = $"WATCH_{companionDevice.Id.Replace("DEV_", "")}",
                 ElderProfileId = companionDevice.ElderProfileId,
@@ -332,19 +335,32 @@ public class DevicesController : ControllerBase
                 DeviceType = "Smartwatch",
                 DeviceModel = request.WatchModel,
                 DisconnectReason = isConnected ? null : request.DisconnectReason,
+                IsWatchWorn = request.IsWorn,
+                IsWatchCharging = request.IsCharging,
+                WatchBatteryLevel = request.BatteryLevel,
                 FirmwareVersion = "1.0.0",
                 IsActive = true,
                 LastHeartbeat = isConnected ? now : now.Subtract(TimeSpan.FromHours(1)),
                 RegisteredAt = now,
                 CreatedAt = now,
                 UpdatedAt = now
-            });
+            };
+            _db.DeviceRegistrations.Add(watchDevice);
         }
 
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}) cho Cụ {ElderId}",
-            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, companionDevice.ElderProfileId);
+        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}) cho Cụ {ElderId}",
+            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, companionDevice.ElderProfileId);
 
-        return Ok(new { status = "SYNCED", watchModel = request.WatchModel, isConnected, disconnectReason = request.DisconnectReason });
+        return Ok(new
+        {
+            status = "SYNCED",
+            watchModel = request.WatchModel,
+            isConnected,
+            disconnectReason = request.DisconnectReason,
+            isWorn = watchDevice?.IsWatchWorn ?? request.IsWorn,
+            isCharging = watchDevice?.IsWatchCharging ?? request.IsCharging,
+            batteryLevel = watchDevice?.WatchBatteryLevel ?? request.BatteryLevel
+        });
     }
 }

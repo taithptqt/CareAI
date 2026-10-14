@@ -210,6 +210,9 @@ class ApiService {
     String watchModel, {
     bool isConnected = true,
     String? disconnectReason,
+    bool? isWorn,
+    bool? isCharging,
+    int? batteryLevel,
   }) async {
     final deviceId = await getDeviceId();
     final deviceToken = await getDeviceToken();
@@ -226,6 +229,15 @@ class ApiService {
     };
     if (disconnectReason != null) {
       bodyMap['disconnectReason'] = disconnectReason;
+    }
+    if (isWorn != null) {
+      bodyMap['isWorn'] = isWorn;
+    }
+    if (isCharging != null) {
+      bodyMap['isCharging'] = isCharging;
+    }
+    if (batteryLevel != null) {
+      bodyMap['batteryLevel'] = batteryLevel;
     }
     final body = jsonEncode(bodyMap);
     final endpoints = _getEndpointsToTry();

@@ -10,12 +10,16 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.Wearable
+import org.json.JSONObject
 
 class WearOsMainActivity : Activity(), SensorEventListener {
 
@@ -33,6 +37,11 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
     private var sensorManager: SensorManager? = null
     private var heartRateSensor: Sensor? = null
+    private var offBodySensor: Sensor? = null
+
+    private var isWorn: Boolean = true
+    private var isCharging: Boolean = false
+    private var batteryLevel: Int = 100
 
     private var currentHeartRate: Int = 76
     private var currentSpo2: Double = 98.0
@@ -99,6 +108,29 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                         tvLogResult.text = "Đã lưu URL: $url"
                     }
                 }
+                Intent.ACTION_POWER_CONNECTED -> {
+                    isCharging = true
+                    dispatchCurrentWatchTelemetry()
+                    updateVitalsUI(source = "Cắm sạc pin")
+                }
+                Intent.ACTION_POWER_DISCONNECTED -> {
+                    isCharging = false
+                    dispatchCurrentWatchTelemetry()
+                    updateVitalsUI(source = "Rút sạc pin")
+                }
+                "vn.careai.watch.SET_WEAR_STATE" -> {
+                    isWorn = intent.getBooleanExtra("isWorn", true)
+                    dispatchCurrentWatchTelemetry()
+                    updateVitalsUI(source = if (isWorn) "Lệnh: Đeo đồng hồ" else "Lệnh: Tháo đồng hồ")
+                }
+                "vn.careai.watch.SET_BATTERY" -> {
+                    batteryLevel = intent.getIntExtra("level", 100)
+                    if (intent.hasExtra("charging")) {
+                        isCharging = intent.getBooleanExtra("charging", false)
+                    }
+                    dispatchWatchTelemetry(this@WearOsMainActivity, isWorn, isCharging, batteryLevel)
+                    updateVitalsUI(source = "Lệnh: Pin $batteryLevel%, Sạc=$isCharging")
+                }
             }
         }
     }
@@ -120,7 +152,9 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         heartRateSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_HEART_RATE)
+        offBodySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT)
 
+        readBatteryStatus()
         updateVitalsUI(source = "Cảm biến sẵn sàng")
 
         // Kích hoạt mô phỏng té ngã
@@ -168,6 +202,10 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
             Log.i("CareAI-Wear", "Đã kích hoạt lắng nghe Sensor.TYPE_HEART_RATE")
         }
+        offBodySensor?.let { sensor ->
+            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+            Log.i("CareAI-Wear", "Đã kích hoạt lắng nghe Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT")
+        }
 
         // Đăng ký BroadcastReceiver nhận lệnh kiểm thử từ Google / ADB
         val filter = IntentFilter().apply {
@@ -178,6 +216,10 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             addAction("vn.careai.watch.SIMULATE_SOS")
             addAction("vn.careai.watch.PAIR_PIN")
             addAction("vn.careai.watch.SET_BACKEND")
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction("vn.careai.watch.SET_WEAR_STATE")
+            addAction("vn.careai.watch.SET_BATTERY")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(sensorInjectionReceiver, filter, Context.RECEIVER_EXPORTED)
@@ -201,10 +243,37 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                 currentHeartRate = hr
                 updateVitalsUI(source = "Cảm biến PPG phần cứng")
             }
+        } else if (event?.sensor?.type == Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT) {
+            val v = event.values.firstOrNull() ?: 1.0f
+            val nowWorn = v != 0.0f
+            if (isWorn != nowWorn) {
+                isWorn = nowWorn
+                dispatchCurrentWatchTelemetry()
+                updateVitalsUI(source = if (isWorn) "Đeo vào cổ tay" else "Tháo khỏi cổ tay")
+            }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    private fun readBatteryStatus() {
+        try {
+            val ifilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val batteryStatus: Intent? = registerReceiver(null, ifilter)
+            val status: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+            val level: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            batteryLevel = if (level >= 0 && scale > 0) (level * 100 / scale) else 100
+        } catch (e: Exception) {
+            Log.w("CareAI-Wear", "Không thể đọc BatteryManager: ${e.message}")
+        }
+    }
+
+    private fun dispatchCurrentWatchTelemetry() {
+        readBatteryStatus()
+        dispatchWatchTelemetry(this, isWorn, isCharging, batteryLevel)
+    }
 
     private fun updateVitalsUI(source: String = "Cảm biến", customAlert: String = "") {
         runOnUiThread {
@@ -225,6 +294,16 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     tvStatus.text = "🫁 THIẾU OXY: ${String.format(java.util.Locale.US, "%.1f", currentSpo2)}%"
                     tvStatus.setTextColor(0xFFA855F7.toInt()) // Purple
                     tvLogResult.text = "⚡ $source: Nồng độ SpO2 giảm sâu!"
+                }
+                isCharging -> {
+                    tvStatus.text = if (batteryLevel >= 100) "🔋 Đã Sạc Đầy 100%" else "⚡ Đang Sạc Pin: $batteryLevel%"
+                    tvStatus.setTextColor(0xFF38BDF8.toInt())
+                    tvLogResult.text = "⚡ $source [Cắm sạc, Pin $batteryLevel%]"
+                }
+                !isWorn -> {
+                    tvStatus.text = "🟡 Đã Tháo Cổ Tay"
+                    tvStatus.setTextColor(0xFFF59E0B.toInt())
+                    tvLogResult.text = "⚡ $source [Tháo rời cổ tay, Pin $batteryLevel%]"
                 }
                 else -> {
                     tvStatus.text = "🟢 Đang Giám Sát Cổ Tay"
@@ -276,6 +355,36 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             runOnUiThread {
                 tvLogResult.text = channelInfo
             }
+        }
+    }
+
+    companion object {
+        fun dispatchWatchTelemetry(context: Context, isWorn: Boolean, isCharging: Boolean, batteryLevel: Int) {
+            val payloadJson = JSONObject().apply {
+                put("isWorn", isWorn)
+                put("isCharging", isCharging)
+                put("batteryLevel", batteryLevel)
+                put("watchName", Build.MODEL ?: "Galaxy Watch")
+                put("timestamp", System.currentTimeMillis())
+            }.toString()
+            val payloadBytes = payloadJson.toByteArray(Charsets.UTF_8)
+
+            Thread {
+                try {
+                    val nodeClient = Wearable.getNodeClient(context)
+                    val nodes = Tasks.await(nodeClient.connectedNodes, 1500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    for (node in nodes) {
+                        Tasks.await(
+                            Wearable.getMessageClient(context).sendMessage(node.id, "/careai/watch_telemetry", payloadBytes),
+                            1500,
+                            java.util.concurrent.TimeUnit.MILLISECONDS
+                        )
+                        Log.i("CareAI-Wear", "Đã gửi /careai/watch_telemetry tới node: ${node.displayName}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("CareAI-Wear", "Lỗi gửi /careai/watch_telemetry: ${e.message}")
+                }
+            }.start()
         }
     }
 }
