@@ -104,13 +104,38 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     final canonicalPacketId = 'FALL_${widget.event.eventId}';
 
     final recentFix = EmergencyEvidenceService.recentFix;
-    final initialGps = recentFix?.coordinates;
+    final initialGps = (recentFix != null && !recentFix.isSimulated) ? recentFix.coordinates : null;
     final prefs = await SharedPreferences.getInstance();
-    final lastHr = prefs.getDouble('careai_last_heart_rate') ?? 76.0;
-    final lastSpo2 = prefs.getDouble('careai_last_spo2') ?? 98.0;
+    final lastHr = prefs.getDouble('careai_last_heart_rate');
+    final lastSpo2 = prefs.getDouble('careai_last_spo2');
     final now = DateTime.now().toUtc();
 
-    // Fact 35 Invariant: Gói Fast-Lane SOS BẮT BUỘC lưu toàn bộ mẫu đo sinh hiệu đi kèm
+    final samples = <TelemetrySample>[
+      TelemetrySample(
+        metricType: 'FALL',
+        value: widget.event.impactG ?? 2.5,
+        unit: 'G',
+        timestamp: now,
+      ),
+    ];
+    if (lastHr != null && lastHr > 0) {
+      samples.add(TelemetrySample(
+        metricType: 'HEART_RATE',
+        value: lastHr,
+        unit: 'bpm',
+        timestamp: now,
+      ));
+    }
+    if (lastSpo2 != null && lastSpo2 > 0) {
+      samples.add(TelemetrySample(
+        metricType: 'SPO2',
+        value: lastSpo2,
+        unit: '%',
+        timestamp: now,
+      ));
+    }
+
+    // Fact 35 Invariant: Gói Fast-Lane SOS lưu toàn bộ mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
     final request = SosPacketRequest(
       packetId: canonicalPacketId,
       eventId: widget.event.eventId,
@@ -120,26 +145,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
       gpsLocation: initialGps,
       gpsIsSimulated: recentFix?.isSimulated,
       gpsAccuracyMeters: recentFix?.accuracyMeters,
-      samples: [
-        TelemetrySample(
-          metricType: 'FALL',
-          value: widget.event.impactG ?? 2.5,
-          unit: 'G',
-          timestamp: now,
-        ),
-        TelemetrySample(
-          metricType: 'HEART_RATE',
-          value: lastHr,
-          unit: 'bpm',
-          timestamp: now,
-        ),
-        TelemetrySample(
-          metricType: 'SPO2',
-          value: lastSpo2,
-          unit: '%',
-          timestamp: now,
-        ),
-      ],
+      samples: samples,
     );
 
     // Ghi trước vào Outbox SQLite

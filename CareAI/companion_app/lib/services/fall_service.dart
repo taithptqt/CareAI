@@ -165,11 +165,13 @@ class FallService {
     }
     try {
       final res = await _fallChannel.invokeMethod<Map<dynamic, dynamic>>('getConnectedWatchStatus');
+      debugPrint('[FallService] getConnectedWatchStatus raw result: $res');
       if (res != null) {
         return WatchStatus.fromMap(res);
       }
       return const WatchStatus(isConnected: false);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[FallService] getConnectedWatchStatus error: $e\n$stack');
       return WatchStatus(isConnected: false, error: e.toString());
     }
   }
@@ -205,7 +207,7 @@ class FallService {
   }
 }
 
-/// Trạng thái kết nối phần cứng đồng hồ Wear OS (Galaxy Watch) qua Bluetooth Data Layer
+/// Trạng thái kết nối phần cứng đồng hồ Wear OS (Galaxy Watch) hoặc watchOS (Apple Watch)
 class WatchStatus {
   final bool isConnected;
   final String? watchName;
@@ -214,6 +216,8 @@ class WatchStatus {
   final int connectedCount;
   final String? error;
   final String? reason;
+  final bool isPaired;
+  final bool isWatchAppInstalled;
 
   const WatchStatus({
     required this.isConnected,
@@ -223,17 +227,22 @@ class WatchStatus {
     this.connectedCount = 0,
     this.error,
     this.reason,
+    this.isPaired = false,
+    this.isWatchAppInstalled = false,
   });
 
   factory WatchStatus.fromMap(Map<dynamic, dynamic> map) {
+    final isConnected = map['isConnected'] as bool? ?? false;
     return WatchStatus(
-      isConnected: map['isConnected'] as bool? ?? false,
+      isConnected: isConnected,
       watchName: map['watchName'] as String?,
       nodeId: map['nodeId'] as String?,
       isNearby: map['isNearby'] as bool? ?? false,
       connectedCount: map['connectedCount'] as int? ?? 0,
       error: map['error'] as String?,
       reason: map['reason'] as String?,
+      isPaired: map['isPaired'] as bool? ?? isConnected,
+      isWatchAppInstalled: map['isWatchAppInstalled'] as bool? ?? false,
     );
   }
 }

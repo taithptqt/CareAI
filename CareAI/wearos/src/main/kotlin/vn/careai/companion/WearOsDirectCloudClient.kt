@@ -86,24 +86,25 @@ object WearOsDirectCloudClient {
             }
             val triggeredAtStr = isoFormat.format(Date(eventTime))
 
-            // BẤT BIẾN FACT 35: Đính kèm toàn bộ mẫu đo sinh hiệu đi kèm vào CSDL
+            // BẤT BIẾN FACT 35: Đính kèm mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
             val samplesArray = JSONArray()
-            val hrVal = heartRate ?: 76
-            val spo2Val = spo2 ?: 98.0
+            if (heartRate != null && heartRate > 0) {
+                samplesArray.put(JSONObject().apply {
+                    put("metricType", "HEART_RATE")
+                    put("value", heartRate.toDouble())
+                    put("unit", "bpm")
+                    put("timestamp", triggeredAtStr)
+                })
+            }
 
-            samplesArray.put(JSONObject().apply {
-                put("metricType", "HEART_RATE")
-                put("value", hrVal.toDouble())
-                put("unit", "bpm")
-                put("timestamp", triggeredAtStr)
-            })
-
-            samplesArray.put(JSONObject().apply {
-                put("metricType", "SPO2")
-                put("value", spo2Val)
-                put("unit", "%")
-                put("timestamp", triggeredAtStr)
-            })
+            if (spo2 != null && spo2 > 0) {
+                samplesArray.put(JSONObject().apply {
+                    put("metricType", "SPO2")
+                    put("value", spo2)
+                    put("unit", "%")
+                    put("timestamp", triggeredAtStr)
+                })
+            }
 
             val canonicalPacketId = if (packetId.startsWith("SOS_") || packetId.startsWith("FALL_")) {
                 packetId

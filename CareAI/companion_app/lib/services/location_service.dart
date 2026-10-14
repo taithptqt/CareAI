@@ -22,9 +22,10 @@ class GpsLocationResult {
     required this.timestamp,
   });
 
-  /// Chuỗi tọa độ hiển thị chuẩn: '10.776889, 106.700806'
-  String get coordinatesFormatted =>
-      '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
+  /// Chuỗi tọa độ hiển thị chuẩn: '16.012246, 108.197899' hoặc 'Chưa có GPS' nếu chưa định vị
+  String get coordinatesFormatted => (isRealGps && (latitude != 0.0 || longitude != 0.0))
+      ? '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}'
+      : 'Chưa có GPS';
 
   /// Link Google Maps trực tiếp để mở hoặc chia sẻ
   String get googleMapsWebUrl =>
@@ -53,10 +54,6 @@ class LocationService {
 
   static const MethodChannel _channel =
       MethodChannel('vn.careai.companion/gps_bridge');
-
-  // Tọa độ dự phòng an toàn (Quận 1, TP. Hồ Chí Minh) khi thiết bị chưa khóa được vệ tinh GPS
-  static const double defaultLat = 10.776889;
-  static const double defaultLng = 106.700806;
 
   /// Lấy tọa độ GPS thực tế từ cảm biến phần cứng của điện thoại
   Future<GpsLocationResult> getCurrentLocation({
@@ -128,12 +125,12 @@ class LocationService {
       return cached;
     }
 
-    // 5. Fallback cuối cùng: Vị trí mặc định
+    // 5. Fallback cuối cùng: Chưa có tọa độ GPS hợp lệ (không bịa đặt tọa độ giả)
     return GpsLocationResult(
-      latitude: defaultLat,
-      longitude: defaultLng,
+      latitude: 0.0,
+      longitude: 0.0,
       accuracy: null,
-      provider: 'default_fallback',
+      provider: 'none',
       isRealGps: false,
       timestamp: DateTime.now().toUtc(),
     );
@@ -141,6 +138,7 @@ class LocationService {
 
   /// Mở vị trí tọa độ trực tiếp trong ứng dụng Google Maps hoặc trình duyệt
   Future<bool> openGoogleMaps(double latitude, double longitude, {String? label}) async {
+    if (latitude == 0.0 && longitude == 0.0) return false;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
         final success = await _channel.invokeMethod<bool>('openGoogleMaps', {

@@ -17,20 +17,57 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         }
     }
 
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        if activationState == .activated {
+            sendWatchDeviceInfo()
+        }
+    }
 
-    func relayEmergencySos(packetId: String, eventId: String, type: String, triggeredAt: String, hr: Double, spo2: Double) {
+    func sendWatchDeviceInfo() {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
+        guard session.activationState == .activated else { return }
+
+        let device = WKInterfaceDevice.current()
+        let deviceName = device.name
+        var size: Int = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        var machine = [CChar](repeating: 0, count: max(1, size))
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        let machineCode = String(cString: machine)
+        let resolvedModel = HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: deviceName)
+
         let payload: [String: Any] = [
+            "action": "WATCH_DEVICE_INFO",
+            "watchName": resolvedModel,
+            "rawName": deviceName,
+            "machineCode": machineCode,
+            "systemVersion": device.systemVersion
+        ]
+
+        session.transferUserInfo(payload)
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        }
+        NSLog("[CareAI-Watch] Đã gửi thông tin phần cứng đồng hồ sang iPhone: %@", resolvedModel)
+    }
+
+    func relayEmergencySos(packetId: String, eventId: String, type: String, triggeredAt: String, hr: Double?, spo2: Double?) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        var payload: [String: Any] = [
             "action": "EMERGENCY_SOS",
             "packetId": packetId,
             "eventId": eventId,
             "emergencyType": type,
-            "triggeredAt": triggeredAt,
-            "heartRate": hr,
-            "spo2": spo2
+            "triggeredAt": triggeredAt
         ]
+        if let hr = hr, hr > 0 {
+            payload["heartRate"] = hr
+        }
+        if let spo2 = spo2, spo2 > 0 {
+            payload["spo2"] = spo2
+        }
         if session.activationState == .activated {
             // Chuyển giao bảo đảm (Guaranteed Transfer) trong nền
             session.transferUserInfo(payload)
@@ -46,7 +83,29 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+        if let action = userInfo["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" {
+            sendWatchDeviceInfo()
+            return
+        }
         handleIncomingCredentials(userInfo)
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" {
+            sendWatchDeviceInfo()
+            return
+        }
+        handleIncomingCredentials(message)
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" {
+            sendWatchDeviceInfo()
+            replyHandler(["status": "OK"])
+            return
+        }
+        handleIncomingCredentials(message)
+        replyHandler(["status": "OK"])
     }
 
     private func handleIncomingCredentials(_ payload: [String: Any]) {
@@ -62,6 +121,7 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                 UserDefaults.standard.set(deviceId, forKey: "deviceId")
             }
             NSLog("[CareAI-Watch] Đã nhận và tự động lưu credentials từ iPhone Companion thành công!")
+            sendWatchDeviceInfo()
         }
     }
 }
@@ -125,6 +185,35 @@ private final class FallDetectionCoordinator: NSObject, CMFallDetectionDelegate 
 
 @MainActor
 final class HealthSync: ObservableObject {
+    nonisolated static func resolveWatchModelName(machineCode: String, fallbackName: String) -> String {
+        let clean = machineCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch clean {
+        case "Watch1,1", "Watch1,2": return "Apple Watch (Gen 1)"
+        case "Watch2,6", "Watch2,7": return "Apple Watch Series 1"
+        case "Watch2,3", "Watch2,4": return "Apple Watch Series 2"
+        case "Watch3,1", "Watch3,2", "Watch3,3", "Watch3,4": return "Apple Watch Series 3"
+        case "Watch4,1", "Watch4,2", "Watch4,3", "Watch4,4": return "Apple Watch Series 4"
+        case "Watch5,1", "Watch5,2", "Watch5,3", "Watch5,4": return "Apple Watch Series 5"
+        case "Watch5,9", "Watch5,10", "Watch5,11", "Watch5,12": return "Apple Watch SE (Gen 1)"
+        case "Watch6,1", "Watch6,2", "Watch6,3", "Watch6,4": return "Apple Watch Series 6"
+        case "Watch6,6", "Watch6,7", "Watch6,8", "Watch6,9": return "Apple Watch Series 7"
+        case "Watch6,10", "Watch6,11", "Watch6,12", "Watch6,13": return "Apple Watch SE (Gen 2)"
+        case "Watch6,14", "Watch6,15", "Watch6,16", "Watch6,17": return "Apple Watch Series 8"
+        case "Watch6,18": return "Apple Watch Ultra"
+        case "Watch7,1", "Watch7,2", "Watch7,3", "Watch7,4": return "Apple Watch Series 9"
+        case "Watch7,5": return "Apple Watch Ultra 2"
+        case "Watch7,8", "Watch7,9", "Watch7,10", "Watch7,11": return "Apple Watch Series 10"
+        default:
+            if clean.contains("arm64") || clean.contains("x86_64") {
+                return fallbackName.isEmpty ? "Apple Watch (Simulator)" : fallbackName
+            }
+            if !fallbackName.isEmpty && fallbackName != "Apple Watch" {
+                return fallbackName
+            }
+            return clean.isEmpty ? "Apple Watch" : "Apple Watch (\(clean))"
+        }
+    }
+
     @Published var status = "Set up backend to start"
     @Published var customAlert: String?
     @Published var diagnosticLog = "⚡ Cảm biến sẵn sàng"
@@ -316,18 +405,19 @@ final class HealthSync: ObservableObject {
             diagnosticLog = "Đang gửi SOS khẩn cấp..."
         }
 
-        let hr = latestHeartRate ?? 76.0
-        let spo2 = latestSpo2 ?? 98.0
         let now = Date()
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let timeStr = formatter.string(from: now)
 
-        // BẤT BIẾN FACT 35: Gói tin Fast-Lane SOS bắt buộc nạp và lưu trữ toàn bộ các mẫu đo sinh hiệu đi kèm
-        let samples: [HealthSampleDto] = [
-            HealthSampleDto(metricType: "HEART_RATE", value: hr, unit: "bpm", timestamp: timeStr),
-            HealthSampleDto(metricType: "SPO2", value: spo2, unit: "%", timestamp: timeStr)
-        ]
+        // BẤT BIẾN FACT 35: Gói tin Fast-Lane SOS lưu toàn bộ mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
+        var samples: [HealthSampleDto] = []
+        if let hr = latestHeartRate, hr > 0 {
+            samples.append(HealthSampleDto(metricType: "HEART_RATE", value: hr, unit: "bpm", timestamp: timeStr))
+        }
+        if let spo2 = latestSpo2, spo2 > 0 {
+            samples.append(HealthSampleDto(metricType: "SPO2", value: spo2, unit: "%", timestamp: timeStr))
+        }
 
         let packet = SosPacketRequest(
             packetId: canonicalPacketId,
@@ -347,8 +437,8 @@ final class HealthSync: ObservableObject {
             eventId: baseEventId,
             type: type,
             triggeredAt: timeStr,
-            hr: hr,
-            spo2: spo2
+            hr: latestHeartRate,
+            spo2: latestSpo2
         )
 
         guard !simulatedOffline,

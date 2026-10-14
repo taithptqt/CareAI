@@ -159,7 +159,7 @@ public class DashboardController : ControllerBase
             .OrderByDescending(m => m.Timestamp)
             .FirstOrDefaultAsync(ct);
 
-        string lastKnownGpsLocation = "10.776889, 106.700806"; // Tọa độ mặc định nhà cụ (Quận 1, TP. Hồ Chí Minh)
+        string? lastKnownGpsLocation = null;
         if (latestLat != null && latestLng != null)
         {
             // Bắt buộc dùng FormattableString.Invariant để đảm bảo tọa độ GPS luôn dùng dấu chấm '.' ngăn cách thập phân,

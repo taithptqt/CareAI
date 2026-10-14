@@ -57,22 +57,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   @override
   void initState() {
     super.initState();
-    _initLastPairedWatchName();
-    _loadDeviceInfo();
-    _checkServerHealth();
-    _loadPendingCount();
-    _checkWatchStatus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_prepareGps());
-    });
-
-    // Khởi chạy Animation rung/lan tỏa cho nút SOS
-    _rippleController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-
-    // Lắng nghe phát hiện té ngã từ Native Watch và Cảm biến điện thoại
+    // Khởi tạo FallService và lắng nghe sự kiện Native trước khi truy vấn trạng thái
     FallService.instance.initialize();
     FallService.instance.startPhoneAccelerometerDetector();
 
@@ -88,6 +73,27 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         _applyWatchStatus(status);
       }
     });
+
+    _initLastPairedWatchName();
+    _loadDeviceInfo();
+    _checkServerHealth();
+    _loadPendingCount();
+    _checkWatchStatus();
+    // Thử lại sau 1.5 giây để đón nhận WCSession (iOS) hoặc Wearable API kích hoạt nền
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && !_watchStatus.isConnected) {
+        _checkWatchStatus();
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_prepareGps());
+    });
+
+    // Khởi chạy Animation rung/lan tỏa cho nút SOS
+    _rippleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
 
     // Định kỳ kiểm tra kết nối máy chủ và số lượng gói chờ (chu kỳ 5 giây để phát hiện cắm/rút cáp tức thì)
     _healthCheckTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -136,12 +142,31 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   String get _platformSensorLabel {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return 'Apple Optical Sensor';
+      return 'Cảm biến quang học PPG / ECG';
     }
-    return 'BioActive Sensor';
+    return 'Cảm biến BioActive / PPG';
   }
 
   Future<void> _checkWatchStatus({bool showFeedback = false}) async {
+    if (showFeedback && mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('🔍 Đang kiểm tra kết nối đồng hồ...'),
+            ],
+          ),
+          duration: Duration(milliseconds: 1200),
+        ),
+      );
+    }
     final status = await FallService.instance.getConnectedWatchStatus();
     if (mounted) {
       await _applyWatchStatus(status, showFeedback: showFeedback);
@@ -227,13 +252,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             feedbackMsg = '🔴 Mất tín hiệu: $_lastPairedWatchName (Kiểm tra khoảng cách/Pin đồng hồ)';
           }
         } else {
-          feedbackMsg = '⚪ Chưa ghép nối $platformName (Kiểm tra qua $channelDesc)';
+          feedbackMsg = '⚪ Chưa phát hiện $platformName kết nối (Kiểm tra qua $channelDesc)';
         }
 
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(feedbackMsg),
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -354,24 +380,25 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final now = DateTime.now().toUtc();
 
     final prefs = await SharedPreferences.getInstance();
-    final lastHr = prefs.getDouble('careai_last_heart_rate') ?? 76.0;
-    final lastSpo2 = prefs.getDouble('careai_last_spo2') ?? 98.0;
+    final lastHr = prefs.getDouble('careai_last_heart_rate');
+    final lastSpo2 = prefs.getDouble('careai_last_spo2');
 
-    // Fact 35 Invariant: Gói Fast-Lane SOS BẮT BUỘC lưu toàn bộ mẫu đo sinh hiệu đi kèm
-    final samples = [
-      TelemetrySample(metricType: 'HEART_RATE', value: lastHr, unit: 'BPM', timestamp: now),
-      TelemetrySample(metricType: 'SPO2', value: lastSpo2, unit: '%', timestamp: now),
-      TelemetrySample(metricType: 'BATTERY', value: 92.0, unit: '%', timestamp: now),
-    ];
+    // Fact 35 Invariant: Gói Fast-Lane SOS lưu toàn bộ mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
+    final samples = <TelemetrySample>[];
+    if (lastHr != null && lastHr > 0) {
+      samples.add(TelemetrySample(metricType: 'HEART_RATE', value: lastHr, unit: 'BPM', timestamp: now));
+    }
+    if (lastSpo2 != null && lastSpo2 > 0) {
+      samples.add(TelemetrySample(metricType: 'SPO2', value: lastSpo2, unit: '%', timestamp: now));
+    }
 
     // TUÂN THỦ NGHIÊM NGẶT: Lấy tọa độ GPS thực tế từ phần cứng thiết bị (Không dùng bản đồ Trung Quốc)
     final recentFix = EmergencyEvidenceService.recentFix;
     final gpsResult = await LocationService.instance.getCurrentLocation();
     final realGpsLocation = gpsResult.isRealGps
         ? gpsResult.coordinatesFormatted
-        : (recentFix?.coordinates ?? gpsResult.coordinatesFormatted);
-    final initialGps = realGpsLocation;
-    if (mounted) {
+        : (recentFix != null && !recentFix.isSimulated ? recentFix.coordinates : null);
+    if (mounted && realGpsLocation != null) {
       setState(() => _currentGps = realGpsLocation);
     }
 
@@ -404,7 +431,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         await LocalOfflineStore.instance.markPacketSynced(packetId);
         if (result.incidentId != null) {
           unawaited(EmergencyEvidenceService.attachLocationWhenReady(
-              result.incidentId!, locationTask, initiallySentGps: initialGps));
+              result.incidentId!, locationTask, initiallySentGps: realGpsLocation));
           unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
         }
       }

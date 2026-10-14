@@ -63,21 +63,29 @@ object NativeSosDispatcher {
                     put("unit", "G")
                     put("timestamp", timeIso)
                 })
-                // BẤT BIẾN FACT 35: Gói tin Fast-Lane SOS bắt buộc nạp và lưu trữ toàn bộ các mẫu đo sinh hiệu đi kèm
-                val lastHr = appPrefs.getFloat("flutter.careai_last_heart_rate", 76f).toDouble()
-                put(JSONObject().apply {
-                    put("metricType", "HEART_RATE")
-                    put("value", lastHr)
-                    put("unit", "bpm")
-                    put("timestamp", timeIso)
-                })
-                val lastSpo2 = appPrefs.getFloat("flutter.careai_last_spo2", 98f).toDouble()
-                put(JSONObject().apply {
-                    put("metricType", "SPO2")
-                    put("value", lastSpo2)
-                    put("unit", "%")
-                    put("timestamp", timeIso)
-                })
+                // BẤT BIẾN FACT 35: Gói tin Fast-Lane SOS lưu toàn bộ mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
+                if (appPrefs.contains("flutter.careai_last_heart_rate")) {
+                    val lastHr = appPrefs.getFloat("flutter.careai_last_heart_rate", 0f).toDouble()
+                    if (lastHr > 0) {
+                        put(JSONObject().apply {
+                            put("metricType", "HEART_RATE")
+                            put("value", lastHr)
+                            put("unit", "bpm")
+                            put("timestamp", timeIso)
+                        })
+                    }
+                }
+                if (appPrefs.contains("flutter.careai_last_spo2")) {
+                    val lastSpo2 = appPrefs.getFloat("flutter.careai_last_spo2", 0f).toDouble()
+                    if (lastSpo2 > 0) {
+                        put(JSONObject().apply {
+                            put("metricType", "SPO2")
+                            put("value", lastSpo2)
+                            put("unit", "%")
+                            put("timestamp", timeIso)
+                        })
+                    }
+                }
             })
         }.toString()
 

@@ -45,9 +45,7 @@ import workmanager_apple
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
 
     if let controller = window?.rootViewController as? FlutterViewController {
-      setupFallBridgeChannel(messenger: controller.binaryMessenger)
-      setupCaregiverAlarmChannel(messenger: controller.binaryMessenger)
-      setupCaregiverAlertChannel(messenger: controller.binaryMessenger)
+      setupChannelsIfNeeded(messenger: controller.binaryMessenger)
     }
 
     return result
@@ -172,7 +170,7 @@ import workmanager_apple
     if let incidentId = userInfo["incidentId"] as? String, !incidentId.isEmpty {
       NSLog("[CareAI-iOS] Người dùng chạm vào thông báo sự cố: %@", incidentId)
       self.pendingIncidentId = incidentId
-      self.caregiverAlertChannel?.invokeMethod("openIncident", incidentId)
+      self.caregiverAlertChannel?.invokeMethod("openIncident", arguments: incidentId)
     }
     completionHandler()
   }
@@ -291,23 +289,50 @@ import workmanager_apple
       case "getConnectedWatchStatus":
         if WCSession.isSupported() {
           let session = WCSession.default
+          if session.activationState != .activated {
+            session.activate()
+          }
           let isPaired = session.isPaired
           let isReachable = session.isReachable
-          let isConnected = isPaired && isReachable
-          result([
+          let isAppInstalled = session.isWatchAppInstalled
+          // Trên iOS: Đã ghép đôi Apple Watch ở cấp độ iOS (session.isPaired) thì coi là đã kết nối phần cứng
+          let isConnected = isPaired
+          let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
+          let displayWatchName = storedWatchName ?? (isPaired ? "Apple Watch" : nil)
+
+          NSLog("[CareAI-iOS] Flutter gọi getConnectedWatchStatus: activationState=%ld, paired=%d, reachable=%d, installed=%d, isConnected=%d",
+                Int(session.activationState.rawValue), isPaired ? 1 : 0, isReachable ? 1 : 0, isAppInstalled ? 1 : 0, isConnected ? 1 : 0)
+
+          // Yêu cầu đồng hồ gửi định danh mới nhất nếu có thể kết nối
+          if isReachable {
+            session.sendMessage(["action": "REQUEST_DEVICE_INFO"], replyHandler: nil, errorHandler: nil)
+          } else if isPaired {
+            session.transferUserInfo(["action": "REQUEST_DEVICE_INFO"])
+          }
+
+          var resPayload: [String: Any] = [
             "isConnected": isConnected,
-            "watchName": isPaired ? "Apple Watch" : nil,
-            "nodeId": isPaired ? "apple_watch_wcsession" : nil,
             "isNearby": isReachable,
-            "connectedCount": isConnected ? 1 : (isPaired ? 1 : 0)
-          ])
+            "connectedCount": isConnected ? 1 : 0,
+            "reason": isConnected ? "CONNECTED" : "NOT_PAIRED",
+            "isPaired": isPaired,
+            "isWatchAppInstalled": isAppInstalled
+          ]
+          if let name = displayWatchName {
+            resPayload["watchName"] = name
+          }
+          if isPaired {
+            resPayload["nodeId"] = "apple_watch_wcsession"
+          }
+          result(resPayload)
         } else {
           result([
             "isConnected": false,
-            "watchName": nil,
-            "nodeId": nil,
             "isNearby": false,
-            "connectedCount": 0
+            "connectedCount": 0,
+            "reason": "NOT_SUPPORTED",
+            "isPaired": false,
+            "isWatchAppInstalled": false
           ])
         }
       case "simulateHardwareFall":
@@ -358,15 +383,71 @@ import workmanager_apple
     }
   }
 
+  private var isChannelsInitialized = false
+
+  func setupChannelsIfNeeded(messenger: FlutterBinaryMessenger) {
+    guard !isChannelsInitialized else { return }
+    isChannelsInitialized = true
+    NSLog("[CareAI-iOS] Khởi tạo các MethodChannel ứng dụng với binaryMessenger...")
+    setupFallBridgeChannel(messenger: messenger)
+    setupCaregiverAlarmChannel(messenger: messenger)
+    setupCaregiverAlertChannel(messenger: messenger)
+
+    // Nếu WCSession đã hoàn tất kích hoạt, thông báo ngay cho Flutter
+    if WCSession.isSupported() && WCSession.default.activationState == .activated {
+      notifyWatchConnectionStatus()
+    }
+  }
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    let messenger = engineBridge.applicationRegistrar.messenger()
+    setupChannelsIfNeeded(messenger: messenger)
+  }
+
+  // MARK: - WCSession Notification Helper
+  private func notifyWatchConnectionStatus(session: WCSession? = nil) {
+    guard WCSession.isSupported() else { return }
+    let s = session ?? WCSession.default
+    let isPaired = s.isPaired
+    let isReachable = s.isReachable
+    let isAppInstalled = s.isWatchAppInstalled
+    let isConnected = isPaired
+    let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
+    let displayWatchName = storedWatchName ?? (isPaired ? "Apple Watch" : nil)
+
+    NSLog("[CareAI-iOS] notifyWatchConnectionStatus: channelReady=%d, activationState=%ld, paired=%d, isConnected=%d, name=%@",
+          self.fallChannel != nil ? 1 : 0, Int(s.activationState.rawValue), isPaired ? 1 : 0, isConnected ? 1 : 0, displayWatchName ?? "nil")
+
+    var payload: [String: Any] = [
+      "isConnected": isConnected,
+      "isNearby": isReachable,
+      "connectedCount": isConnected ? 1 : 0,
+      "reason": isConnected ? "CONNECTED" : "NOT_PAIRED",
+      "isPaired": isPaired,
+      "isWatchAppInstalled": isAppInstalled
+    ]
+    if let name = displayWatchName {
+      payload["watchName"] = name
+    }
+    if isPaired {
+      payload["nodeId"] = "apple_watch_wcsession"
+    }
+
+    DispatchQueue.main.async { [weak self] in
+      self?.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: payload)
+    }
   }
 
   // MARK: - WCSessionDelegate
   func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
     if let error = error {
       NSLog("[CareAI-iOS] WCSession error: %@", error.localizedDescription)
+    } else {
+      NSLog("[CareAI-iOS] WCSession activation completed: state=%d, paired=%d, installed=%d, reachable=%d",
+            activationState.rawValue, session.isPaired, session.isWatchAppInstalled, session.isReachable)
     }
+    notifyWatchConnectionStatus(session: session)
   }
 
   func sessionDidBecomeInactive(_ session: WCSession) {}
@@ -376,41 +457,13 @@ import workmanager_apple
   }
 
   func sessionReachabilityDidChange(_ session: WCSession) {
-    let reachable = session.isReachable
-    let paired = session.isPaired
-    NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession reachability changed: reachable=%d, paired=%d", reachable, paired)
-    DispatchQueue.main.async { [weak self] in
-      guard let self = self else { return }
-      let isConnected = paired && reachable
-      let payload: [String: Any] = [
-        "isConnected": isConnected,
-        "watchName": "Apple Watch",
-        "nodeId": paired ? "apple_watch_wcsession" : nil,
-        "isNearby": reachable,
-        "connectedCount": isConnected ? 1 : (paired ? 1 : 0),
-        "reason": isConnected ? "CONNECTED" : (paired ? "UNREACHABLE" : "NOT_PAIRED")
-      ]
-      self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: payload)
-    }
+    NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession reachability changed: reachable=%d, paired=%d", session.isReachable, session.isPaired)
+    notifyWatchConnectionStatus(session: session)
   }
 
   func sessionWatchStateDidChange(_ session: WCSession) {
-    let reachable = session.isReachable
-    let paired = session.isPaired
-    NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession watch state changed: reachable=%d, paired=%d", reachable, paired)
-    DispatchQueue.main.async { [weak self] in
-      guard let self = self else { return }
-      let isConnected = paired && reachable
-      let payload: [String: Any] = [
-        "isConnected": isConnected,
-        "watchName": "Apple Watch",
-        "nodeId": paired ? "apple_watch_wcsession" : nil,
-        "isNearby": reachable,
-        "connectedCount": isConnected ? 1 : (paired ? 1 : 0),
-        "reason": isConnected ? "CONNECTED" : (paired ? "UNREACHABLE" : "NOT_PAIRED")
-      ]
-      self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: payload)
-    }
+    NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession watch state changed: reachable=%d, paired=%d", session.isReachable, session.isPaired)
+    notifyWatchConnectionStatus(session: session)
   }
 
   func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
@@ -422,13 +475,22 @@ import workmanager_apple
   }
 
   private func handleWatchRelay(_ payload: [String: Any]) {
+    if let action = payload["action"] as? String, action == "WATCH_DEVICE_INFO" {
+      if let watchName = payload["watchName"] as? String, !watchName.isEmpty {
+        UserDefaults.standard.set(watchName, forKey: "careai_apple_watch_name")
+        NSLog("[CareAI-iOS] Đã nhận diện tên phần cứng Apple Watch từ watchOS: %@", watchName)
+        notifyWatchConnectionStatus()
+      }
+      return
+    }
+
     guard let action = payload["action"] as? String, action == "EMERGENCY_SOS" else { return }
     let packetId = payload["packetId"] as? String ?? "SOS_WATCH_\(Int64(Date().timeIntervalSince1970 * 1000))"
     let eventId = payload["eventId"] as? String ?? packetId
     let emergencyType = payload["emergencyType"] as? String ?? "FALL_DETECTED"
     let triggeredAt = payload["triggeredAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
-    let hr = payload["heartRate"] as? Double ?? 76.0
-    let spo2 = payload["spo2"] as? Double ?? 98.0
+    let hr = payload["heartRate"] as? Double
+    let spo2 = payload["spo2"] as? Double
 
     // Cảnh báo cục bộ trên iPhone
     let content = UNMutableNotificationContent()
@@ -458,18 +520,24 @@ import workmanager_apple
     request.setValue(deviceToken, forHTTPHeaderField: "X-Device-Token")
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-    // Bất biến Fact 35: Lưu đủ mẫu đo sinh hiệu đi kèm
+    // Bất biến Fact 35: Lưu mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
+    var samples: [[String: Any]] = [
+      ["metricType": "FALL", "value": 2.5, "unit": "G", "timestamp": triggeredAt]
+    ]
+    if let hr = hr, hr > 0 {
+      samples.append(["metricType": "HEART_RATE", "value": hr, "unit": "bpm", "timestamp": triggeredAt])
+    }
+    if let spo2 = spo2, spo2 > 0 {
+      samples.append(["metricType": "SPO2", "value": spo2, "unit": "%", "timestamp": triggeredAt])
+    }
+
     let bodyJson: [String: Any] = [
       "packetId": packetId,
       "eventId": eventId,
       "emergencyType": emergencyType == "FALL_DETECTED" ? "FALL" : "MANUAL_SOS",
       "severity": "CRITICAL",
       "triggeredAt": triggeredAt,
-      "samples": [
-        ["metricType": "HEART_RATE", "value": hr, "unit": "bpm", "timestamp": triggeredAt],
-        ["metricType": "SPO2", "value": spo2, "unit": "%", "timestamp": triggeredAt],
-        ["metricType": "FALL", "value": 2.5, "unit": "G", "timestamp": triggeredAt]
-      ]
+      "samples": samples
     ]
 
     // Chuyển tiếp sự kiện té ngã lên giao diện Flutter nếu ứng dụng đang mở và kích hoạt còi hú y tế

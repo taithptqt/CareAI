@@ -177,19 +177,21 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     }
   }
 
-  LatLng _parseGpsLocation(String? loc) {
-    if (loc == null || loc.isEmpty) {
-      return const LatLng(10.776889, 106.700806); // Mặc định TP. Hồ Chí Minh
+  LatLng? _parseGpsLocation(String? loc) {
+    if (loc == null || loc.isEmpty || loc == 'Chưa có dữ liệu' || loc == 'Chưa có GPS') {
+      return null;
     }
     try {
       final parts = loc.split(',');
       if (parts.length >= 2) {
-        final lat = double.parse(parts[0].trim());
-        final lng = double.parse(parts[1].trim());
-        return LatLng(lat, lng);
+        final lat = double.tryParse(parts[0].trim());
+        final lng = double.tryParse(parts[1].trim());
+        if (lat != null && lng != null && (lat != 0.0 || lng != 0.0)) {
+          return LatLng(lat, lng);
+        }
       }
     } catch (_) {}
-    return const LatLng(10.776889, 106.700806);
+    return null;
   }
 
   @override
@@ -1826,7 +1828,72 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   }
 
   // --- BẢN ĐỒ GPS & LIÊN KẾT GOOGLE MAPS (TUÂN THỦ: KHÔNG DÙNG BẢN ĐỒ TRUNG QUỐC) ---
-  Widget _buildGpsMapCard(ElderDashboard d, LatLng coord) {
+  Widget _buildGpsMapCard(ElderDashboard d, LatLng? coord) {
+    if (coord == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF334155)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.location_on_rounded, color: Color(0xFF94A3B8), size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Vị Trí Định Vị Trực Tiếp (GPS)',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF334155),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('Chưa có GPS', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF1E293B)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.location_off_rounded, size: 36, color: Color(0xFF64748B)),
+                  SizedBox(height: 10),
+                  Text(
+                    'Chưa nhận được vị trí GPS thực tế',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Khi thiết bị người cao tuổi bật GPS hoặc phát sinh sự cố, vị trí sẽ hiển thị trực tiếp trên bản đồ tại đây.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final googleMapsLink =
         'https://www.google.com/maps/search/?api=1&query=${coord.latitude},${coord.longitude}';
 
