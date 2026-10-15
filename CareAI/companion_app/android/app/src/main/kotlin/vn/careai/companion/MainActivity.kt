@@ -609,6 +609,35 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
+                "unpairWatch" -> {
+                    try {
+                        val putDataReq = PutDataMapRequest.create("/careai/credentials").apply {
+                            dataMap.putString("action", "UNPAIR")
+                            dataMap.putString("backendUrl", "")
+                            dataMap.putString("deviceId", "")
+                            dataMap.putString("deviceToken", "")
+                            dataMap.putString("elderName", "")
+                            dataMap.putLong("updatedAt", System.currentTimeMillis())
+                        }.asPutDataRequest().setUrgent()
+                        Wearable.getDataClient(this).putDataItem(putDataReq)
+
+                        val json = JSONObject().apply {
+                            put("action", "UNPAIR")
+                        }.toString()
+                        Wearable.getNodeClient(this).connectedNodes.addOnSuccessListener { nodes ->
+                            for (node in nodes) {
+                                Wearable.getMessageClient(this).sendMessage(
+                                    node.id,
+                                    "/careai/unpair",
+                                    json.toByteArray(Charsets.UTF_8)
+                                )
+                            }
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(true)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

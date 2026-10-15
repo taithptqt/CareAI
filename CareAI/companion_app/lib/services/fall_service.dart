@@ -200,6 +200,20 @@ class FallService {
     }
   }
 
+  /// Gửi lệnh hủy ghép nối đồng hồ ngoại vi (Apple Watch qua WCSession, Galaxy Watch qua Wearable DataClient)
+  Future<bool> unpairWatch() async {
+    if (!_isSupportedPlatform) {
+      return true;
+    }
+    try {
+      final success = await _fallChannel.invokeMethod<bool>('unpairWatch');
+      return success ?? false;
+    } catch (e) {
+      debugPrint('[FallService] Lỗi khi gửi lệnh unpairWatch: $e');
+      return false;
+    }
+  }
+
   void dispose() {
     _sensorSubscription?.cancel();
     _fallEventController.close();

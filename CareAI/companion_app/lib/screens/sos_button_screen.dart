@@ -901,7 +901,18 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   }
 
   Future<void> _handleUnpair() async {
-    final confirm = await showDialog<bool>(
+    await _showSettingsDialog();
+  }
+
+  /// Mở hộp thoại Cài Đặt Thiết Bị (Thanh lịch, không gây hoang mang, tách bạch chức năng)
+  Future<void> _showSettingsDialog() async {
+    final isConnected = _watchStatus.isConnected;
+    final hasKnownWatch = (_watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) ||
+        (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) ||
+        _watchStatus.isPaired;
+    final watchDisplayName = _watchStatus.watchName ?? _lastPairedWatchName ?? (isConnected ? _platformWatchTitle : null);
+
+    await showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: const Color(0xFF1E293B),
@@ -942,7 +953,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Quản lý ghép nối & kiểm thử',
+                          'Quản lý kết nối & kiểm thử',
                           style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                         ),
                       ],
@@ -952,7 +963,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                     icon: const Icon(Icons.close, color: Colors.white70, size: 20),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onPressed: () => Navigator.pop(ctx, false),
+                    onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
               ),
@@ -960,67 +971,76 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               const Divider(color: Color(0xFF334155), height: 1),
               const SizedBox(height: 14),
 
-              // Thẻ cảnh báo hủy ghép nối gọn gàng, súc tích
+              // Thẻ thông tin Apple Watch (thanh lịch, hữu ích)
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F172A),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF7F1D1D).withValues(alpha: 0.6)),
+                  border: Border.all(color: const Color(0xFF334155)),
                 ),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFF87171), size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Hủy liên kết với CareAI?',
-                            style: TextStyle(
-                              fontSize: 13,
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.watch_rounded,
+                          color: isConnected ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            watchDisplayName ?? 'Chưa kết nối đồng hồ',
+                            style: const TextStyle(
+                              fontSize: 13.5,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFFCA5A5),
+                              color: Colors.white,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Nếu hủy, máy sẽ dừng gửi tín hiệu SOS đến người thân. Bạn sẽ cần quét mã PIN mới để kết nối lại.',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: const Color(0xFFCBD5E1).withValues(alpha: 0.9),
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isConnected
+                          ? '🟢 Đang kết nối${_watchStatus.batteryLevel != null ? ' · Pin ${_watchStatus.batteryLevel}%' : ''}${_watchStatus.isWorn == true ? ' · Đang đeo' : ''}'
+                          : '⚪ Chưa nhận tín hiệu đồng hồ',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isConnected ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
                       ),
                     ),
+                    if (hasKnownWatch || isConnected) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFFF97316),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.link_off_rounded, size: 15),
+                          label: const Text(
+                            'Ngắt liên kết đồng hồ',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _handleUnpairWatchOnly();
+                          },
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // Nút 1: Hủy ghép nối (Đỏ cảnh báo nổi bật)
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFEF4444),
-                  side: const BorderSide(color: Color(0xFFDC2626), width: 1.2),
-                  backgroundColor: const Color(0xFF7F1D1D).withValues(alpha: 0.2),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.link_off_rounded, size: 18),
-                label: const Text(
-                  'HỦY GHÉP NỐI THIẾT BỊ',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.3),
-                ),
-                onPressed: () => Navigator.pop(ctx, true),
-              ),
-              const SizedBox(height: 8),
-
-              // Nút 2: Phòng thử nghiệm tín hiệu (Nhẹ nhàng cho kỹ thuật)
+              // Nút 1: Phòng thử nghiệm tín hiệu
               TextButton.icon(
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF38BDF8),
@@ -1030,16 +1050,39 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 icon: const Icon(Icons.biotech_outlined, size: 17),
                 label: const Text(
                   'Mở Phòng Thử Nghiệm Tín Hiệu',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
                 onPressed: () {
-                  Navigator.pop(ctx, false);
+                  Navigator.pop(ctx);
                   _showDiagnosticTestLabSheet(context);
                 },
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
+              const Divider(color: Color(0xFF334155), height: 1),
+              const SizedBox(height: 12),
 
-              // Nút 3: HỦY BỎ (Nằm dưới cùng, nền rõ nét, chữ trắng sáng 100%, không icon, không giải thích thêm)
+              // Nút 2: Đăng xuất hồ sơ người già (Vùng nguy hiểm)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFEF4444),
+                  side: const BorderSide(color: Color(0xFFDC2626), width: 1.2),
+                  backgroundColor: const Color(0xFF7F1D1D).withValues(alpha: 0.15),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.logout_rounded, size: 17),
+                label: const Text(
+                  'ĐĂNG XUẤT HỒ SƠ NGƯỜI GIÀ',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _handleLogoutAccount();
+                },
+              ),
+              const SizedBox(height: 10),
+
+              // Nút 3: HỦY BỎ (Dưới cùng, đơn giản, rõ nét)
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF334155),
@@ -1048,7 +1091,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () => Navigator.pop(ctx),
                 child: const Text(
                   'HỦY BỎ',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
@@ -1059,16 +1102,129 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         ),
       ),
     );
+  }
+
+  /// Ngắt liên kết riêng biệt với Apple Watch (Vẫn giữ nguyên app SOS và hồ sơ người già trên iPhone)
+  Future<void> _handleUnpairWatchOnly() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFF334155)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.link_off_rounded, color: Color(0xFFF97316), size: 22),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Ngắt Liên Kết Đồng Hồ?',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Đồng hồ sẽ ngừng đo nhịp tim và phát hiện té ngã.\n\nNút SOS khẩn cấp và định vị GPS trên chiếc điện thoại này vẫn hoạt động bình thường để bảo vệ bạn.',
+          style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('GIỮ KẾT NỐI', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEA580C),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('XÁC NHẬN NGẮT', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
 
     if (confirm == true) {
       _watchDisconnectDebounceTimer?.cancel();
       _watchDisconnectDebounceTimer = null;
+      await FallService.instance.unpairWatch();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('last_paired_watch_name');
+      if (mounted) {
+        setState(() {
+          _lastPairedWatchName = null;
+          _watchStatus = const WatchStatus(isConnected: false);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã ngắt liên kết đồng hồ. Nút SOS trên điện thoại vẫn sẵn sàng bảo vệ bạn.'),
+            backgroundColor: Color(0xFF0F172A),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Đăng xuất toàn bộ hồ sơ người già (Hủy cả iPhone lẫn Apple Watch / Reset App)
+  Future<void> _handleLogoutAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFF7F1D1D)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Xác Nhận Đăng Xuất?',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Toàn bộ tính năng bảo vệ, định vị và gửi tín hiệu SOS của cụ ${_elderName.isNotEmpty ? _elderName : "người cao tuổi"} trên CẢ ĐIỆN THOẠI VÀ ĐỒNG HỒ sẽ dừng hoạt động.\n\nBạn sẽ cần quét mã PIN mới để kết nối lại.',
+          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY BỎ (GIỮ HỒ SƠ)', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('XÁC NHẬN ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _watchDisconnectDebounceTimer?.cancel();
+      _watchDisconnectDebounceTimer = null;
+      await FallService.instance.unpairWatch();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('last_paired_watch_name');
       await ApiService.instance.unpair();
       if (mounted) {
         setState(() {
           _lastPairedWatchName = null;
+          _watchStatus = const WatchStatus(isConnected: false);
         });
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
@@ -1171,8 +1327,8 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white70),
-            tooltip: 'Cài đặt / Hủy ghép đôi',
-            onPressed: _handleUnpair,
+            tooltip: 'Cài đặt thiết bị',
+            onPressed: _showSettingsDialog,
           ),
         ],
       ),

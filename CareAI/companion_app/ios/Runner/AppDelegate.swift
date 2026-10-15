@@ -416,6 +416,33 @@ import workmanager_apple
         } else {
           result(false)
         }
+      case "unpairWatch":
+        // 1. Xóa thông tin đồng hồ đã lưu trong UserDefaults của iOS
+        UserDefaults.standard.removeObject(forKey: "careai_backend_url")
+        UserDefaults.standard.removeObject(forKey: "careai_device_id")
+        UserDefaults.standard.removeObject(forKey: "careai_device_token")
+        UserDefaults.standard.removeObject(forKey: "careai_elder_name")
+        UserDefaults.standard.removeObject(forKey: "careai_apple_watch_name")
+        UserDefaults.standard.removeObject(forKey: "careai_watch_battery_level")
+        UserDefaults.standard.removeObject(forKey: "careai_watch_is_worn")
+        UserDefaults.standard.removeObject(forKey: "careai_watch_is_charging")
+
+        // 2. Gửi lệnh UNPAIR sang Apple Watch qua 3 kênh WCSession
+        if WCSession.isSupported() {
+          let session = WCSession.default
+          if session.activationState != .activated {
+            session.activate()
+          }
+          let payload: [String: Any] = ["action": "UNPAIR", "syncType": "UNPAIR"]
+          try? session.updateApplicationContext(payload)
+          session.transferUserInfo(payload)
+          if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+          }
+          NSLog("[CareAI-iOS] Đã gửi lệnh unpairWatch sang Apple Watch qua WCSession thành công.")
+        }
+        self.notifyWatchConnectionStatus()
+        result(true)
       case "getPendingHardwareFall":
         let pending = self.pendingFallPayload
         self.pendingFallPayload = nil
@@ -643,12 +670,26 @@ import workmanager_apple
       return
     }
 
+    if action == "WATCH_UNPAIRED" {
+      UserDefaults.standard.removeObject(forKey: "careai_apple_watch_name")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_battery_level")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_is_worn")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_is_charging")
+      NSLog("[CareAI-iOS] Nhận thông báo WATCH_UNPAIRED từ Apple Watch. Đã xóa trạng thái ghép nối đồng hồ.")
+      notifyWatchConnectionStatus()
+      return
+    }
+
     if action == "WATCH_DEVICE_INFO" {
-      if let watchName = payload["watchName"] as? String, !watchName.isEmpty {
+      let isWatchPaired = payload["isPaired"] as? Bool ?? true
+      if !isWatchPaired {
+        UserDefaults.standard.removeObject(forKey: "careai_apple_watch_name")
+        NSLog("[CareAI-iOS] Apple Watch báo cáo trạng thái chưa ghép nối (isPaired=false).")
+      } else if let watchName = payload["watchName"] as? String, !watchName.isEmpty {
         UserDefaults.standard.set(watchName, forKey: "careai_apple_watch_name")
         NSLog("[CareAI-iOS] Đã nhận diện tên phần cứng Apple Watch từ watchOS: %@", watchName)
-        notifyWatchConnectionStatus()
       }
+      notifyWatchConnectionStatus()
       return
     }
 

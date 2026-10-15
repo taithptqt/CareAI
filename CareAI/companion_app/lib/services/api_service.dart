@@ -193,9 +193,11 @@ class ApiService {
     await prefs.remove('device_token');
     await prefs.remove('elder_profile_id');
     await prefs.remove('elder_name');
+    await prefs.remove('last_paired_watch_name');
 
     // Đồng bộ hủy thông tin xác thực trên đồng hồ
     try {
+      unawaited(FallService.instance.unpairWatch());
       unawaited(FallService.instance.syncWatchCredentials(
         backendUrl: '',
         deviceId: '',

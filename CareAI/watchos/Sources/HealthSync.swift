@@ -67,12 +67,14 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let machineCode = String(cString: machine)
         let resolvedModel = HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: deviceName)
 
+        let isWatchPaired = KeychainToken.load() != nil
         let payload: [String: Any] = [
             "action": "WATCH_DEVICE_INFO",
             "watchName": resolvedModel,
             "rawName": deviceName,
             "machineCode": machineCode,
-            "systemVersion": device.systemVersion
+            "systemVersion": device.systemVersion,
+            "isPaired": isWatchPaired
         ]
 
         session.transferUserInfo(payload)
@@ -80,6 +82,21 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
         }
         NSLog("[CareAI-Watch] Đã gửi thông tin phần cứng đồng hồ sang iPhone: %@", resolvedModel)
+    }
+
+    func notifyWatchUnpaired() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        let payload: [String: Any] = [
+            "action": "WATCH_UNPAIRED",
+            "syncType": "UNPAIR"
+        ]
+        try? session.updateApplicationContext(payload)
+        session.transferUserInfo(payload)
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        }
+        NSLog("[CareAI-Watch] Đã gửi thông báo WATCH_UNPAIRED sang iPhone Companion.")
     }
 
     func relayEmergencySos(packetId: String, eventId: String, type: String, triggeredAt: String, hr: Double?, spo2: Double?) {
@@ -154,6 +171,10 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        if let action = applicationContext["action"] as? String, action == "UNPAIR" {
+            handleUnpairCommand()
+            return
+        }
         handleIncomingCredentials(applicationContext)
     }
 
@@ -163,6 +184,10 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             syncCurrentBatteryAndWearState()
             return
         }
+        if let action = userInfo["action"] as? String, action == "UNPAIR" {
+            handleUnpairCommand()
+            return
+        }
         handleIncomingCredentials(userInfo)
     }
 
@@ -170,6 +195,10 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
             sendWatchDeviceInfo()
             syncCurrentBatteryAndWearState()
+            return
+        }
+        if let action = message["action"] as? String, action == "UNPAIR" {
+            handleUnpairCommand()
             return
         }
         handleIncomingCredentials(message)
@@ -182,8 +211,22 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             replyHandler(["status": "OK"])
             return
         }
+        if let action = message["action"] as? String, action == "UNPAIR" {
+            handleUnpairCommand()
+            replyHandler(["status": "OK"])
+            return
+        }
         handleIncomingCredentials(message)
         replyHandler(["status": "OK"])
+    }
+
+    private func handleUnpairCommand() {
+        NSLog("[CareAI-Watch] Nhận lệnh UNPAIR từ iPhone Companion. Tiến hành hủy ghép nối đồng hồ...")
+        Task { @MainActor in
+            HealthSync.shared?.unpair(notifyPhone: false)
+            WatchConnectivityCoordinator.shared.sendWatchDeviceInfo()
+            WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+        }
     }
 
     private func handleIncomingCredentials(_ payload: [String: Any]) {
@@ -418,12 +461,15 @@ final class HealthSync: ObservableObject {
         self.start()
     }
 
-    func unpair() {
+    func unpair(notifyPhone: Bool = true) {
         UserDefaults.standard.removeObject(forKey: "deviceId")
         UserDefaults.standard.removeObject(forKey: "backend")
         KeychainToken.save("")
         self.isPaired = false
         self.status = "Set up backend to start"
+        if notifyPhone {
+            WatchConnectivityCoordinator.shared.notifyWatchUnpaired()
+        }
     }
 
     func requestHealthKitAuthorization() {
