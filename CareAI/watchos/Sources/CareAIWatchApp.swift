@@ -72,10 +72,12 @@ struct ContentView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
                     Spacer()
-                    Button(action: { showSettings.toggle() }) {
+                    Button(action: { showSettings = true }) {
                         Image(systemName: "gearshape.fill")
-                            .font(.system(size: 11))
-                            .foregroundColor(showSettings ? Color(red: 0.22, green: 0.74, blue: 0.97) : .gray)
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -189,19 +191,6 @@ struct ContentView: View {
                     .padding(6)
                     .background(Color.white.opacity(0.05))
                     .cornerRadius(8)
-
-                    // Cấu hình máy chủ nâng cao (chỉ hiển thị khi bấm icon bánh răng cài đặt)
-                    if showSettings {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Cấu Hình Máy Chủ Nâng Cao").font(.system(size: 8, weight: .bold)).foregroundColor(.gray)
-                            TextField("HTTPS backend URL", text: $backend)
-                                .textContentType(.URL)
-                                .font(.system(size: 9))
-                        }
-                        .padding(6)
-                        .background(Color.white.opacity(0.03))
-                        .cornerRadius(6)
-                    }
                 } else {
                     // 2. Badge trạng thái giám sát / cảnh báo
                     Text(statusTitle)
@@ -300,45 +289,14 @@ struct ContentView: View {
                         .multilineTextAlignment(.center)
                         .padding(.top, 2)
 
-                    // 9. Cấu hình & Demo ngoại tuyến
-                    if showSettings {
-                        Divider().padding(.top, 4)
-                        Toggle("Tự động phát hiện té ngã", isOn: $sync.autoFallDetectionEnabled)
-                            .font(.system(size: 9))
-                            .onChange(of: sync.autoFallDetectionEnabled) { _, _ in
-                                sync.setupFallDetection()
-                            }
 
-                        Toggle("Tiết Kiệm Pin Thích Ứng", isOn: $sync.batterySaverEnabled)
-                            .font(.system(size: 9))
-                            .onChange(of: sync.batterySaverEnabled) { _, _ in
-                                sync.applyBatteryPolicy()
-                            }
-
-                        Toggle("Mô phỏng Mất Mạng", isOn: Binding(
-                            get: { sync.simulatedOffline },
-                            set: { sync.setSimulatedOffline($0) }
-                        ))
-                        .font(.system(size: 9))
-
-                        Button("Gửi dữ liệu ngay") { Task { await sync.sendNow() } }
-                            .font(.system(size: 9))
-                            .disabled(sync.simulatedOffline)
-
-                        Text("Đã đệm trên đồng hồ: \(sync.pendingCount)")
-                            .font(.system(size: 8))
-                            .foregroundColor(.gray)
-
-                        Button("Hủy ghép nối", role: .destructive) {
-                            sync.unpair()
-                            showSettings = false
-                        }
-                        .font(.system(size: 9))
-                    }
                 }
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 8)
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheetView(sync: sync, backend: $backend, isPaired: isPaired)
         }
         .onAppear {
             if KeychainToken.load() != nil {
@@ -444,4 +402,92 @@ private struct PairResponse: Decodable {
     let deviceId: String
     let deviceToken: String
     let fullName: String?
+}
+
+struct SettingsSheetView: View {
+    @ObservedObject var sync: HealthSync
+    @Binding var backend: String
+    let isPaired: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Cài Đặt")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 2)
+
+                if !isPaired {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Cấu Hình Máy Chủ Nâng Cao")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.gray)
+                        TextField("HTTPS backend URL", text: $backend)
+                            .textContentType(.URL)
+                            .font(.system(size: 9))
+                        Button("Lưu cấu hình") {
+                            UserDefaults.standard.set(backend, forKey: "backend")
+                            dismiss()
+                        }
+                        .font(.system(size: 10, weight: .semibold))
+                    }
+                    .padding(6)
+                    .background(Color.white.opacity(0.05))
+                    .cornerRadius(8)
+                } else {
+                    Toggle("Tự động phát hiện té ngã", isOn: $sync.autoFallDetectionEnabled)
+                        .font(.system(size: 10))
+                        .onChange(of: sync.autoFallDetectionEnabled) { _, _ in
+                            sync.setupFallDetection()
+                        }
+
+                    Toggle("Tiết Kiệm Pin Thích Ứng", isOn: $sync.batterySaverEnabled)
+                        .font(.system(size: 10))
+                        .onChange(of: sync.batterySaverEnabled) { _, _ in
+                            sync.applyBatteryPolicy()
+                        }
+
+                    Toggle("Mô phỏng Mất Mạng", isOn: Binding(
+                        get: { sync.simulatedOffline },
+                        set: { sync.setSimulatedOffline($0) }
+                    ))
+                    .font(.system(size: 10))
+
+                    Button("Gửi dữ liệu ngay") { Task { await sync.sendNow() } }
+                        .font(.system(size: 10))
+                        .disabled(sync.simulatedOffline)
+
+                    Text("Đã đệm trên đồng hồ: \(sync.pendingCount)")
+                        .font(.system(size: 9))
+                        .foregroundColor(.gray)
+
+                    Button("Hủy ghép nối", role: .destructive) {
+                        sync.unpair()
+                        dismiss()
+                    }
+                    .font(.system(size: 10))
+                }
+
+                Button("Đóng") {
+                    dismiss()
+                }
+                .font(.system(size: 10))
+                .foregroundColor(.gray)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 4)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+        }
+    }
 }
