@@ -312,8 +312,10 @@ import workmanager_apple
           // Yêu cầu đồng hồ gửi định danh và viễn trắc mới nhất nếu có thể kết nối
           if isReachable && !isBtOff {
             session.sendMessage(["action": "REQUEST_DEVICE_INFO"], replyHandler: nil, errorHandler: nil)
+            session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: nil, errorHandler: nil)
           } else if isPaired && !isBtOff {
             session.transferUserInfo(["action": "REQUEST_DEVICE_INFO"])
+            session.transferUserInfo(["action": "REQUEST_TELEMETRY"])
           }
 
           var resPayload: [String: Any] = [
@@ -681,13 +683,15 @@ import workmanager_apple
     }
 
     if action == "WATCH_DEVICE_INFO" {
-      let isWatchPaired = payload["isPaired"] as? Bool ?? true
-      if !isWatchPaired {
-        UserDefaults.standard.removeObject(forKey: "careai_apple_watch_name")
-        NSLog("[CareAI-iOS] Apple Watch báo cáo trạng thái chưa ghép nối (isPaired=false).")
-      } else if let watchName = payload["watchName"] as? String, !watchName.isEmpty {
-        UserDefaults.standard.set(watchName, forKey: "careai_apple_watch_name")
-        NSLog("[CareAI-iOS] Đã nhận diện tên phần cứng Apple Watch từ watchOS: %@", watchName)
+      let rawWatchName = payload["watchName"] as? String
+      let rawName = payload["rawName"] as? String
+      let chosenName = (rawWatchName != nil && !rawWatchName!.isEmpty && rawWatchName != "Apple Watch")
+        ? rawWatchName!
+        : ((rawName != nil && !rawName!.isEmpty && rawName != "Apple Watch") ? rawName! : nil)
+
+      if let validName = chosenName {
+        UserDefaults.standard.set(validName, forKey: "careai_apple_watch_name")
+        NSLog("[CareAI-iOS] Đã nhận diện và lưu tên phần cứng Apple Watch từ watchOS: %@", validName)
       }
       notifyWatchConnectionStatus()
       return

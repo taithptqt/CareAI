@@ -117,7 +117,7 @@ public class CaregiversController : ControllerBase
             {
                 var elder = ec.ElderProfile!;
                 var activeDevices = elder.Devices.Where(d => d.IsActive).ToList();
-                var isOnline = activeDevices.Any(d => d.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfter));
+                var isOnline = activeDevices.Any(d => d.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfterFor(d.DeviceType)));
                 var deviceStatus = isOnline ? "ONLINE" : "OFFLINE";
 
                 return new ElderItemDto(
@@ -304,7 +304,7 @@ public class CaregiversController : ControllerBase
         _logger.LogInformation("[ELDER-UPDATED] Primary Caregiver {CaregiverId} đã cập nhật hồ sơ Cụ {ElderId} ({FullName})", caregiverId, elder.Id, elder.FullName);
 
         var activeDevices = elder.Devices.Where(d => d.IsActive).ToList();
-        var isOnline = activeDevices.Any(d => d.LastHeartbeat >= DateTime.UtcNow.AddMinutes(-15));
+        var isOnline = activeDevices.Any(d => d.LastHeartbeat >= DateTime.UtcNow.Subtract(DeviceStaleEngine.StaleAfterFor(d.DeviceType)));
 
         return Ok(new ElderItemDto(
             elder.Id,

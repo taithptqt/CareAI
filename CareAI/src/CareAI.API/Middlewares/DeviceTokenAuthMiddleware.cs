@@ -73,7 +73,8 @@ public class DeviceTokenAuthMiddleware
         if (path.StartsWith("/api/v1/telemetry", StringComparison.OrdinalIgnoreCase) ||
             path.Equals("/api/v1/incidents/sos", StringComparison.OrdinalIgnoreCase) ||
             deviceEvidenceUpload ||
-            path.StartsWith("/api/v1/devices/heartbeat", StringComparison.OrdinalIgnoreCase))
+            path.StartsWith("/api/v1/devices/heartbeat", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/devices/sync-watch", StringComparison.OrdinalIgnoreCase))
         {
             if (!context.Request.Headers.TryGetValue("X-DeviceId", out var deviceIdHeader) ||
                 !context.Request.Headers.TryGetValue("X-Device-Token", out var tokenHeader))

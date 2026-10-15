@@ -53,6 +53,8 @@ struct ContentView: View {
             VitalsTestLabSheetView(sync: sync)
         }
         .onAppear {
+            WatchConnectivityCoordinator.shared.sendWatchDeviceInfo()
+            WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
             sync.requestHealthKitAuthorization()
             sync.fetchLatestSamples()
             if KeychainToken.load() != nil {
@@ -66,6 +68,7 @@ struct ContentView: View {
             if phase == .active {
                 sync.requestHealthKitAuthorization()
                 sync.fetchLatestSamples()
+                WatchConnectivityCoordinator.shared.sendWatchDeviceInfo()
                 WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                 if isPaired { sync.start() }
             }

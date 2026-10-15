@@ -332,7 +332,7 @@ public class DevicesController : ControllerBase
                 Id = $"WATCH_{companionDevice.Id.Replace("DEV_", "")}",
                 ElderProfileId = companionDevice.ElderProfileId,
                 DeviceTokenHash = companionDevice.DeviceTokenHash,
-                DeviceType = "Smartwatch",
+                DeviceType = (request.WatchModel != null && request.WatchModel.Contains("Apple Watch", StringComparison.OrdinalIgnoreCase)) ? "AppleWatch" : "Smartwatch",
                 DeviceModel = request.WatchModel,
                 DisconnectReason = isConnected ? null : request.DisconnectReason,
                 IsWatchWorn = request.IsWorn,
@@ -347,6 +347,10 @@ public class DevicesController : ControllerBase
             };
             _db.DeviceRegistrations.Add(watchDevice);
         }
+
+        // Trạm trung chuyển (Companion Phone) đang thực hiện đồng bộ -> cập nhật LastHeartbeat của điện thoại luôn tươi mới
+        companionDevice.LastHeartbeat = now;
+        companionDevice.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}) cho Cụ {ElderId}",

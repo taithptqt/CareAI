@@ -132,6 +132,27 @@ public class UrgentTelemetryTests
     }
 
     [Fact]
+    public async Task Middleware_AuthenticatesSyncWatchRouteWithDeviceHeaders()
+    {
+        await using var db = NewMemoryDb();
+        await SeedAsync(db);
+        using var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 100 });
+        var reachedEndpoint = false;
+        var middleware = new DeviceTokenAuthMiddleware(
+            _ => { reachedEndpoint = true; return Task.CompletedTask; },
+            NullLogger<DeviceTokenAuthMiddleware>.Instance);
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/api/v1/devices/sync-watch";
+        context.Request.Headers["X-DeviceId"] = "device";
+        context.Request.Headers["X-Device-Token"] = "test-device-token";
+
+        await middleware.InvokeAsync(context, db, cache);
+
+        Assert.True(reachedEndpoint);
+        Assert.Equal("device", context.Items["ValidatedDeviceId"]);
+    }
+
+    [Fact]
     public async Task SqlServer_SamePacketSentConcurrently_IsRecordedOnce()
     {
         var configuredConnection = Environment.GetEnvironmentVariable("CAREAI_TEST_SQL_CONNECTION_STRING");

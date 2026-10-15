@@ -138,6 +138,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       unawaited(_checkWatchStatus());
       unawaited(_checkServerHealth());
       unawaited(_loadPendingCount());
+      unawaited(_sendElderDeviceHeartbeat());
     }
   }
 
@@ -248,7 +249,12 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         });
 
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
-        final effectiveName = status.watchName ?? platformName;
+        final isStatusGeneric = status.watchName == null || status.watchName!.trim().isEmpty || status.watchName == 'Apple Watch' || status.watchName == 'Galaxy Watch';
+        final isSavedSpecific = savedWatchName != null && savedWatchName.trim().isNotEmpty && savedWatchName != 'Apple Watch' && savedWatchName != 'Galaxy Watch';
+
+        final effectiveName = !isStatusGeneric
+            ? status.watchName!
+            : (isSavedSpecific ? savedWatchName! : (status.watchName ?? platformName));
         _lastPairedWatchName = effectiveName;
         await prefs.setString('last_paired_watch_name', effectiveName);
 
@@ -367,6 +373,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         deviceToken: devToken,
         elderName: name,
       ));
+      unawaited(_sendElderDeviceHeartbeat());
     }
 
     if (mounted) {
@@ -388,6 +395,35 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     } catch (_) {}
   }
 
+  int _heartbeatTicks = 0;
+
+  Future<void> _sendElderDeviceHeartbeat() async {
+    final devId = await ApiService.instance.getDeviceId();
+    final devToken = await ApiService.instance.getDeviceToken();
+    if (devId == null || devToken == null || devId.isEmpty || devToken.isEmpty) return;
+
+    // Gửi nhịp đập của điện thoại Người cao tuổi để app Người thân luôn thấy trạng thái ONLINE
+    unawaited(ApiService.instance.sendHeartbeat());
+
+    // Nếu đồng hồ đang kết nối, đồng bộ trạng thái đồng hồ lên đám mây
+    if (_watchStatus.isConnected) {
+      final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
+      final isStatusGeneric = _watchStatus.watchName == null || _watchStatus.watchName!.trim().isEmpty || _watchStatus.watchName == 'Apple Watch' || _watchStatus.watchName == 'Galaxy Watch';
+      final isSavedSpecific = _lastPairedWatchName != null && _lastPairedWatchName!.trim().isNotEmpty && _lastPairedWatchName != 'Apple Watch' && _lastPairedWatchName != 'Galaxy Watch';
+      final watchName = !isStatusGeneric
+          ? _watchStatus.watchName!
+          : (isSavedSpecific ? _lastPairedWatchName! : (_watchStatus.watchName ?? platformName));
+
+      unawaited(ApiService.instance.syncConnectedWatch(
+        watchName,
+        isConnected: true,
+        isWorn: _watchStatus.isWorn,
+        isCharging: _watchStatus.isCharging,
+        batteryLevel: _watchStatus.batteryLevel,
+      ));
+    }
+  }
+
   Future<void> _checkServerHealth() async {
     final online = await ApiService.instance.checkServerHealth();
     if (mounted) {
@@ -395,6 +431,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       setState(() {
         _isServerOnline = online;
       });
+
+      if (online) {
+        _heartbeatTicks++;
+        // Gửi nhịp đập thiết bị định kỳ mỗi 15 giây (mỗi 3 chu kỳ timer 5s) hoặc ngay khi máy vừa có mạng lại
+        if (wasOffline || _heartbeatTicks % 3 == 1) {
+          unawaited(_sendElderDeviceHeartbeat());
+        }
+      }
 
       // Tự động xả hàng đợi ngoại tuyến ngay khi máy có kết nối trở lại
       if (online && (wasOffline || _pendingPacketCount > 0)) {
@@ -910,7 +954,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final hasKnownWatch = (_watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) ||
         (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) ||
         _watchStatus.isPaired;
-    final watchDisplayName = _watchStatus.watchName ?? _lastPairedWatchName ?? (isConnected ? _platformWatchTitle : null);
+    final isGenericStatus = _watchStatus.watchName == null || _watchStatus.watchName!.trim().isEmpty || _watchStatus.watchName == 'Apple Watch' || _watchStatus.watchName == 'Galaxy Watch';
+    final hasSpecificLast = _lastPairedWatchName != null && _lastPairedWatchName!.trim().isNotEmpty && _lastPairedWatchName != 'Apple Watch' && _lastPairedWatchName != 'Galaxy Watch';
+    final watchDisplayName = (!isGenericStatus && _watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty)
+        ? _watchStatus.watchName
+        : (hasSpecificLast ? _lastPairedWatchName : (_watchStatus.watchName ?? _lastPairedWatchName ?? (isConnected ? _platformWatchTitle : null)));
 
     await showDialog<void>(
       context: context,
@@ -1459,9 +1507,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                     _watchStatus.isPaired;
                 final isBtOff = !isConnected && _watchStatus.reason == 'BLUETOOTH_OFF';
                 final isDisconnected = !isConnected && hasKnownWatch;
+                final isGenericStatus = _watchStatus.watchName == null || _watchStatus.watchName!.trim().isEmpty || _watchStatus.watchName == 'Apple Watch' || _watchStatus.watchName == 'Galaxy Watch';
+                final hasSpecificLast = _lastPairedWatchName != null && _lastPairedWatchName!.trim().isNotEmpty && _lastPairedWatchName != 'Apple Watch' && _lastPairedWatchName != 'Galaxy Watch';
+                final effectiveModel = (!isGenericStatus && _watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty)
+                    ? _watchStatus.watchName!
+                    : (hasSpecificLast ? _lastPairedWatchName! : (_watchStatus.watchName ?? _lastPairedWatchName ?? _platformWatchTitle));
                 final watchTitle = isConnected
-                    ? (_watchStatus.watchName ?? _lastPairedWatchName ?? _platformWatchTitle)
-                    : (isDisconnected ? (_watchStatus.watchName ?? _lastPairedWatchName ?? _platformWatchTitle) : 'Chưa ghép nối đồng hồ');
+                    ? effectiveModel
+                    : (isDisconnected ? effectiveModel : 'Chưa ghép nối đồng hồ');
 
                 final String statusSubtext;
                 final Color borderColor;
