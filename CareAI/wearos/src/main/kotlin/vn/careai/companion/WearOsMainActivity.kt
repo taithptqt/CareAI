@@ -44,6 +44,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private var isCharging: Boolean = false
     private var batteryLevel: Int = 100
     private var isPhoneConnected: Boolean = true
+    private var secretTapCount: Int = 0
+    private var lastSecretTapTime: Long = 0L
 
     private var currentHeartRate: Int = 76
     private var currentSpo2: Double = 98.0
@@ -147,11 +149,27 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_wear_main)
 
+        val tvWearTitle: TextView = findViewById(R.id.tvWearTitle)
         tvStatus = findViewById(R.id.tvStatus)
         tvVitals = findViewById(R.id.tvVitals)
         tvLogResult = findViewById(R.id.tvLogResult)
         btnManualSos = findViewById(R.id.btnManualSos)
         btnOpenTestLab = findViewById(R.id.btnOpenTestLab)
+
+        // Cơ chế 5-tap bí mật mở phòng thử nghiệm tín hiệu dành riêng cho kỹ thuật/giám khảo
+        tvWearTitle.setOnClickListener {
+            val now = System.currentTimeMillis()
+            if (now - lastSecretTapTime < 2500) {
+                secretTapCount++
+                if (secretTapCount >= 5) {
+                    secretTapCount = 0
+                    showTestLabDialog()
+                }
+            } else {
+                secretTapCount = 1
+            }
+            lastSecretTapTime = now
+        }
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         heartRateSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_HEART_RATE)
@@ -352,22 +370,22 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
             when {
                 customAlert == "TACHYCARDIA" || currentHeartRate >= 140 -> {
-                    tvStatus.text = "🚨 NHỊP NHANH: $currentHeartRate BPM"
+                    tvStatus.text = "🚨 Nhanh $currentHeartRate BPM"
                     tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
                     tvLogResult.text = "⚡ $source: Phát hiện nhịp nhanh!"
                 }
                 customAlert == "BRADYCARDIA" || (currentHeartRate <= 45 && currentHeartRate > 0) -> {
-                    tvStatus.text = "⚠️ NHỊP CHẬM: $currentHeartRate BPM"
+                    tvStatus.text = "⚠️ Chậm $currentHeartRate BPM"
                     tvStatus.setTextColor(0xFFF59E0B.toInt()) // Amber
                     tvLogResult.text = "⚡ $source: Phát hiện nhịp chậm!"
                 }
                 customAlert == "HYPOXIA" || currentSpo2 <= 90.0 -> {
-                    tvStatus.text = "🫁 THIẾU OXY: ${String.format(java.util.Locale.US, "%.1f", currentSpo2)}%"
+                    tvStatus.text = "🫁 Oxy ${currentSpo2.toInt()}%"
                     tvStatus.setTextColor(0xFFA855F7.toInt()) // Purple
                     tvLogResult.text = "⚡ $source: Nồng độ SpO2 giảm sâu!"
                 }
                 isCharging -> {
-                    tvStatus.text = if (batteryLevel >= 100) "🔋 Đã Sạc Đầy 100%" else "⚡ Đang Sạc Pin: $batteryLevel%"
+                    tvStatus.text = if (batteryLevel >= 100) "🔋 Đầy 100%" else "⚡ Sạc: $batteryLevel%"
                     tvStatus.setTextColor(0xFF38BDF8.toInt())
                     tvLogResult.text = "⚡ $source [Cắm sạc, Pin $batteryLevel%]"
                 }
@@ -377,12 +395,12 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     tvLogResult.text = "⚡ $source [Tháo rời cổ tay, Pin $batteryLevel%]"
                 }
                 !isPhoneConnected -> {
-                    tvStatus.text = "🟡 Ngoại tuyến (Đang lưu đệm)"
+                    tvStatus.text = "🟡 Lưu Đệm Cục Bộ"
                     tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_amber_warning))
                     tvLogResult.text = "⚡ $source [Lưu đệm, chờ kết nối điện thoại]"
                 }
                 else -> {
-                    tvStatus.text = "🟢 Đang Giám Sát Cổ Tay"
+                    tvStatus.text = "🟢 Giám Sát Cổ Tay"
                     tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_green_online))
                     tvLogResult.text = "⚡ $source [${currentHeartRate} BPM, ${String.format(java.util.Locale.US, "%.1f", currentSpo2)}%]"
                 }
@@ -394,7 +412,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         val timestamp = System.currentTimeMillis()
         Log.w("CareAI-WearActivity", "Kích hoạt mô phỏng té ngã! EventId=$eventId")
         triggerEmergencyVibration()
-        tvStatus.text = "💥 CẢNH BÁO TÉ NGÃ!"
+        tvStatus.text = "💥 BÁO ĐỘNG NGÃ!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
         tvLogResult.text = "Đang gửi cảnh báo té ngã (Bluetooth / Wi-Fi)..."
 
@@ -417,7 +435,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         val timestamp = System.currentTimeMillis()
         Log.w("CareAI-WearActivity", "Kích hoạt SOS khẩn cấp! EventId=$eventId")
         triggerEmergencyVibration()
-        tvStatus.text = "🆘 ĐÃ BẮN TÍN HIỆU SOS!"
+        tvStatus.text = "🆘 ĐÃ GỬI SOS!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
         tvLogResult.text = "Đang gửi SOS khẩn cấp (Bluetooth / Wi-Fi)..."
 

@@ -27,6 +27,8 @@ struct ContentView: View {
     }
     @State private var showSettings = false
     @State private var showTestLab = false
+    @State private var secretTapCount = 0
+    @State private var lastSecretTapTime = Date.distantPast
 
     private var pinChars: [Character] { Array(pin) }
 
@@ -47,36 +49,53 @@ struct ContentView: View {
     private var statusTitle: String {
         if let alert = sync.customAlert {
             switch alert {
-            case "TACHYCARDIA": return "🚨 NHỊP NHANH: \(Int(sync.latestHeartRate ?? 155)) BPM"
-            case "BRADYCARDIA": return "⚠️ NHỊP CHẬM: \(Int(sync.latestHeartRate ?? 38)) BPM"
-            case "HYPOXIA": return "🫁 THIẾU OXY: \(String(format: "%.1f", sync.latestSpo2 ?? 88.0))%"
-            case "FALL_DETECTED": return "💥 CẢNH BÁO TÉ NGÃ!"
-            case "MANUAL_SOS": return "🆘 ĐÃ BẮN TÍN HIỆU SOS!"
-            case "NORMAL": return sync.isPhoneReachable ? "🟢 Đang Giám Sát Cổ Tay" : "🟡 Ngoại tuyến (Đang lưu đệm)"
+            case "TACHYCARDIA": return "🚨 Nhanh \(Int(sync.latestHeartRate ?? 155)) BPM"
+            case "BRADYCARDIA": return "⚠️ Chậm \(Int(sync.latestHeartRate ?? 38)) BPM"
+            case "HYPOXIA": return "🫁 Oxy \(String(format: "%.0f", sync.latestSpo2 ?? 88.0))%"
+            case "FALL_DETECTED": return "💥 BÁO ĐỘNG NGÃ!"
+            case "MANUAL_SOS": return "🆘 ĐÃ GỬI SOS!"
+            case "NORMAL": return sync.isPhoneReachable ? "🟢 Giám Sát Cổ Tay" : "🟡 Lưu Đệm Cục Bộ"
             default: break
             }
         }
         if let hr = sync.latestHeartRate, hr >= 140 {
-            return "🚨 NHỊP NHANH: \(Int(hr)) BPM"
+            return "🚨 Nhanh \(Int(hr)) BPM"
         } else if let hr = sync.latestHeartRate, hr <= 45 && hr > 0 {
-            return "⚠️ NHỊP CHẬM: \(Int(hr)) BPM"
+            return "⚠️ Chậm \(Int(hr)) BPM"
         } else if let spo2 = sync.latestSpo2, spo2 <= 90.0 {
-            return "🫁 THIẾU OXY: \(String(format: "%.1f", spo2))%"
+            return "🫁 Oxy \(String(format: "%.0f", spo2))%"
         }
         if !sync.isPhoneReachable {
-            return "🟡 Ngoại tuyến (Đang lưu đệm)"
+            return "🟡 Lưu Đệm Cục Bộ"
         }
-        return "🟢 Đang Giám Sát Cổ Tay"
+        return "🟢 Giám Sát Cổ Tay"
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 6) {
-                // 1. Tiêu đề ứng dụng
+                // 1. Tiêu đề ứng dụng (Tích hợp gõ 5 lần bí mật để mở Phòng Thử Nghiệm)
                 HStack {
-                    Text("CareAI Watch")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
+                    Button(action: {
+                        let now = Date()
+                        if now.timeIntervalSince(lastSecretTapTime) < 2.5 {
+                            secretTapCount += 1
+                            if secretTapCount >= 5 {
+                                secretTapCount = 0
+                                WKInterfaceDevice.current().play(.click)
+                                showTestLab = true
+                            }
+                        } else {
+                            secretTapCount = 1
+                        }
+                        lastSecretTapTime = now
+                    }) {
+                        Text("CareAI Watch")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
+                    }
+                    .buttonStyle(.plain)
+
                     Spacer()
                     Button(action: { showSettings = true }) {
                         Image(systemName: "gearshape.fill")
@@ -198,10 +217,12 @@ struct ContentView: View {
                     .background(Color.white.opacity(0.05))
                     .cornerRadius(8)
                 } else {
-                    // 2. Badge trạng thái giám sát / cảnh báo
+                    // 2. Badge trạng thái giám sát / cảnh báo (Tự co giãn, không tràn viền màn hình 40mm)
                     Text(statusTitle)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(statusColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .frame(maxWidth: .infinity)
@@ -265,30 +286,13 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
                     .padding(.top, 2)
-
-                    // 5. Nút mở Phòng Thử Nghiệm Tín Hiệu (Chuyên dụng cho kiểm thử, tách biệt hoàn toàn)
-                    Button(action: {
-                        showTestLab = true
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "wrench.and.screwdriver.fill")
-                                .font(.system(size: 9))
-                            Text("Kiểm Thử Tín Hiệu & Mô Phỏng")
-                                .font(.system(size: 9, weight: .semibold))
-                        }
-                        .foregroundColor(Color(red: 0.58, green: 0.64, blue: 0.72))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 2)
                 }
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 8)
         }
         .sheet(isPresented: $showSettings) {
-            SettingsSheetView(sync: sync, backend: $backend, isPaired: isPaired)
+            SettingsSheetView(sync: sync, backend: $backend, isPaired: isPaired, showTestLab: $showTestLab)
         }
         .sheet(isPresented: $showTestLab) {
             VitalsTestLabSheetView(sync: sync)
@@ -403,6 +407,7 @@ struct SettingsSheetView: View {
     @ObservedObject var sync: HealthSync
     @Binding var backend: String
     let isPaired: Bool
+    @Binding var showTestLab: Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -461,6 +466,15 @@ struct SettingsSheetView: View {
                     Button("Gửi dữ liệu ngay") { Task { await sync.sendNow() } }
                         .font(.system(size: 10))
                         .disabled(sync.simulatedOffline)
+
+                    Button("🛠️ Phòng Thử Nghiệm & Mô Phỏng") {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showTestLab = true
+                        }
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
 
                     Text("Đã đệm trên đồng hồ: \(sync.pendingCount)")
                         .font(.system(size: 9))

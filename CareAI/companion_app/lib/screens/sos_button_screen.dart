@@ -57,6 +57,24 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   late AnimationController _rippleController;
   bool _isFallDialogShowing = false;
 
+  int _secretTapCount = 0;
+  DateTime _lastSecretTap = DateTime(0);
+
+  void _handleSecretTitleTap() {
+    final now = DateTime.now();
+    if (now.difference(_lastSecretTap).inMilliseconds < 2500) {
+      _secretTapCount++;
+      if (_secretTapCount >= 5) {
+        _secretTapCount = 0;
+        HapticFeedback.heavyImpact();
+        _showDiagnosticTestLabSheet(context);
+      }
+    } else {
+      _secretTapCount = 1;
+    }
+    _lastSecretTap = now;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -891,6 +909,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           'Thiết bị sẽ dừng kết nối với hệ thống CareAI. Bạn sẽ cần nhập mã PIN mới để ghép nối lại.',
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx, false);
+              _showDiagnosticTestLabSheet(context);
+            },
+            child: const Text('🧪 PHÒNG THỬ NGHIỆM', style: TextStyle(color: Color(0xFF38BDF8))),
+          ),
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY BỎ')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -962,34 +987,38 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isServerOnline ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+        title: GestureDetector(
+          onTap: _handleSecretTitleTap,
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isServerOnline ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                _isServerOnline
-                    ? (ApiService.instance.activeServerUrl.contains('127.0.0.1')
-                        ? 'Trực tuyến (Cáp USB)'
-                        : (ApiService.instance.activeServerUrl.contains('trycloudflare.com') ||
-                                ApiService.instance.activeServerUrl.contains('azurewebsites.net') ||
-                                ApiService.instance.activeServerUrl.startsWith('https://'))
-                            ? 'Trực tuyến (Internet/4G)'
-                            : 'Trực tuyến (Wi-Fi LAN)')
-                    : 'Ngoại tuyến (Offline)',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  _isServerOnline
+                      ? (ApiService.instance.activeServerUrl.contains('127.0.0.1')
+                          ? 'Trực tuyến (Cáp USB)'
+                          : (ApiService.instance.activeServerUrl.contains('trycloudflare.com') ||
+                                  ApiService.instance.activeServerUrl.contains('azurewebsites.net') ||
+                                  ApiService.instance.activeServerUrl.startsWith('https://'))
+                              ? 'Trực tuyến (Internet/4G)'
+                              : 'Trực tuyến (Wi-Fi LAN)')
+                      : 'Ngoại tuyến (Offline)',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -1209,139 +1238,137 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                   iconData = Icons.watch;
                 }
 
-                return InkWell(
-                  onTap: isBtOff ? _openBluetoothSettings : () => _checkWatchStatus(showFeedback: true),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: isBtOff ? _openBluetoothSettings : () => _checkWatchStatus(showFeedback: true),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: iconBgColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            iconData,
-                            color: iconColor,
-                            size: 22,
-                          ),
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: borderColor),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                watchTitle,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                statusSubtext,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: subtextColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (isBtOff)
-                          InkWell(
-                            onTap: _openBluetoothSettings,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFDC2626).withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFEF4444)),
+                                color: iconBgColor,
+                                shape: BoxShape.circle,
                               ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
+                              child: Icon(
+                                iconData,
+                                color: iconColor,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.bluetooth_searching, size: 14, color: Color(0xFFF87171)),
-                                  SizedBox(width: 4),
                                   Text(
-                                    'Bật BT',
-                                    style: TextStyle(
-                                      color: Color(0xFFF87171),
-                                      fontSize: 11,
+                                    watchTitle,
+                                    style: const TextStyle(
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    statusSubtext,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: subtextColor,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          )
-                        else if (_isDebouncingDisconnect)
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFFFBBF24),
-                            ),
-                          )
-                        else if (isConnected)
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            color: Color(0xFF22C55E),
-                            size: 18,
-                          )
-                        else
-                          const Icon(
-                            Icons.refresh_rounded,
-                            color: Color(0xFF64748B),
-                            size: 18,
-                          ),
-                      ],
+                            const SizedBox(width: 8),
+                            if (isBtOff)
+                              InkWell(
+                                onTap: _openBluetoothSettings,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFEF4444)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.bluetooth_searching, size: 14, color: Color(0xFFF87171)),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Bật BT',
+                                        style: TextStyle(
+                                          color: Color(0xFFF87171),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else if (_isDebouncingDisconnect)
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFFBBF24),
+                                ),
+                              )
+                            else if (isConnected)
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                color: Color(0xFF22C55E),
+                                size: 18,
+                              )
+                            else
+                              const Icon(
+                                Icons.refresh_rounded,
+                                color: Color(0xFF64748B),
+                                size: 18,
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    if (isBtOff)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 2, 20, 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.lightbulb_outline, size: 13, color: Color(0xFFFBBF24)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Mẹo: Vuốt mép trên màn hình xuống & chạm icon Bluetooth để bật lại nhanh',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: const Color(0xFFFDE68A).withValues(alpha: 0.9),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 );
               },
-            ),
-
-            // Nút mở phòng thử nghiệm tín hiệu nhỏ gọn, tế nhị dành riêng cho kiểm thử/kỹ thuật
-            Padding(
-              padding: const EdgeInsets.only(right: 18, top: 2, bottom: 2),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: InkWell(
-                  onTap: () => _showDiagnosticTestLabSheet(context),
-                  borderRadius: BorderRadius.circular(6),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.biotech_outlined, size: 14, color: Color(0xFF64748B)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Kiểm thử tín hiệu & Mô phỏng',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ),
 
             // Banner trạng thái SOS đang kích hoạt

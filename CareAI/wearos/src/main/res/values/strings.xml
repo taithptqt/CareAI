@@ -2,8 +2,8 @@
 <resources>
     <string name="app_name">CareAI Wear</string>
     <string name="wear_title">CareAI Watch</string>
-    <string name="wear_status_monitoring">🟢 Đang Giám Sát Cổ Tay</string>
-    <string name="wear_status_offline_buffer">🟡 Ngoại tuyến (Đang lưu đệm)</string>
+    <string name="wear_status_monitoring">🟢 Giám Sát Cổ Tay</string>
+    <string name="wear_status_offline_buffer">🟡 Lưu Đệm Cục Bộ</string>
     <string name="wear_vitals_label">❤️ 76 BPM   •   🫁 98% SpO2</string>
     <string name="wear_simulate_fall_btn">🚨 THỬ NGHIỆM TÉ NGÃ</string>
     <string name="wear_send_sos_btn">🆘 BẮN TÍN HIỆU SOS</string>
