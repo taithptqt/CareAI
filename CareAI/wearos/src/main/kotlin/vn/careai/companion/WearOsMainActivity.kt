@@ -45,6 +45,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private lateinit var tvTodaySteps: TextView
     private lateinit var tvSleepSummary: TextView
     private lateinit var tvBloodPressure: TextView
+    private lateinit var tvSpo2Summary: TextView
+    private lateinit var tvSpo2Source: TextView
     private lateinit var tvDeviceModel: TextView
     private lateinit var tvSensorStatus: TextView
     private lateinit var btnBackToEmergency: Button
@@ -189,6 +191,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         tvTodaySteps = findViewById(R.id.tvTodaySteps)
         tvSleepSummary = findViewById(R.id.tvSleepSummary)
         tvBloodPressure = findViewById(R.id.tvBloodPressure)
+        tvSpo2Summary = findViewById(R.id.tvSpo2Summary)
+        tvSpo2Source = findViewById(R.id.tvSpo2Source)
         tvDeviceModel = findViewById(R.id.tvDeviceModel)
         tvSensorStatus = findViewById(R.id.tvSensorStatus)
         btnBackToEmergency = findViewById(R.id.btnBackToEmergency)
@@ -496,9 +500,26 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             } else {
                 tvBloodPressure.text = "🩸 Huyết áp: Chưa ghi nhận"
             }
+
+            // Thẻ Oxy Trong Máu (SpO2)
+            if (currentSpo2 != null && currentSpo2!! > 0) {
+                val s = currentSpo2!!.toInt()
+                val statusText = when {
+                    s >= 95 -> "🟢 Chuẩn"
+                    s >= 91 -> "🟡 Cảnh báo"
+                    else -> "🚨 Thiếu oxy"
+                }
+                tvSpo2Summary.text = "🫁 Oxy: $s% ($statusText)"
+                tvSpo2Source.text = if (hasHardwareSpo2) "Cảm biến quang học đồng hồ" else "Đồng bộ thiết bị y tế"
+            } else {
+                tvSpo2Summary.text = "🫁 Oxy: Chưa ghi nhận"
+                tvSpo2Source.text = if (hasHardwareSpo2) "Cảm biến quang học / Máy kẹp ngón" else "Cần máy kẹp ngón / Không hỗ trợ đo trực tiếp"
+            }
+
             val watchName = Build.MODEL ?: "Wear OS Watch"
+            val wearStateStr = if (isWorn) "🟢 Đang đeo" else "🟡 Đã tháo"
             tvDeviceModel.text = "⌚ Model: $watchName"
-            tvSensorStatus.text = "Cảm biến SpO2: ${if (hasHardwareSpo2) "Có quang học" else "Không hỗ trợ"}"
+            tvSensorStatus.text = "Trạng thái: $wearStateStr | Cảm biến SpO2: ${if (hasHardwareSpo2) "Quang học" else "Cần kẹp ngón"}"
 
             val hr = currentHeartRate ?: 0
             val spo2 = currentSpo2 ?: 100.0

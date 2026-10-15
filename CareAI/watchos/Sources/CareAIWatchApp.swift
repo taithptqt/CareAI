@@ -317,6 +317,10 @@ struct PrimaryEmergencyView: View {
             return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
         } else if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 ?? 100) <= 90.0 {
             return Color(red: 0.66, green: 0.33, blue: 0.97) // Purple
+        } else if sync.isCharging {
+            return Color(red: 0.22, green: 0.74, blue: 0.97) // Blue
+        } else if !sync.isWorn {
+            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
         } else if !sync.isPhoneReachable {
             return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber for Offline Buffer
         } else {
@@ -332,7 +336,10 @@ struct PrimaryEmergencyView: View {
             case "HYPOXIA": return "🫁 Oxy \(String(format: "%.0f", sync.latestSpo2 ?? 88.0))%"
             case "FALL_DETECTED": return "💥 BÁO ĐỘNG NGÃ!"
             case "MANUAL_SOS": return "🆘 ĐÃ GỬI SOS!"
-            case "NORMAL": return sync.isPhoneReachable ? "🟢 Giám Sát Cổ Tay" : "🟡 Lưu Đệm Cục Bộ"
+            case "NORMAL":
+                if sync.isCharging { return "⚡ Đang Cắm Sạc" }
+                if !sync.isWorn { return "🟡 Đã Tháo Cổ Tay" }
+                return sync.isPhoneReachable ? "🟢 Giám Sát Cổ Tay" : "🟡 Lưu Đệm Cục Bộ"
             default: break
             }
         }
@@ -346,6 +353,12 @@ struct PrimaryEmergencyView: View {
             return "🚨 HA Cao \(Int(sys))/\(Int(dia))"
         } else if let sys = sync.latestBpSystolic, let dia = sync.latestBpDiastolic, sys < 90 && sys > 0 {
             return "⚠️ HA Thấp \(Int(sys))/\(Int(dia))"
+        }
+        if sync.isCharging {
+            return "⚡ Đang Cắm Sạc"
+        }
+        if !sync.isWorn {
+            return "🟡 Đã Tháo Cổ Tay"
         }
         if !sync.isPhoneReachable {
             return "🟡 Lưu Đệm Cục Bộ"
@@ -720,13 +733,50 @@ struct DailyWellnessView: View {
                 .background(Color(red: 0.08, green: 0.11, blue: 0.18))
                 .cornerRadius(8)
 
-                // 4. Thẻ Thông Tin Thiết Bị & Cảm Biến
+                // 4. Thẻ Oxy Trong Máu (SpO2)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Image(systemName: "lungs.fill")
+                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            .font(.system(size: 11))
+                        Text("Oxy Trong Máu (SpO2)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.gray)
+                        Spacer()
+                    }
+                    if let spo2 = sync.latestSpo2 {
+                        HStack {
+                            Text("\(String(format: "%.0f", spo2))%")
+                                .font(.system(size: 12.5, weight: .heavy))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text(spo2 >= 95 ? "🟢 Chuẩn" : (spo2 >= 91 ? "🟡 Cảnh báo" : "🚨 Thiếu oxy"))
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(spo2 >= 95 ? Color(red: 0.06, green: 0.73, blue: 0.51) : (spo2 >= 91 ? Color.orange : Color(red: 0.94, green: 0.27, blue: 0.27)))
+                        }
+                    } else {
+                        HStack {
+                            Text(sync.hasSpo2Hardware ? "Chưa ghi nhận" : "Cần máy kẹp ngón")
+                                .font(.system(size: 10.5, weight: .bold))
+                                .foregroundColor(Color(white: 0.6))
+                            Spacer()
+                            Text(sync.hasSpo2Hardware ? "Apple Health / Quang học" : "Apple Health / SE")
+                                .font(.system(size: 7))
+                                .foregroundColor(Color(white: 0.4))
+                        }
+                    }
+                }
+                .padding(6)
+                .background(Color(red: 0.08, green: 0.11, blue: 0.18))
+                .cornerRadius(8)
+
+                // 5. Thẻ Thông Tin Thiết Bị & Kết Nối
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Image(systemName: "applewatch")
                             .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
                             .font(.system(size: 11))
-                        Text("Phần Cứng & Cảm Biến")
+                        Text("Thiết Bị & Kết Nối")
                             .font(.system(size: 9.5, weight: .bold))
                             .foregroundColor(.gray)
                     }
@@ -736,20 +786,14 @@ struct DailyWellnessView: View {
                         .foregroundColor(.white)
                         .lineLimit(1)
 
-                    HStack(spacing: 4) {
-                        Text("Cảm biến SpO2:")
-                            .font(.system(size: 7.5))
-                            .foregroundColor(.gray)
-                        Text(sync.hasSpo2Hardware ? "Có quang học" : "Không hỗ trợ (SE)")
-                            .font(.system(size: 7.5, weight: .semibold))
-                            .foregroundColor(sync.hasSpo2Hardware ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
-                    }
-
                     HStack(spacing: 8) {
                         Text("Pin: \(batteryPercent)%")
                             .font(.system(size: 7.5))
                             .foregroundColor(.white.opacity(0.8))
-                        Text(sync.isPhoneReachable ? "🟢 Kết nối iPhone" : "🟡 Ngoại tuyến")
+                        Text(sync.isWorn ? "Đang đeo" : "Đã tháo")
+                            .font(.system(size: 7.5))
+                            .foregroundColor(sync.isWorn ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
+                        Text(sync.isPhoneReachable ? "🟢 iPhone" : "🟡 Ngoại tuyến")
                             .font(.system(size: 7.5))
                             .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
                     }

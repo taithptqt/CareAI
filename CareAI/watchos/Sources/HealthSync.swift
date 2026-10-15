@@ -137,6 +137,10 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let batteryLevel = rawLevel >= 0 ? Int(rawLevel * 100) : 100
         let isCharging = (device.batteryState == .charging || device.batteryState == .full)
         let isWorn = !isCharging
+        DispatchQueue.main.async {
+            HealthSync.shared?.isCharging = isCharging
+            HealthSync.shared?.isWorn = isWorn
+        }
         relayWatchTelemetry(isWorn: isWorn, isCharging: isCharging, batteryLevel: batteryLevel)
     }
 
@@ -302,6 +306,8 @@ final class HealthSync: ObservableObject {
 
     @Published var isPaired: Bool = KeychainToken.load() != nil
     @Published var isPhoneReachable: Bool = WCSession.isSupported() && WCSession.default.isReachable
+    @Published var isWorn: Bool = true
+    @Published var isCharging: Bool = false
     @Published var status = "Set up backend to start"
     @Published var customAlert: String?
     @Published var diagnosticLog = "⚡ Cảm biến sẵn sàng"
@@ -362,6 +368,10 @@ final class HealthSync: ObservableObject {
         sysctlbyname("hw.machine", &machine, &size, nil, 0)
         let machineCode = String(cString: machine)
         self.hasSpo2Hardware = HealthSync.isSpo2HardwareSupported(machineCode: machineCode)
+        let dev = WKInterfaceDevice.current()
+        dev.isBatteryMonitoringEnabled = true
+        self.isCharging = (dev.batteryState == .charging || dev.batteryState == .full)
+        self.isWorn = !self.isCharging
 
         WatchConnectivityCoordinator.shared.activate()
         WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
