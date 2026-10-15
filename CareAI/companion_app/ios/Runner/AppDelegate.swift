@@ -609,6 +609,7 @@ import workmanager_apple
     if action == "WATCH_TELEMETRY" {
       let isWorn = payload["isWorn"] as? Bool
       let isCharging = payload["isCharging"] as? Bool
+      let batteryLevel = payload["batteryLevel"] as? Int
       let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
       let rawWatchModel = payload["watchModel"] as? String
       let watchModel = (rawWatchModel != nil && rawWatchModel != "Apple Watch" && !rawWatchModel!.isEmpty)
