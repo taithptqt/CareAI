@@ -12,8 +12,8 @@
         android:fillViewport="true"
         android:scrollbars="none"
         android:clipToPadding="false"
-        android:paddingTop="16dp"
-        android:paddingBottom="42dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="24dp"
         app:boxedEdges="left|right">
 
         <LinearLayout
@@ -53,12 +53,12 @@
                 android:id="@+id/layoutVitals"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
+                android:layout_marginTop="6dp"
                 android:background="@drawable/bg_wear_vitals"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp">
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp">
 
                 <TextView
                     android:id="@+id/tvVitals"
@@ -67,131 +67,47 @@
                     android:singleLine="true"
                     android:text="@string/wear_vitals_label"
                     android:textColor="@color/wear_text_primary"
-                    android:textSize="10.5sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Test Fall Button: Large Pill Shape with Icon -->
-            <Button
-                android:id="@+id/btnSimulateFall"
-                android:layout_width="match_parent"
-                android:layout_height="34dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/bg_wear_btn_fall"
-                android:elevation="0dp"
-                android:stateListAnimator="@null"
-                android:text="@string/wear_simulate_fall_btn"
-                android:textColor="@color/wear_text_primary"
-                android:textSize="9.5sp"
-                android:textStyle="bold" />
-
-            <!-- Touch SOS Button: Pill Shape -->
+            <!-- Touch SOS Button: Large Pill Shape for Emergency -->
             <Button
                 android:id="@+id/btnManualSos"
                 android:layout_width="match_parent"
-                android:layout_height="32dp"
-                android:layout_marginTop="4dp"
+                android:layout_height="38dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_wear_btn_sos"
                 android:elevation="0dp"
                 android:stateListAnimator="@null"
-                android:text="@string/wear_send_sos_btn"
+                android:text="🆘 BÁO ĐỘNG CẤP CỨU"
                 android:textColor="@color/wear_text_primary"
-                android:textSize="9.5sp"
+                android:textSize="10.5sp"
                 android:textStyle="bold" />
 
-            <!-- Test Vitals Section Title -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="THỬ NGHIỆM SINH HIỆU"
+            <!-- Discreet Open Test Lab Button -->
+            <Button
+                android:id="@+id/btnOpenTestLab"
+                android:layout_width="match_parent"
+                android:layout_height="26dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_wear_btn_test_lab"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="🛠️ Kiểm Thử Tín Hiệu &amp; Mô Phỏng"
                 android:textColor="#94A3B8"
-                android:textSize="8sp"
-                android:letterSpacing="0.05"
-                android:textStyle="bold" />
-
-            <!-- Row 1: Tachycardia 155 | Bradycardia 38 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnTestTachycardia"
-                    android:layout_width="0dp"
-                    android:layout_height="28dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="2dp"
-                    android:background="@drawable/bg_wear_btn_test_tachy"
-                    android:elevation="0dp"
-                    android:stateListAnimator="@null"
-                    android:text="🚨 Nhanh 155"
-                    android:textColor="#FFFFFF"
-                    android:textSize="8sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btnTestBradycardia"
-                    android:layout_width="0dp"
-                    android:layout_height="28dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="2dp"
-                    android:background="@drawable/bg_wear_btn_test_brady"
-                    android:elevation="0dp"
-                    android:stateListAnimator="@null"
-                    android:text="⚠️ Chậm 38"
-                    android:textColor="#FFFFFF"
-                    android:textSize="8sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <!-- Row 2: Hypoxia SpO2 88% | Normal 75 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnTestHypoxia"
-                    android:layout_width="0dp"
-                    android:layout_height="28dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="2dp"
-                    android:background="@drawable/bg_wear_btn_test_hypo"
-                    android:elevation="0dp"
-                    android:stateListAnimator="@null"
-                    android:text="🫁 Oxy 88%"
-                    android:textColor="#FFFFFF"
-                    android:textSize="8sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btnTestNormal"
-                    android:layout_width="0dp"
-                    android:layout_height="28dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="2dp"
-                    android:background="@drawable/bg_wear_btn_test_norm"
-                    android:elevation="0dp"
-                    android:stateListAnimator="@null"
-                    android:text="🟢 Chuẩn 75"
-                    android:textColor="#FFFFFF"
-                    android:textSize="8sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                android:textSize="8sp" />
 
             <!-- Diagnostic Status Log -->
             <TextView
                 android:id="@+id/tvLogResult"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:text="@string/wear_status_ready"
                 android:textColor="@color/wear_text_secondary"
-                android:textSize="8sp" />
+                android:textSize="7.5sp" />
 
         </LinearLayout>
     </ScrollView>

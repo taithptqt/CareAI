@@ -531,11 +531,291 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     await _loadPendingCount();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Mẫu 185 bpm đã được gửi ngay hoặc lưu để gửi lại khi có kết nối.'),
+        const SnackBar(
+          content: Text('Mẫu nhịp nhanh 185 bpm đã được gửi hoặc lưu vào hàng đợi.'),
+          backgroundColor: Color(0xFFDC2626),
         ),
       );
     }
+  }
+
+  Future<void> _simulateHypoxiaSpO2() async {
+    final sample = TelemetrySample(
+      metricType: 'SPO2',
+      value: 88.0,
+      unit: '%',
+      timestamp: DateTime.now().toUtc(),
+    );
+    await SyncService.instance.enqueueTelemetrySamples([sample]);
+    await _loadPendingCount();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mẫu thiếu oxy SpO2 88% đã được gửi hoặc lưu vào hàng đợi.'),
+          backgroundColor: Color(0xFF7C3AED),
+        ),
+      );
+    }
+  }
+
+  void _showDiagnosticTestLabSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E293B),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.biotech_rounded, color: Color(0xFFF59E0B), size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Phòng Thử Nghiệm Tín Hiệu',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Chuyên biệt cho kiểm thử lâm sàng & phần cứng',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white70),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(color: Color(0xFF334155), height: 1),
+                      const SizedBox(height: 14),
+
+                      // Section 1: Mô phỏng biến cố khẩn cấp
+                      const Text(
+                        'MÔ PHỎNG BIẾN CỐ KHẨN CẤP',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Test Ngã Button
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        tileColor: const Color(0xFF0F172A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Color(0xFF7F1D1D)),
+                        ),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDC2626).withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.personal_injury, color: Color(0xFFEF4444), size: 22),
+                        ),
+                        title: const Text('Mô phỏng té ngã phần cứng', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: const Text('Kích hoạt chu trình đếm ngược 15s và còi SOS', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        trailing: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            final eventId = await FallService.instance.simulateHardwareFall();
+                            if (context.mounted && eventId != null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('⚡ Đã kích hoạt mô phỏng ngã phần cứng ($eventId)'),
+                                  backgroundColor: const Color(0xFFB91C1C),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('Kích hoạt', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Section 2: Sinh hiệu lâm sàng
+                      const Text(
+                        'THỬ NGHIỆM SINH HIỆU LÂM SÀNG',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Test Nhịp nhanh 185 bpm
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        tileColor: const Color(0xFF0F172A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.monitor_heart, color: Color(0xFFEF4444), size: 22),
+                        ),
+                        title: const Text('Mô phỏng nhịp nhanh 185 BPM', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: const Text('Bắn mẫu telemetry nhịp tim cao khẩn cấp', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        trailing: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFF87171),
+                            side: const BorderSide(color: Color(0xFFEF4444)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await _simulateUrgentHeartRate();
+                          },
+                          child: const Text('Bắn mẫu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Test Thiếu Oxy SpO2 88%
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        tileColor: const Color(0xFF0F172A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFA855F7).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.air, color: Color(0xFFA855F7), size: 22),
+                        ),
+                        title: const Text('Mô phỏng thiếu oxy SpO2 88%', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: const Text('Bắn mẫu telemetry SpO2 dưới ngưỡng an toàn', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        trailing: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFC084FC),
+                            side: const BorderSide(color: Color(0xFFA855F7)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await _simulateHypoxiaSpO2();
+                          },
+                          child: const Text('Bắn mẫu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Section 3: Định vị & Bản đồ
+                      const Text(
+                        'ĐỊNH VỊ & BẢN ĐỒ VỊ TRÍ',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        tileColor: const Color(0xFF0F172A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.map_outlined, color: Color(0xFF38BDF8), size: 22),
+                        ),
+                        title: Text('Tọa độ GPS: $_currentGps', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        subtitle: Text(_gpsStatus, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        trailing: TextButton.icon(
+                          onPressed: () async {
+                            final loc = await LocationService.instance.getCurrentLocation();
+                            if (mounted) setState(() => _currentGps = loc.coordinatesFormatted);
+                            await LocationService.instance.openGoogleMaps(loc.latitude, loc.longitude, label: 'Vị trí Người cao tuổi: $_elderName');
+                          },
+                          icon: const Icon(Icons.open_in_new, size: 14, color: Color(0xFF38BDF8)),
+                          label: const Text('Maps', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Device ID & Info
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Mã thiết bị: $_deviceId',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Máy chủ: ${ApiService.instance.activeServerUrl}',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _handleUnpair() async {
@@ -672,11 +952,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // Thẻ thông tin người cao tuổi
+            // Thẻ thông tin người cao tuổi (Thiết kế trực quan, ấm cúng, không rác kỹ thuật)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
                 borderRadius: BorderRadius.circular(16),
@@ -684,10 +964,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFF3B82F6),
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFF0284C7),
                     radius: 24,
-                    child: const Icon(Icons.person, color: Colors.white, size: 28),
+                    child: Icon(Icons.person, color: Colors.white, size: 28),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -701,71 +981,74 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Mã thiết bị: $_deviceId',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                        ),
-                        const SizedBox(height: 4),
-                        InkWell(
-                          onTap: () async {
-                            final loc = await LocationService.instance.getCurrentLocation();
-                            if (mounted) setState(() => _currentGps = loc.coordinatesFormatted);
-                            await LocationService.instance.openGoogleMaps(loc.latitude, loc.longitude, label: 'Vị trí Người cao tuổi: $_elderName');
-                          },
-                          borderRadius: BorderRadius.circular(6),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.location_on, size: 13, color: Color(0xFF38BDF8)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    'GPS: $_currentGps',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF38BDF8), fontWeight: FontWeight.w500),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0369A1).withValues(alpha: 0.3),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: const Color(0xFF38BDF8), width: 0.5),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('Google Maps', style: TextStyle(fontSize: 9, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
-                                      SizedBox(width: 2),
-                                      Icon(Icons.open_in_new, size: 9, color: Color(0xFF38BDF8)),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                        const SizedBox(height: 3),
+                        const Row(
+                          children: [
+                            Icon(Icons.verified_user_outlined, size: 13, color: Color(0xFF34D399)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Đang bảo vệ an toàn 24/7',
+                              style: TextStyle(fontSize: 12, color: Color(0xFF34D399), fontWeight: FontWeight.w500),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(_gpsStatus, style: TextStyle(fontSize: 11,
-                          color: EmergencyEvidenceService.recentFix == null
-                              ? const Color(0xFFFBBF24) : const Color(0xFF86EFAC))),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 13,
+                              color: EmergencyEvidenceService.recentFix == null
+                                  ? const Color(0xFFFBBF24)
+                                  : const Color(0xFF38BDF8),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                _locatingGps
+                                    ? 'Đang tìm vị trí vệ tinh...'
+                                    : (EmergencyEvidenceService.recentFix == null
+                                        ? 'Đang cập nhật vị trí bảo vệ'
+                                        : 'Vị trí sẵn sàng gửi người thân'),
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: EmergencyEvidenceService.recentFix == null
+                                      ? const Color(0xFFFBBF24)
+                                      : const Color(0xFF94A3B8),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                         if (!_backgroundGpsGranted)
-                          TextButton(
-                            onPressed: _enableBackgroundGps,
-                            child: const Text('Bật GPS khi app ở nền',
-                              style: TextStyle(fontSize: 11)),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: InkWell(
+                              onTap: _enableBackgroundGps,
+                              child: const Text(
+                                '⚠️ Bật định vị nền để bảo vệ liên tục',
+                                style: TextStyle(fontSize: 11, color: Color(0xFFFBBF24), decoration: TextDecoration.underline),
+                              ),
+                            ),
                           ),
                       ],
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Lấy lại GPS hiện tại',
+                    tooltip: 'Cập nhật lại GPS',
                     onPressed: _locatingGps ? null : _prepareGps,
-                    icon: const Icon(Icons.my_location, color: Color(0xFF38BDF8)),
+                    icon: _locatingGps
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)),
+                          )
+                        : const Icon(Icons.my_location, color: Color(0xFF38BDF8), size: 22),
                   ),
                 ],
               ),
@@ -907,32 +1190,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                             ],
                           ),
                         ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDC2626),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          icon: const Icon(Icons.personal_injury, size: 16),
-                          label: const Text(
-                            'Test Ngã',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          onPressed: () async {
-                            final eventId = await FallService.instance.simulateHardwareFall();
-                            if (context.mounted && eventId != null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('⚡ Đã kích hoạt mô phỏng ngã phần cứng ($eventId)'),
-                                  backgroundColor: const Color(0xFFB91C1C),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
+                        IconButton(
+                          icon: const Icon(Icons.science_outlined, color: Color(0xFF94A3B8), size: 20),
+                          tooltip: 'Phòng thử nghiệm tín hiệu',
+                          onPressed: () => _showDiagnosticTestLabSheet(context),
                         ),
                       ],
                     ),
@@ -941,15 +1202,31 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               },
             ),
 
-            if (kDebugMode)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: OutlinedButton.icon(
-                  onPressed: _simulateUrgentHeartRate,
-                  icon: const Icon(Icons.monitor_heart_outlined),
-                  label: const Text('Mô phỏng nhịp tim 185 bpm'),
+            // Nút mở phòng thử nghiệm tín hiệu nhỏ gọn, tế nhị dành riêng cho kiểm thử/kỹ thuật
+            Padding(
+              padding: const EdgeInsets.only(right: 18, top: 2, bottom: 2),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: InkWell(
+                  onTap: () => _showDiagnosticTestLabSheet(context),
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.biotech_outlined, size: 14, color: Color(0xFF64748B)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Kiểm thử tín hiệu & Mô phỏng',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
+            ),
 
             // Banner trạng thái SOS đang kích hoạt
             if (_isSosActive)

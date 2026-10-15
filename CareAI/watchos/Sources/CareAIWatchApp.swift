@@ -26,6 +26,7 @@ struct ContentView: View {
         sync.isPaired
     }
     @State private var showSettings = false
+    @State private var showTestLab = false
 
     private var pinChars: [Character] { Array(pin) }
 
@@ -206,90 +207,76 @@ struct ContentView: View {
                                 .stroke(statusColor.opacity(0.6), lineWidth: 1)
                         )
 
-                    // 3. Card sinh hiệu trực tiếp (Vitals Card)
-                    HStack {
-                        Text("❤️ \(Int(sync.latestHeartRate ?? 76)) BPM · \(String(format: "%.1f", sync.latestSpo2 ?? 98.0))% SpO2")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
+                    // 3. Card sinh hiệu trực tiếp (Vitals Card lớn, rõ ràng cho mắt người già)
+                    VStack(spacing: 4) {
+                        HStack(spacing: 14) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "heart.fill")
+                                    .foregroundColor(Color(red: 0.94, green: 0.27, blue: 0.27))
+                                    .font(.system(size: 15))
+                                Text("\(Int(sync.latestHeartRate ?? 76))")
+                                    .font(.system(size: 18, weight: .heavy))
+                                    .foregroundColor(.white)
+                                Text("BPM")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.gray)
+                            }
+
+                            HStack(spacing: 5) {
+                                Image(systemName: "lungs.fill")
+                                    .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                                    .font(.system(size: 14))
+                                Text("\(String(format: "%.1f", sync.latestSpo2 ?? 98.0))%")
+                                    .font(.system(size: 18, weight: .heavy))
+                                    .foregroundColor(.white)
+                                Text("SpO2")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.gray)
+                            }
+                        }
                     }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
                     .frame(maxWidth: .infinity)
-                    .background(Color(red: 0.06, green: 0.09, blue: 0.16))
-                    .cornerRadius(8)
+                    .background(Color(red: 0.08, green: 0.11, blue: 0.18))
+                    .cornerRadius(10)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: 10)
                             .stroke(Color(red: 0.2, green: 0.25, blue: 0.35), lineWidth: 1)
                     )
 
-                    // 4. Nút Cấp Cứu Lớn: Mô Phỏng Té Ngã
-                    Button(action: {
-                        Task { await sync.triggerEmergencySos(type: "FALL_DETECTED") }
-                    }) {
-                        HStack {
-                            Image(systemName: "figure.fall")
-                            Text("💥 Mô Phỏng Té Ngã")
-                                .font(.system(size: 10.5, weight: .bold))
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
-
-                    // 5. Nút Cấp Cứu Lớn: SOS Khẩn Cấp
+                    // 4. NÚT SOS CẤP CỨU DUY NHẤT (Lớn, Đỏ, Ưu tiên tuyệt đối cho người già)
                     Button(action: {
                         Task { await sync.triggerEmergencySos(type: "MANUAL_SOS") }
                     }) {
-                        HStack {
+                        HStack(spacing: 6) {
                             Image(systemName: "sos.circle.fill")
-                            Text("🆘 SOS Khẩn Cấp")
-                                .font(.system(size: 10.5, weight: .bold))
+                                .font(.system(size: 18))
+                            Text("BÁO ĐỘNG CẤP CỨU")
+                                .font(.system(size: 11.5, weight: .heavy))
                         }
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 38)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.75, green: 0.10, blue: 0.15))
+                    .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
+                    .padding(.top, 2)
 
-                    // 6. Tiêu đề mục Thử nghiệm sinh hiệu
-                    Text("THỬ NGHIỆM SINH HIỆU")
-                        .font(.system(size: 8.5, weight: .bold))
+                    // 5. Nút mở Phòng Thử Nghiệm Tín Hiệu (Chuyên dụng cho kiểm thử, tách biệt hoàn toàn)
+                    Button(action: {
+                        showTestLab = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "wrench.and.screwdriver.fill")
+                                .font(.system(size: 9))
+                            Text("Kiểm Thử Tín Hiệu & Mô Phỏng")
+                                .font(.system(size: 9, weight: .semibold))
+                        }
                         .foregroundColor(Color(red: 0.58, green: 0.64, blue: 0.72))
-                        .padding(.top, 2)
-
-                    // 7. Lưới 2x2 nút test lâm sàng
-                    VStack(spacing: 3) {
-                        HStack(spacing: 3) {
-                            Button("🚨 Nhanh 155") { sync.simulateTachycardia() }
-                                .font(.system(size: 9, weight: .bold))
-                                .buttonStyle(.borderedProminent)
-                                .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
-
-                            Button("⚠️ Chậm 38") { sync.simulateBradycardia() }
-                                .font(.system(size: 9, weight: .bold))
-                                .buttonStyle(.borderedProminent)
-                                .tint(Color(red: 0.96, green: 0.62, blue: 0.04))
-                        }
-                        HStack(spacing: 3) {
-                            Button("🫁 Oxy 88%") { sync.simulateHypoxia() }
-                                .font(.system(size: 9, weight: .bold))
-                                .buttonStyle(.borderedProminent)
-                                .tint(Color(red: 0.66, green: 0.33, blue: 0.97))
-
-                            Button("🟢 Chuẩn 75") { sync.simulateNormal() }
-                                .font(.system(size: 9, weight: .bold))
-                                .buttonStyle(.borderedProminent)
-                                .tint(Color(red: 0.06, green: 0.73, blue: 0.51))
-                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
                     }
-
-                    // 8. Kết quả chẩn đoán / Nhật ký truyền
-                    Text(sync.diagnosticLog)
-                        .font(.system(size: 8))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 2)
-
-
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
                 }
             }
             .padding(.horizontal, 4)
@@ -297,6 +284,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheetView(sync: sync, backend: $backend, isPaired: isPaired)
+        }
+        .sheet(isPresented: $showTestLab) {
+            VitalsTestLabSheetView(sync: sync)
         }
         .onAppear {
             if KeychainToken.load() != nil {
@@ -491,3 +481,105 @@ struct SettingsSheetView: View {
         }
     }
 }
+
+struct VitalsTestLabSheetView: View {
+    @ObservedObject var sync: HealthSync
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("🛠️ Phòng Thử Nghiệm")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(red: 0.96, green: 0.62, blue: 0.04))
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 2)
+
+                // 1. Mô phỏng té ngã
+                Text("MÔ PHỎNG BIẾN CỐ KHẨN CẤP")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundColor(.gray)
+
+                Button(action: {
+                    Task { await sync.triggerEmergencySos(type: "FALL_DETECTED") }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "figure.fall")
+                            .font(.system(size: 13))
+                        Text("💥 Mô Phỏng Té Ngã")
+                            .font(.system(size: 10.5, weight: .bold))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
+
+                // 2. Thử nghiệm sinh hiệu lâm sàng
+                Text("THỬ NGHIỆM SINH HIỆU LÂM SÀNG")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundColor(.gray)
+                    .padding(.top, 4)
+
+                VStack(spacing: 4) {
+                    HStack(spacing: 4) {
+                        Button("🚨 Nhanh 155") { sync.simulateTachycardia() }
+                            .font(.system(size: 9.5, weight: .bold))
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
+
+                        Button("⚠️ Chậm 38") { sync.simulateBradycardia() }
+                            .font(.system(size: 9.5, weight: .bold))
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.96, green: 0.62, blue: 0.04))
+                    }
+                    HStack(spacing: 4) {
+                        Button("🫁 Oxy 88%") { sync.simulateHypoxia() }
+                            .font(.system(size: 9.5, weight: .bold))
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.66, green: 0.33, blue: 0.97))
+
+                        Button("🟢 Chuẩn 75") { sync.simulateNormal() }
+                            .font(.system(size: 9.5, weight: .bold))
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.06, green: 0.73, blue: 0.51))
+                    }
+                }
+
+                // 3. Nhật ký chẩn đoán / truyền tin
+                if !sync.diagnosticLog.isEmpty {
+                    Text("NHẬT KÝ TRUYỀN TIN")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundColor(.gray)
+                        .padding(.top, 4)
+
+                    Text(sync.diagnosticLog)
+                        .font(.system(size: 8))
+                        .foregroundColor(.white.opacity(0.85))
+                        .padding(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.white.opacity(0.06))
+                        .cornerRadius(6)
+                }
+
+                Button("Đóng") {
+                    dismiss()
+                }
+                .font(.system(size: 10))
+                .foregroundColor(.gray)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 6)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+        }
+    }
+}
+

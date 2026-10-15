@@ -2,6 +2,7 @@
 package vn.careai.companion
 
 import android.app.Activity
+import android.app.Dialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,6 +15,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Window
 import android.widget.Button
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -26,14 +28,10 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private lateinit var tvStatus: TextView
     private lateinit var tvVitals: TextView
     private lateinit var tvLogResult: TextView
-    private lateinit var btnSimulateFall: Button
     private lateinit var btnManualSos: Button
+    private lateinit var btnOpenTestLab: Button
 
-    // 4 Nút thử nghiệm trực tiếp trên màn hình đồng hồ
-    private lateinit var btnTestTachycardia: Button
-    private lateinit var btnTestBradycardia: Button
-    private lateinit var btnTestHypoxia: Button
-    private lateinit var btnTestNormal: Button
+    private var testLabDialog: Dialog? = null
 
     private var sensorManager: SensorManager? = null
     private var heartRateSensor: Sensor? = null
@@ -148,13 +146,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         tvStatus = findViewById(R.id.tvStatus)
         tvVitals = findViewById(R.id.tvVitals)
         tvLogResult = findViewById(R.id.tvLogResult)
-        btnSimulateFall = findViewById(R.id.btnSimulateFall)
         btnManualSos = findViewById(R.id.btnManualSos)
-
-        btnTestTachycardia = findViewById(R.id.btnTestTachycardia)
-        btnTestBradycardia = findViewById(R.id.btnTestBradycardia)
-        btnTestHypoxia = findViewById(R.id.btnTestHypoxia)
-        btnTestNormal = findViewById(R.id.btnTestNormal)
+        btnOpenTestLab = findViewById(R.id.btnOpenTestLab)
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         heartRateSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_HEART_RATE)
@@ -164,42 +157,71 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         dispatchCurrentWatchTelemetry()
         updateVitalsUI(source = "Cảm biến sẵn sàng")
 
-        // Kích hoạt mô phỏng té ngã
-        btnSimulateFall.setOnClickListener {
-            val eventId = "FALL_WEAR_${System.currentTimeMillis()}"
-            triggerSimulateFall(eventId)
-        }
-
         // Kích hoạt SOS bằng tay
         btnManualSos.setOnClickListener {
             val eventId = "SOS_WATCH_${System.currentTimeMillis()}"
             triggerManualSos(eventId)
         }
 
-        // 1. Nút test Nhịp nhanh 155 BPM trực tiếp trên mặt đồng hồ
+        // Mở phòng thử nghiệm tín hiệu & mô phỏng
+        btnOpenTestLab.setOnClickListener {
+            showTestLabDialog()
+        }
+    }
+
+    private fun showTestLabDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_wear_test_lab)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val btnSimulateFall: Button = dialog.findViewById(R.id.btnSimulateFall)
+        val btnTestTachycardia: Button = dialog.findViewById(R.id.btnTestTachycardia)
+        val btnTestBradycardia: Button = dialog.findViewById(R.id.btnTestBradycardia)
+        val btnTestHypoxia: Button = dialog.findViewById(R.id.btnTestHypoxia)
+        val btnTestNormal: Button = dialog.findViewById(R.id.btnTestNormal)
+        val tvDialogLogResult: TextView = dialog.findViewById(R.id.tvDialogLogResult)
+        val btnDialogClose: Button = dialog.findViewById(R.id.btnDialogClose)
+
+        tvDialogLogResult.text = tvLogResult.text
+
+        btnSimulateFall.setOnClickListener {
+            val eventId = "FALL_WEAR_${System.currentTimeMillis()}"
+            triggerSimulateFall(eventId)
+            tvDialogLogResult.text = "💥 Đã kích hoạt mô phỏng té ngã!"
+        }
+
         btnTestTachycardia.setOnClickListener {
             currentHeartRate = 155
-            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "TACHYCARDIA")
+            updateVitalsUI(source = "Phòng thử nghiệm", customAlert = "TACHYCARDIA")
+            tvDialogLogResult.text = "🚨 Đã kích hoạt Nhịp nhanh 155 BPM"
         }
 
-        // 2. Nút test Nhịp chậm 38 BPM trực tiếp trên mặt đồng hồ
         btnTestBradycardia.setOnClickListener {
             currentHeartRate = 38
-            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "BRADYCARDIA")
+            updateVitalsUI(source = "Phòng thử nghiệm", customAlert = "BRADYCARDIA")
+            tvDialogLogResult.text = "⚠️ Đã kích hoạt Nhịp chậm 38 BPM"
         }
 
-        // 3. Nút test Thiếu oxy SpO2 88% trực tiếp trên mặt đồng hồ
         btnTestHypoxia.setOnClickListener {
             currentSpo2 = 88.0
-            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "HYPOXIA")
+            updateVitalsUI(source = "Phòng thử nghiệm", customAlert = "HYPOXIA")
+            tvDialogLogResult.text = "🫁 Đã kích hoạt Thiếu oxy 88%"
         }
 
-        // 4. Nút test Khôi phục bình thường 75 BPM trực tiếp trên mặt đồng hồ
         btnTestNormal.setOnClickListener {
             currentHeartRate = 75
             currentSpo2 = 98.5
-            updateVitalsUI(source = "Nút bấm mặt đồng hồ", customAlert = "NORMAL")
+            updateVitalsUI(source = "Phòng thử nghiệm", customAlert = "NORMAL")
+            tvDialogLogResult.text = "🟢 Đã khôi phục Chuẩn 75 BPM"
         }
+
+        btnDialogClose.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        testLabDialog = dialog
+        dialog.show()
     }
 
     override fun onResume() {
@@ -245,6 +267,9 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         try {
             unregisterReceiver(sensorInjectionReceiver)
         } catch (_: Exception) {}
+        if (testLabDialog?.isShowing == true) {
+            testLabDialog?.dismiss()
+        }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {

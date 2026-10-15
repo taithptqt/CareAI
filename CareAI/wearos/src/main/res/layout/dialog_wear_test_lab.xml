@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/wear_black"
+    android:scrollbars="none"
+    android:fillViewport="true"
+    android:paddingTop="14dp"
+    android:paddingBottom="24dp"
+    android:paddingHorizontal="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvDialogTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🛠️ Phòng Thử Nghiệm"
+            android:textColor="#F59E0B"
+            android:textSize="11sp"
+            android:letterSpacing="0.04"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="MÔ PHỎNG BIẾN CỐ KHẨN CẤP"
+            android:textColor="#94A3B8"
+            android:textSize="8sp"
+            android:letterSpacing="0.05"
+            android:textStyle="bold" />
+
+        <!-- Fall Simulation Button -->
+        <Button
+            android:id="@+id/btnSimulateFall"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_wear_btn_fall"
+            android:elevation="0dp"
+            android:stateListAnimator="@null"
+            android:text="💥 Mô Phỏng Té Ngã"
+            android:textColor="@color/wear_text_primary"
+            android:textSize="9.5sp"
+            android:textStyle="bold" />
+
+        <!-- Clinical Vitals Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="THỬ NGHIỆM SINH HIỆU"
+            android:textColor="#94A3B8"
+            android:textSize="8sp"
+            android:letterSpacing="0.05"
+            android:textStyle="bold" />
+
+        <!-- Row 1: Tachycardia 155 | Bradycardia 38 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnTestTachycardia"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/bg_wear_btn_test_tachy"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="🚨 Nhanh 155"
+                android:textColor="#FFFFFF"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnTestBradycardia"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/bg_wear_btn_test_brady"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="⚠️ Chậm 38"
+                android:textColor="#FFFFFF"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Row 2: Hypoxia SpO2 88% | Normal 75 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnTestHypoxia"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/bg_wear_btn_test_hypo"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="🫁 Oxy 88%"
+                android:textColor="#FFFFFF"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnTestNormal"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/bg_wear_btn_test_norm"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="🟢 Chuẩn 75"
+                android:textColor="#FFFFFF"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Log result in dialog -->
+        <TextView
+            android:id="@+id/tvDialogLogResult"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="Cảm biến BioActive sẵn sàng"
+            android:textColor="@color/wear_text_secondary"
+            android:textSize="8sp" />
+
+        <!-- Close Dialog Button -->
+        <Button
+            android:id="@+id/btnDialogClose"
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_wear_btn_test_lab"
+            android:elevation="0dp"
+            android:stateListAnimator="@null"
+            android:text="Đóng"
+            android:textColor="#94A3B8"
+            android:textSize="8.5sp" />
+
+    </LinearLayout>
+</ScrollView>
