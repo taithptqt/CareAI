@@ -235,29 +235,35 @@ struct ContentView: View {
 
                     // 3. Card sinh hiệu trực tiếp (Vitals Card lớn, rõ ràng cho mắt người già)
                     VStack(spacing: 4) {
-                        HStack(spacing: 14) {
-                            HStack(spacing: 5) {
+                        HStack {
+                            HStack(spacing: 4) {
                                 Image(systemName: "heart.fill")
                                     .foregroundColor(Color(red: 0.94, green: 0.27, blue: 0.27))
-                                    .font(.system(size: 15))
+                                    .font(.system(size: 13))
                                 Text("\(Int(sync.latestHeartRate ?? 76))")
-                                    .font(.system(size: 18, weight: .heavy))
+                                    .font(.system(size: 16, weight: .heavy))
                                     .foregroundColor(.white)
+                                    .lineLimit(1)
                                 Text("BPM")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(size: 8, weight: .bold))
                                     .foregroundColor(.gray)
+                                    .lineLimit(1)
                             }
 
-                            HStack(spacing: 5) {
+                            Spacer()
+
+                            HStack(spacing: 4) {
                                 Image(systemName: "lungs.fill")
                                     .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
-                                    .font(.system(size: 14))
-                                Text("\(String(format: "%.1f", sync.latestSpo2 ?? 98.0))%")
-                                    .font(.system(size: 18, weight: .heavy))
+                                    .font(.system(size: 13))
+                                Text("\(Int(sync.latestSpo2 ?? 98))%")
+                                    .font(.system(size: 16, weight: .heavy))
                                     .foregroundColor(.white)
+                                    .lineLimit(1)
                                 Text("SpO2")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(size: 8, weight: .bold))
                                     .foregroundColor(.gray)
+                                    .lineLimit(1)
                             }
                         }
                     }
