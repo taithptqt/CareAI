@@ -14,6 +14,8 @@ import workmanager_apple
   private var caregiverAlertChannel: FlutterMethodChannel?
   private var alarmAudioPlayer: AVAudioPlayer?
   private var pendingIncidentId: String?
+  private var pendingFallPayload: [String: Any]?
+  private var speechSynthesizer: AVSpeechSynthesizer?
 
   override func application(
     _ application: UIApplication,
@@ -353,28 +355,48 @@ import workmanager_apple
       case "syncWatchCredentials":
         if WCSession.isSupported() {
           let session = WCSession.default
-          if session.activationState == .activated {
-            var context: [String: Any] = [:]
-            if let args = call.arguments as? [String: Any] {
-              context["backendUrl"] = args["backendUrl"]
-              context["deviceId"] = args["deviceId"]
-              context["deviceToken"] = args["deviceToken"]
-              context["elderName"] = args["elderName"]
-            }
-            context["syncType"] = "CREDENTIALS"
-            do {
-              try session.updateApplicationContext(context)
-            } catch {
-              session.transferUserInfo(context)
-            }
-            NSLog("[CareAI-iOS] Đã đồng bộ credentials sang Apple Watch qua WCSession.")
-            result(true)
-          } else {
-            result(false)
+          if session.activationState != .activated {
+            session.activate()
           }
+          var context: [String: Any] = [:]
+          if let args = call.arguments as? [String: Any] {
+            if let backendUrl = args["backendUrl"] as? String, !backendUrl.isEmpty {
+              context["backendUrl"] = backendUrl
+              UserDefaults.standard.set(backendUrl, forKey: "careai_backend_url")
+            }
+            if let deviceId = args["deviceId"] as? String, !deviceId.isEmpty {
+              context["deviceId"] = deviceId
+              UserDefaults.standard.set(deviceId, forKey: "careai_device_id")
+            }
+            if let deviceToken = args["deviceToken"] as? String, !deviceToken.isEmpty {
+              context["deviceToken"] = deviceToken
+              UserDefaults.standard.set(deviceToken, forKey: "careai_device_token")
+            }
+            if let elderName = args["elderName"] as? String, !elderName.isEmpty {
+              context["elderName"] = elderName
+              UserDefaults.standard.set(elderName, forKey: "careai_elder_name")
+            }
+          }
+          context["syncType"] = "CREDENTIALS"
+
+          // Đồng bộ đa kênh:
+          // 1. updateApplicationContext (lưu giữ cho lần khởi động app trên đồng hồ)
+          try? session.updateApplicationContext(context)
+          // 2. transferUserInfo (hàng đợi chuyển giao bảo đảm qua Bluetooth trong nền)
+          session.transferUserInfo(context)
+          // 3. sendMessage tức thì 0ms nếu đồng hồ đang mở sáng
+          if session.isReachable {
+            session.sendMessage(context, replyHandler: nil, errorHandler: nil)
+          }
+          NSLog("[CareAI-iOS] Đã đồng bộ credentials sang Apple Watch qua 3 kênh WCSession thành công.")
+          result(true)
         } else {
           result(false)
         }
+      case "getPendingHardwareFall":
+        let pending = self.pendingFallPayload
+        self.pendingFallPayload = nil
+        result(pending)
       case "checkExactAlarmPermission":
         result(true)
       default:
@@ -392,10 +414,54 @@ import workmanager_apple
     setupFallBridgeChannel(messenger: messenger)
     setupCaregiverAlarmChannel(messenger: messenger)
     setupCaregiverAlertChannel(messenger: messenger)
+    setupTtsBridgeChannel(messenger: messenger)
+
+    // Nếu có sự cố ngã phần cứng tồn đọng khi app vừa mở, đẩy ngay lập tức cho Flutter
+    if let pendingFall = self.pendingFallPayload {
+      self.fallChannel?.invokeMethod("onHardwareFallDetected", arguments: pendingFall)
+      self.pendingFallPayload = nil
+    }
 
     // Nếu WCSession đã hoàn tất kích hoạt, thông báo ngay cho Flutter
     if WCSession.isSupported() && WCSession.default.activationState == .activated {
       notifyWatchConnectionStatus()
+    }
+  }
+
+  // MARK: - Hướng dẫn Y tế Bằng Giọng nói Native iOS (Medical Voice Guidance TTS)
+  private func setupTtsBridgeChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "vn.careai.companion/tts_bridge", binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
+      guard let self = self else { return }
+      switch call.method {
+      case "speak":
+        guard let args = call.arguments as? [String: Any],
+              let text = args["text"] as? String, !text.isEmpty else {
+          result(false)
+          return
+        }
+        if self.speechSynthesizer == nil {
+          self.speechSynthesizer = AVSpeechSynthesizer()
+        }
+        if self.speechSynthesizer?.isSpeaking == true {
+          self.speechSynthesizer?.stopSpeaking(at: .immediate)
+        }
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "vi-VN") ?? AVSpeechSynthesisVoice(language: "en-US")
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        utterance.volume = 1.0
+        self.speechSynthesizer?.speak(utterance)
+        result(true)
+      case "stop":
+        self.speechSynthesizer?.stopSpeaking(at: .immediate)
+        result(true)
+      case "isLanguageAvailable":
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        let hasVi = voices.contains { $0.language.starts(with: "vi") }
+        result(hasVi)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
   }
 
@@ -474,6 +540,11 @@ import workmanager_apple
     handleWatchRelay(message)
   }
 
+  func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+    handleWatchRelay(message)
+    replyHandler(["status": "OK"])
+  }
+
   private func handleWatchRelay(_ payload: [String: Any]) {
     guard let action = payload["action"] as? String else { return }
 
@@ -531,9 +602,13 @@ import workmanager_apple
     UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
 
     let userDefaults = UserDefaults.standard
-    let serverUrl = userDefaults.string(forKey: "flutter.server_base_url") ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
-    let deviceId = userDefaults.string(forKey: "flutter.device_id") ?? ""
-    let deviceToken = userDefaults.string(forKey: "flutter.device_token") ?? ""
+    let serverUrl = userDefaults.string(forKey: "careai_backend_url")
+      ?? userDefaults.string(forKey: "flutter.server_base_url")
+      ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
+    let deviceId = userDefaults.string(forKey: "careai_device_id")
+      ?? userDefaults.string(forKey: "flutter.device_id") ?? ""
+    let deviceToken = userDefaults.string(forKey: "careai_device_token")
+      ?? userDefaults.string(forKey: "flutter.device_token") ?? ""
 
     guard !deviceId.isEmpty, !deviceToken.isEmpty,
           let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/api/v1/incidents/sos") else {
@@ -570,7 +645,8 @@ import workmanager_apple
 
     // Chuyển tiếp sự kiện té ngã lên giao diện Flutter nếu ứng dụng đang mở và kích hoạt còi hú y tế
     DispatchQueue.main.async { [weak self] in
-      self?.startAlarmSound()
+      guard let self = self else { return }
+      self.startAlarmSound()
       let flutterPayload: [String: Any] = [
         "eventId": eventId,
         "timestamp": Int64(Date().timeIntervalSince1970 * 1000),
@@ -578,7 +654,20 @@ import workmanager_apple
         "source": "APPLE_WATCH_HARDWARE",
         "isHardwareVerified": true
       ]
-      self?.fallChannel?.invokeMethod("onHardwareFallDetected", arguments: flutterPayload)
+      if let channel = self.fallChannel {
+        channel.invokeMethod("onHardwareFallDetected", arguments: flutterPayload)
+      } else {
+        self.pendingFallPayload = flutterPayload
+      }
+    }
+
+    // Bảo vệ tiến trình nền (Background Task): Đảm bảo iOS không suspend app giữa chừng khi đang gửi HTTP SOS
+    var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+    bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "CareAI-WatchRelay-SOS") {
+      if bgTaskId != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTaskId)
+        bgTaskId = .invalid
+      }
     }
 
     do {
@@ -587,6 +676,12 @@ import workmanager_apple
       config.waitsForConnectivity = true
       let session = URLSession(configuration: config)
       let task = session.dataTask(with: request) { _, response, error in
+        defer {
+          if bgTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTaskId)
+            bgTaskId = .invalid
+          }
+        }
         if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
           NSLog("[CareAI-iOS] Đã chuyển tiếp SOS từ Apple Watch thành công: HTTP %d", httpRes.statusCode)
         } else {
@@ -595,6 +690,10 @@ import workmanager_apple
       }
       task.resume()
     } catch {
+      if bgTaskId != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTaskId)
+        bgTaskId = .invalid
+      }
       NSLog("[CareAI-iOS] Lỗi đóng gói JSON SOS: %@", error.localizedDescription)
     }
   }

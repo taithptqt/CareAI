@@ -22,7 +22,9 @@ struct ContentView: View {
     @State private var pin = ""
     @State private var pairing = false
     @State private var pairingError: String?
-    @State private var isPaired = KeychainToken.load() != nil
+    private var isPaired: Bool {
+        sync.isPaired
+    }
     @State private var showSettings = false
 
     private var pinChars: [Character] { Array(pin) }
@@ -328,10 +330,7 @@ struct ContentView: View {
                             .foregroundColor(.gray)
 
                         Button("Hủy ghép nối", role: .destructive) {
-                            UserDefaults.standard.removeObject(forKey: "deviceId")
-                            UserDefaults.standard.removeObject(forKey: "backend")
-                            KeychainToken.save("")
-                            isPaired = false
+                            sync.unpair()
                             showSettings = false
                         }
                         .font(.system(size: 9))
@@ -389,7 +388,7 @@ struct ContentView: View {
             UserDefaults.standard.set(paired.deviceId, forKey: "deviceId")
             pin = ""
             pairingError = nil
-            isPaired = true
+            sync.isPaired = true
             sync.start()
         } catch {
             pairingError = "Lỗi ghép nối: \(error.localizedDescription)"

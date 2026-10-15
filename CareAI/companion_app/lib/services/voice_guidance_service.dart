@@ -16,7 +16,7 @@ class VoiceGuidanceService {
   /// Phát âm thanh hướng dẫn giọng nói tổng quát
   Future<bool> speak(String text) async {
     if (text.trim().isEmpty) return false;
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS) {
       return false;
     }
     try {
@@ -36,7 +36,7 @@ class VoiceGuidanceService {
 
   /// Dừng phát âm thanh ngay lập tức
   Future<bool> stop() async {
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS) {
       return false;
     }
     try {
@@ -53,7 +53,7 @@ class VoiceGuidanceService {
 
   /// Kiểm tra xem gói ngôn ngữ tiếng Việt có sẵn sàng trên máy không
   Future<bool> isLanguageAvailable() async {
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS) {
       return false;
     }
     try {

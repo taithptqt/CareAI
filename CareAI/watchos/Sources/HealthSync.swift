@@ -8,18 +8,35 @@ import WatchConnectivity
 /// Helper điều phối WatchConnectivity chuyển tiếp gói tin cứu nạn sang iPhone Companion (Apple Watch GPS)
 private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     static let shared = WatchConnectivityCoordinator()
+    private var pendingSosPayload: [String: Any]?
 
     override init() {
         super.init()
-        if WCSession.isSupported() {
-            WCSession.default.delegate = self
-            WCSession.default.activate()
+        activate()
+    }
+
+    func activate() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        if session.delegate == nil {
+            session.delegate = self
+        }
+        if session.activationState != .activated {
+            session.activate()
         }
     }
 
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         if activationState == .activated {
             sendWatchDeviceInfo()
+            if let pending = self.pendingSosPayload {
+                session.transferUserInfo(pending)
+                if session.isReachable {
+                    session.sendMessage(pending, replyHandler: nil, errorHandler: nil)
+                }
+                self.pendingSosPayload = nil
+                NSLog("[CareAI-Watch] Đã gửi gói SOS cứu nạn tồn đọng sau khi WCSession kích hoạt.")
+            }
         }
     }
 
@@ -75,6 +92,10 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             if session.isReachable {
                 session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
+        } else {
+            // Lưu lại để gửi ngay khi kích hoạt xong
+            self.pendingSosPayload = payload
+            activate()
         }
     }
 
@@ -150,6 +171,9 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             }
             NSLog("[CareAI-Watch] Đã nhận và tự động lưu credentials từ iPhone Companion thành công!")
             sendWatchDeviceInfo()
+            Task { @MainActor in
+                HealthSync.shared?.onCredentialsReceived()
+            }
         }
     }
 }
@@ -242,6 +266,9 @@ final class HealthSync: ObservableObject {
         }
     }
 
+    static weak var shared: HealthSync?
+
+    @Published var isPaired: Bool = KeychainToken.load() != nil
     @Published var status = "Set up backend to start"
     @Published var customAlert: String?
     @Published var diagnosticLog = "⚡ Cảm biến sẵn sàng"
@@ -289,6 +316,8 @@ final class HealthSync: ObservableObject {
     private var activeEmergencySession: WKExtendedRuntimeSession?
 
     init() {
+        HealthSync.shared = self
+        WatchConnectivityCoordinator.shared.activate()
         latestHeartRate = UserDefaults.standard.object(forKey: "latest.heartRate") as? Double
         latestHeartRateAt = UserDefaults.standard.object(forKey: "latest.heartRateAt") as? Date
         latestSpo2 = UserDefaults.standard.object(forKey: "latest.spo2") as? Double
@@ -312,6 +341,21 @@ final class HealthSync: ObservableObject {
            KeychainToken.load() != nil {
             Task { @MainActor in self.start() }
         }
+    }
+
+    func onCredentialsReceived() {
+        self.isPaired = true
+        self.status = "🟢 Đang Giám Sát Cổ Tay"
+        self.diagnosticLog = "⚡ Đã nhận diện credentials từ iPhone"
+        self.start()
+    }
+
+    func unpair() {
+        UserDefaults.standard.removeObject(forKey: "deviceId")
+        UserDefaults.standard.removeObject(forKey: "backend")
+        KeychainToken.save("")
+        self.isPaired = false
+        self.status = "Set up backend to start"
     }
 
     func start() {
