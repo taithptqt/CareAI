@@ -33,6 +33,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
     private lateinit var wearViewFlipper: ViewFlipper
     private lateinit var tvWearTitle: TextView
+    private lateinit var tvWearBattery: TextView
     private lateinit var tvStatus: TextView
     private lateinit var tvVitals: TextView
     private lateinit var tvLogResult: TextView
@@ -177,6 +178,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
         wearViewFlipper = findViewById(R.id.wearViewFlipper)
         tvWearTitle = findViewById(R.id.tvWearTitle)
+        tvWearBattery = findViewById(R.id.tvWearBattery)
         tvStatus = findViewById(R.id.tvStatus)
         tvVitals = findViewById(R.id.tvVitals)
         tvLogResult = findViewById(R.id.tvLogResult)
@@ -459,6 +461,11 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
     private fun updateVitalsUI(source: String = "Cảm biến", customAlert: String = "") {
         runOnUiThread {
+            // Cập nhật % pin và trạng thái sạc tức thì ngay Trang 1
+            val batIcon = if (isCharging) "⚡" else if (batteryLevel <= 20) "🪫" else "🔋"
+            tvWearBattery.text = "$batIcon $batteryLevel%"
+            tvWearBattery.setTextColor(if (isCharging) 0xFF38BDF8.toInt() else if (batteryLevel <= 20) 0xFFF59E0B.toInt() else 0xFF94A3B8.toInt())
+
             // Sắp xếp thông minh: Kiểm tra xem thiết bị đo được những gì
             val isHypoxiaAlert = customAlert == "HYPOXIA" || (currentSpo2 != null && currentSpo2!! <= 90.0)
             val showSpo2 = hasHardwareSpo2 || (currentSpo2 != null && currentSpo2!! > 0) || isHypoxiaAlert

@@ -362,6 +362,18 @@ struct PrimaryEmergencyView: View {
         return sync.hasSpo2Hardware
     }
 
+    private var batteryPercent: Int {
+        let dev = WKInterfaceDevice.current()
+        dev.isBatteryMonitoringEnabled = true
+        let raw = dev.batteryLevel
+        return raw >= 0 ? Int(raw * 100) : 100
+    }
+
+    private var isBatteryCharging: Bool {
+        let dev = WKInterfaceDevice.current()
+        return dev.batteryState == .charging || dev.batteryState == .full
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 5) {
@@ -389,11 +401,21 @@ struct PrimaryEmergencyView: View {
 
                     Spacer()
 
+                    // Hiển thị % Pin và trạng thái sạc tức thì ngay Trang 1
+                    HStack(spacing: 3) {
+                        Image(systemName: isBatteryCharging ? "bolt.fill" : (batteryPercent <= 20 ? "battery.25" : "battery.100"))
+                            .font(.system(size: 9))
+                        Text("\(batteryPercent)%")
+                            .font(.system(size: 9, weight: .semibold))
+                    }
+                    .foregroundColor(isBatteryCharging ? Color(red: 0.22, green: 0.74, blue: 0.97) : (batteryPercent <= 20 ? Color.orange : Color(white: 0.7)))
+                    .padding(.trailing, 2)
+
                     Button(action: { showSettings = true }) {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 13))
                             .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
-                            .frame(width: 34, height: 34)
+                            .frame(width: 30, height: 30)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)

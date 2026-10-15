@@ -29,16 +29,34 @@
                 android:gravity="center_horizontal"
                 android:orientation="vertical">
 
-                <!-- Title: App Name (5-tap secret to open Test Lab) -->
-                <TextView
-                    android:id="@+id/tvWearTitle"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/wear_title"
-                    android:textColor="#38BDF8"
-                    android:textSize="12sp"
-                    android:letterSpacing="0.04"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <!-- Title: App Name (5-tap secret to open Test Lab) -->
+                    <TextView
+                        android:id="@+id/tvWearTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/wear_title"
+                        android:textColor="#38BDF8"
+                        android:textSize="12sp"
+                        android:letterSpacing="0.04"
+                        android:textStyle="bold" />
+
+                    <!-- Battery % Micro-Indicator -->
+                    <TextView
+                        android:id="@+id/tvWearBattery"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="🔋 100%"
+                        android:textColor="#94A3B8"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <!-- Subtitle / Monitoring Status Badge -->
                 <TextView
