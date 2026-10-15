@@ -115,12 +115,20 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     func relayWatchTelemetry(isWorn: Bool, isCharging: Bool, batteryLevel: Int) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
+        let device = WKInterfaceDevice.current()
+        var size: Int = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        var machine = [CChar](repeating: 0, count: max(1, size))
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        let machineCode = String(cString: machine)
+        let resolvedModel = HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: device.name)
+
         let payload: [String: Any] = [
             "action": "WATCH_TELEMETRY",
             "isWorn": isWorn,
             "isCharging": isCharging,
             "batteryLevel": batteryLevel,
-            "watchModel": WKInterfaceDevice.current().name
+            "watchModel": resolvedModel
         ]
         if session.activationState == .activated {
             session.transferUserInfo(payload)

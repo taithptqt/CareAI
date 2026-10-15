@@ -609,9 +609,15 @@ import workmanager_apple
     if action == "WATCH_TELEMETRY" {
       let isWorn = payload["isWorn"] as? Bool
       let isCharging = payload["isCharging"] as? Bool
-      let batteryLevel = payload["batteryLevel"] as? Int
-      let watchModel = payload["watchModel"] as? String ?? "Apple Watch"
-      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: worn=%@, charging=%@, battery=%@", String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel))
+      let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
+      let rawWatchModel = payload["watchModel"] as? String
+      let watchModel = (rawWatchModel != nil && rawWatchModel != "Apple Watch" && !rawWatchModel!.isEmpty)
+        ? rawWatchModel!
+        : (storedWatchName ?? rawWatchModel ?? "Apple Watch")
+      if watchModel != "Apple Watch" {
+        UserDefaults.standard.set(watchModel, forKey: "careai_apple_watch_name")
+      }
+      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: model=%@, worn=%@, charging=%@, battery=%@", watchModel, String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel))
 
       if let isWorn = isWorn { UserDefaults.standard.set(isWorn, forKey: "careai_watch_is_worn") }
       if let isCharging = isCharging { UserDefaults.standard.set(isCharging, forKey: "careai_watch_is_charging") }
