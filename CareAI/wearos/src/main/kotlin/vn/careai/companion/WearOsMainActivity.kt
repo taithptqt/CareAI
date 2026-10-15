@@ -252,6 +252,9 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             }
             lastSecretTapTime = now
         }
+        findViewById<android.view.View>(R.id.ivWearLogo)?.setOnClickListener {
+            tvWearTitle.performClick()
+        }
 
         readBatteryStatus()
         dispatchCurrentWatchTelemetry()

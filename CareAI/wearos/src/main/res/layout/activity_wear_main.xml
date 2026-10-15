@@ -35,6 +35,15 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
+                    <!-- CareAI Shield Logo -->
+                    <ImageView
+                        android:id="@+id/ivWearLogo"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginEnd="5dp"
+                        android:src="@drawable/careai_logo"
+                        android:contentDescription="@string/careai_logo_desc" />
+
                     <!-- Title: App Name (5-tap secret to open Test Lab) -->
                     <TextView
                         android:id="@+id/tvWearTitle"

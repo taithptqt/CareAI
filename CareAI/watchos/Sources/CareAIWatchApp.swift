@@ -96,8 +96,12 @@ struct ContentView: View {
     private var pairingView: some View {
         ScrollView {
             VStack(spacing: 6) {
-                HStack {
-                    Text("CareAI Watch")
+                HStack(spacing: 5) {
+                    Image("CareAILogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 14, height: 14)
+                    Text("CareAI")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
                     Spacer()
@@ -408,9 +412,15 @@ struct PrimaryEmergencyView: View {
                         }
                         lastSecretTapTime = now
                     }) {
-                        Text("CareAI Watch")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
+                        HStack(spacing: 4) {
+                            Image("CareAILogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 14, height: 14)
+                            Text("CareAI")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
+                        }
                     }
                     .buttonStyle(.plain)
 

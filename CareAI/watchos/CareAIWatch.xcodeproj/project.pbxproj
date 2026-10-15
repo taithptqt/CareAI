@@ -10,6 +10,7 @@
 		131884FBD08137D7E66B1F12 /* KeychainToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = A76EE6F47C2C03550636C97C /* KeychainToken.swift */; };
 		549D0DC3E46E559118CACB59 /* NSExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 1D98CCDC5227EEBE91EF7474 /* NSExceptionCatcher.m */; };
 		6C0CF5F5DD26C3615A79974E /* HealthSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39BB591352A5EEC9A16B14CF /* HealthSync.swift */; };
+		9E61900BC65E53A798C7B152 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9EF7C44DC9F5C850FA23AFA5 /* Assets.xcassets */; };
 		F4530521A30B6073789A951C /* CareAIWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 007B813685CBF0AAA5FA2E98 /* CareAIWatchApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,6 +21,7 @@
 		6062F150A8AAAA50C4CA31CF /* NSExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NSExceptionCatcher.h; sourceTree = "<group>"; };
 		6382FC5B0BD7A4E900386905 /* CareAIWatch-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "CareAIWatch-Bridging-Header.h"; sourceTree = "<group>"; };
 		8566FADB1981854290E44F02 /* CareAIWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CareAIWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9EF7C44DC9F5C850FA23AFA5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A76EE6F47C2C03550636C97C /* KeychainToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainToken.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -35,6 +37,7 @@
 		89407203D930618B7275807B /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				9EF7C44DC9F5C850FA23AFA5 /* Assets.xcassets */,
 				6382FC5B0BD7A4E900386905 /* CareAIWatch-Bridging-Header.h */,
 				007B813685CBF0AAA5FA2E98 /* CareAIWatchApp.swift */,
 				39BB591352A5EEC9A16B14CF /* HealthSync.swift */,
@@ -61,6 +64,7 @@
 			buildConfigurationList = 4BE16D34492DD32FAA92FAC1 /* Build configuration list for PBXNativeTarget "CareAIWatch" */;
 			buildPhases = (
 				17C244BC7F67DA8EFB063CF8 /* Sources */,
+				89D006327EC4E4A2E5FBADDA /* Resources */,
 			);
 			buildRules = (
 			);
@@ -81,6 +85,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					CE4323BEBEE9E5F736AA1D05 = {
+						DevelopmentTeam = S97U5DQT37;
+					};
+				};
 			};
 			buildConfigurationList = 97E0878A0FF706E99A915367 /* Build configuration list for PBXProject "CareAIWatch" */;
 			developmentRegion = en;
@@ -100,6 +109,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		89D006327EC4E4A2E5FBADDA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9E61900BC65E53A798C7B152 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		17C244BC7F67DA8EFB063CF8 /* Sources */ = {
@@ -124,12 +144,19 @@
 				DEVELOPMENT_TEAM = S97U5DQT37;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
-				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = careai.healthsync;
+				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = (
+					careai.healthsync,
+				);
+				INFOPLIST_KEY_CFBundleDisplayName = CareAI;
+				INFOPLIST_KEY_CFBundleName = CareAI;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "CareAI does not write health data.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = CareAI;
 				INFOPLIST_KEY_NSMotionUsageDescription = "CareAI sử dụng cảm biến chuyển động để tự động phát hiện tai nạn té ngã và gửi tín hiệu cấp cứu.";
-				INFOPLIST_KEY_WKBackgroundModes = "workout-processing physical-therapy";
+				INFOPLIST_KEY_WKBackgroundModes = (
+					"workout-processing",
+					"physical-therapy",
+				);
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = vn.careai.careaiCompanion;
 				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
 				SDKROOT = watchos;
@@ -211,12 +238,19 @@
 				DEVELOPMENT_TEAM = S97U5DQT37;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/Sources";
-				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = careai.healthsync;
+				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = (
+					careai.healthsync,
+				);
+				INFOPLIST_KEY_CFBundleDisplayName = CareAI;
+				INFOPLIST_KEY_CFBundleName = CareAI;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "CareAI does not write health data.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = CareAI;
 				INFOPLIST_KEY_NSMotionUsageDescription = "CareAI sử dụng cảm biến chuyển động để tự động phát hiện tai nạn té ngã và gửi tín hiệu cấp cứu.";
-				INFOPLIST_KEY_WKBackgroundModes = "workout-processing physical-therapy";
+				INFOPLIST_KEY_WKBackgroundModes = (
+					"workout-processing",
+					"physical-therapy",
+				);
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = vn.careai.careaiCompanion;
 				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
 				SDKROOT = watchos;

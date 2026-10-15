@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">CareAI Wear</string>
-    <string name="wear_title">CareAI Watch</string>
+    <string name="app_name">CareAI</string>
+    <string name="wear_title">CareAI</string>
+    <string name="careai_logo_desc">CareAI Logo</string>
     <string name="wear_status_monitoring">🟢 Giám Sát Cổ Tay</string>
     <string name="wear_status_offline_buffer">🟡 Lưu Đệm Cục Bộ</string>
     <string name="wear_vitals_label">❤️ -- BPM   •   --</string>
