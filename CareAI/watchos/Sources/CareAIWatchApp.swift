@@ -349,7 +349,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active && isPaired { sync.start() }
+            if phase == .active {
+                WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                if isPaired { sync.start() }
+            }
         }
     }
 
@@ -386,6 +389,11 @@ struct ContentView: View {
             }
             UserDefaults.standard.set(base, forKey: "backend")
             UserDefaults.standard.set(paired.deviceId, forKey: "deviceId")
+            if let name = paired.fullName, !name.isEmpty {
+                UserDefaults.standard.set(name, forKey: "elderName")
+            }
+            WatchConnectivityCoordinator.shared.sendWatchDeviceInfo()
+            WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
             pin = ""
             pairingError = nil
             sync.isPaired = true
@@ -435,4 +443,5 @@ private struct PairRequest: Encodable {
 private struct PairResponse: Decodable {
     let deviceId: String
     let deviceToken: String
+    let fullName: String?
 }

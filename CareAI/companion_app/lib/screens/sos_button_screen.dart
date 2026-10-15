@@ -248,15 +248,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       if (showFeedback && mounted) {
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
         final channelDesc = defaultTargetPlatform == TargetPlatform.iOS ? 'Bluetooth / Apple Watch App' : 'Bluetooth / Galaxy Wearable';
+        final effectiveWatchName = status.watchName ?? _lastPairedWatchName ?? (status.isPaired ? platformName : null);
         String feedbackMsg;
         if (status.isConnected) {
-          feedbackMsg = '🟢 Đã kết nối: ${status.watchName ?? _lastPairedWatchName ?? platformName} (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})';
-        } else if (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) {
-          if (status.reason == 'BLUETOOTH_OFF') {
-            feedbackMsg = '🔴 Bluetooth đang tắt: $_lastPairedWatchName (Bật lại Bluetooth trên điện thoại)';
-          } else {
-            feedbackMsg = '🔴 Mất tín hiệu: $_lastPairedWatchName (Kiểm tra khoảng cách/Pin đồng hồ)';
-          }
+          feedbackMsg = '🟢 Đã kết nối: ${effectiveWatchName ?? platformName} (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})';
+        } else if (status.reason == 'BLUETOOTH_OFF') {
+          feedbackMsg = '🔴 Bluetooth đang tắt${effectiveWatchName != null ? ": $effectiveWatchName" : ""} (Bật lại Bluetooth trên điện thoại)';
+        } else if (effectiveWatchName != null) {
+          feedbackMsg = '🔴 Mất tín hiệu: $effectiveWatchName (Kiểm tra khoảng cách/Pin đồng hồ)';
         } else {
           feedbackMsg = '⚪ Chưa phát hiện $platformName kết nối (Kiểm tra qua $channelDesc)';
         }
@@ -776,11 +775,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             Builder(
               builder: (context) {
                 final isConnected = _watchStatus.isConnected;
-                final isDisconnected = !isConnected && _lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty;
-                final isBtOff = isDisconnected && _watchStatus.reason == 'BLUETOOTH_OFF';
+                final hasKnownWatch = (_watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) ||
+                    (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) ||
+                    _watchStatus.isPaired;
+                final isBtOff = !isConnected && _watchStatus.reason == 'BLUETOOTH_OFF';
+                final isDisconnected = !isConnected && hasKnownWatch;
                 final watchTitle = isConnected
                     ? (_watchStatus.watchName ?? _lastPairedWatchName ?? _platformWatchTitle)
-                    : (isDisconnected ? _lastPairedWatchName! : 'Chưa ghép nối đồng hồ');
+                    : (isDisconnected ? (_watchStatus.watchName ?? _lastPairedWatchName ?? _platformWatchTitle) : 'Chưa ghép nối đồng hồ');
 
                 final String statusSubtext;
                 final Color borderColor;

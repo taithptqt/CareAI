@@ -131,6 +131,12 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     dispatchWatchTelemetry(this@WearOsMainActivity, isWorn, isCharging, batteryLevel)
                     updateVitalsUI(source = "Lệnh: Pin $batteryLevel%, Sạc=$isCharging")
                 }
+                "vn.careai.watch.CREDENTIALS_UPDATED" -> {
+                    updateVitalsUI(source = "Đã đồng bộ từ điện thoại")
+                }
+                "vn.careai.watch.REQUEST_TELEMETRY" -> {
+                    dispatchCurrentWatchTelemetry()
+                }
             }
         }
     }
@@ -155,6 +161,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         offBodySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT)
 
         readBatteryStatus()
+        dispatchCurrentWatchTelemetry()
         updateVitalsUI(source = "Cảm biến sẵn sàng")
 
         // Kích hoạt mô phỏng té ngã
@@ -220,12 +227,16 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction("vn.careai.watch.SET_WEAR_STATE")
             addAction("vn.careai.watch.SET_BATTERY")
+            addAction("vn.careai.watch.CREDENTIALS_UPDATED")
+            addAction("vn.careai.watch.REQUEST_TELEMETRY")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(sensorInjectionReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             registerReceiver(sensorInjectionReceiver, filter)
         }
+
+        dispatchCurrentWatchTelemetry()
     }
 
     override fun onPause() {

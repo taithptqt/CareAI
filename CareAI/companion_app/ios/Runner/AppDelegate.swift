@@ -3,12 +3,13 @@ import UIKit
 import WatchConnectivity
 import UserNotifications
 import AVFoundation
+import CoreBluetooth
 #if canImport(workmanager_apple)
 import workmanager_apple
 #endif
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, WCSessionDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, WCSessionDelegate, CBCentralManagerDelegate {
   private var fallChannel: FlutterMethodChannel?
   private var caregiverAlarmChannel: FlutterMethodChannel?
   private var caregiverAlertChannel: FlutterMethodChannel?
@@ -16,11 +17,14 @@ import workmanager_apple
   private var pendingIncidentId: String?
   private var pendingFallPayload: [String: Any]?
   private var speechSynthesizer: AVSpeechSynthesizer?
+  private var centralManager: CBCentralManager?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionShowPowerAlertKey: false])
+
     if WCSession.isSupported() {
       WCSession.default.delegate = self
       WCSession.default.activate()
@@ -297,26 +301,26 @@ import workmanager_apple
           let isPaired = session.isPaired
           let isReachable = session.isReachable
           let isAppInstalled = session.isWatchAppInstalled
-          // Trên iOS: Đã ghép đôi Apple Watch ở cấp độ iOS (session.isPaired) thì coi là đã kết nối phần cứng
-          let isConnected = isPaired
+          let isBtOff = self.centralManager?.state == .poweredOff
+          let isConnected = isPaired && !isBtOff
           let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
           let displayWatchName = storedWatchName ?? (isPaired ? "Apple Watch" : nil)
 
-          NSLog("[CareAI-iOS] Flutter gọi getConnectedWatchStatus: activationState=%ld, paired=%d, reachable=%d, installed=%d, isConnected=%d",
-                Int(session.activationState.rawValue), isPaired ? 1 : 0, isReachable ? 1 : 0, isAppInstalled ? 1 : 0, isConnected ? 1 : 0)
+          NSLog("[CareAI-iOS] Flutter gọi getConnectedWatchStatus: btOff=%d, activationState=%ld, paired=%d, reachable=%d, installed=%d, isConnected=%d",
+                isBtOff ? 1 : 0, Int(session.activationState.rawValue), isPaired ? 1 : 0, isReachable ? 1 : 0, isAppInstalled ? 1 : 0, isConnected ? 1 : 0)
 
-          // Yêu cầu đồng hồ gửi định danh mới nhất nếu có thể kết nối
-          if isReachable {
+          // Yêu cầu đồng hồ gửi định danh và viễn trắc mới nhất nếu có thể kết nối
+          if isReachable && !isBtOff {
             session.sendMessage(["action": "REQUEST_DEVICE_INFO"], replyHandler: nil, errorHandler: nil)
-          } else if isPaired {
+          } else if isPaired && !isBtOff {
             session.transferUserInfo(["action": "REQUEST_DEVICE_INFO"])
           }
 
           var resPayload: [String: Any] = [
             "isConnected": isConnected,
-            "isNearby": isReachable,
+            "isNearby": isReachable && !isBtOff,
             "connectedCount": isConnected ? 1 : 0,
-            "reason": isConnected ? "CONNECTED" : "NOT_PAIRED",
+            "reason": isBtOff ? "BLUETOOTH_OFF" : (isConnected ? "CONNECTED" : "NOT_PAIRED"),
             "isPaired": isPaired,
             "isWatchAppInstalled": isAppInstalled
           ]
@@ -325,6 +329,15 @@ import workmanager_apple
           }
           if isPaired {
             resPayload["nodeId"] = "apple_watch_wcsession"
+          }
+          if let battery = UserDefaults.standard.object(forKey: "careai_watch_battery_level") as? Int {
+            resPayload["batteryLevel"] = battery
+          }
+          if let worn = UserDefaults.standard.object(forKey: "careai_watch_is_worn") as? Bool {
+            resPayload["isWorn"] = worn
+          }
+          if let charging = UserDefaults.standard.object(forKey: "careai_watch_is_charging") as? Bool {
+            resPayload["isCharging"] = charging
           }
           result(resPayload)
         } else {
@@ -350,6 +363,16 @@ import workmanager_apple
         self.fallChannel?.invokeMethod("onHardwareFallDetected", arguments: payload)
         result(eventId)
       case "cancelFallAlarm", "stopEmergencySound":
+        let args = call.arguments as? [String: Any]
+        let eventId = args?["eventId"] as? String
+        if let id = eventId, !id.isEmpty {
+          let identifiers = [id, "careai_incident_\(id)", "FALL_\(id)", "SOS_\(id)", "FALL_SIM_IOS_\(id)"]
+          UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: identifiers)
+          UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+        } else {
+          UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+          UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        }
         self.stopAlarmSound()
         result(true)
       case "syncWatchCredentials":
@@ -415,6 +438,7 @@ import workmanager_apple
     setupCaregiverAlarmChannel(messenger: messenger)
     setupCaregiverAlertChannel(messenger: messenger)
     setupTtsBridgeChannel(messenger: messenger)
+    setupLocationSourceChannel(messenger: messenger)
 
     // Nếu có sự cố ngã phần cứng tồn đọng khi app vừa mở, đẩy ngay lập tức cho Flutter
     if let pendingFall = self.pendingFallPayload {
@@ -425,6 +449,22 @@ import workmanager_apple
     // Nếu WCSession đã hoàn tất kích hoạt, thông báo ngay cho Flutter
     if WCSession.isSupported() && WCSession.default.activationState == .activated {
       notifyWatchConnectionStatus()
+    }
+  }
+
+  // MARK: - Kênh kiểm tra thiết bị mô phỏng Location Source
+  private func setupLocationSourceChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "vn.careai.companion/location_source", binaryMessenger: messenger)
+    channel.setMethodCallHandler { (call: FlutterMethodCall, result: @escaping FlutterResult) in
+      if call.method == "isEmulator" {
+        #if targetEnvironment(simulator)
+        result(true)
+        #else
+        result(false)
+        #endif
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
     }
   }
 
@@ -446,6 +486,8 @@ import workmanager_apple
         if self.speechSynthesizer?.isSpeaking == true {
           self.speechSynthesizer?.stopSpeaking(at: .immediate)
         }
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.duckOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "vi-VN") ?? AVSpeechSynthesisVoice(language: "en-US")
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
@@ -471,6 +513,12 @@ import workmanager_apple
     setupChannelsIfNeeded(messenger: messenger)
   }
 
+  // MARK: - CBCentralManagerDelegate: Lắng nghe trạng thái Bluetooth phần cứng thời gian thực (0.1s)
+  func centralManagerDidUpdateState(_ central: CBCentralManager) {
+    NSLog("[CareAI-iOS] [EVENT-DRIVEN] Bluetooth centralManager state changed: %ld", central.state.rawValue)
+    notifyWatchConnectionStatus()
+  }
+
   // MARK: - WCSession Notification Helper
   private func notifyWatchConnectionStatus(session: WCSession? = nil) {
     guard WCSession.isSupported() else { return }
@@ -478,18 +526,19 @@ import workmanager_apple
     let isPaired = s.isPaired
     let isReachable = s.isReachable
     let isAppInstalled = s.isWatchAppInstalled
-    let isConnected = isPaired
+    let isBtOff = centralManager?.state == .poweredOff
+    let isConnected = isPaired && !isBtOff
     let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
     let displayWatchName = storedWatchName ?? (isPaired ? "Apple Watch" : nil)
 
-    NSLog("[CareAI-iOS] notifyWatchConnectionStatus: channelReady=%d, activationState=%ld, paired=%d, isConnected=%d, name=%@",
-          self.fallChannel != nil ? 1 : 0, Int(s.activationState.rawValue), isPaired ? 1 : 0, isConnected ? 1 : 0, displayWatchName ?? "nil")
+    NSLog("[CareAI-iOS] notifyWatchConnectionStatus: channelReady=%d, btOff=%d, activationState=%ld, paired=%d, isConnected=%d, name=%@",
+          self.fallChannel != nil ? 1 : 0, isBtOff ? 1 : 0, Int(s.activationState.rawValue), isPaired ? 1 : 0, isConnected ? 1 : 0, displayWatchName ?? "nil")
 
     var payload: [String: Any] = [
       "isConnected": isConnected,
-      "isNearby": isReachable,
+      "isNearby": isReachable && !isBtOff,
       "connectedCount": isConnected ? 1 : 0,
-      "reason": isConnected ? "CONNECTED" : "NOT_PAIRED",
+      "reason": isBtOff ? "BLUETOOTH_OFF" : (isConnected ? "CONNECTED" : "NOT_PAIRED"),
       "isPaired": isPaired,
       "isWatchAppInstalled": isAppInstalled
     ]
@@ -498,6 +547,15 @@ import workmanager_apple
     }
     if isPaired {
       payload["nodeId"] = "apple_watch_wcsession"
+    }
+    if let battery = UserDefaults.standard.object(forKey: "careai_watch_battery_level") as? Int {
+      payload["batteryLevel"] = battery
+    }
+    if let worn = UserDefaults.standard.object(forKey: "careai_watch_is_worn") as? Bool {
+      payload["isWorn"] = worn
+    }
+    if let charging = UserDefaults.standard.object(forKey: "careai_watch_is_charging") as? Bool {
+      payload["isCharging"] = charging
     }
 
     DispatchQueue.main.async { [weak self] in
@@ -555,6 +613,10 @@ import workmanager_apple
       let watchModel = payload["watchModel"] as? String ?? "Apple Watch"
       NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: worn=%@, charging=%@, battery=%@", String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel))
 
+      if let isWorn = isWorn { UserDefaults.standard.set(isWorn, forKey: "careai_watch_is_worn") }
+      if let isCharging = isCharging { UserDefaults.standard.set(isCharging, forKey: "careai_watch_is_charging") }
+      if let batteryLevel = batteryLevel { UserDefaults.standard.set(batteryLevel, forKey: "careai_watch_battery_level") }
+
       DispatchQueue.main.async { [weak self] in
         guard let self = self else { return }
         var map: [String: Any] = [
@@ -563,7 +625,8 @@ import workmanager_apple
           "nodeId": "apple_watch_wcsession",
           "isNearby": true,
           "connectedCount": 1,
-          "reason": "CONNECTED"
+          "reason": "CONNECTED",
+          "isPaired": true
         ]
         if let isWorn = isWorn { map["isWorn"] = isWorn }
         if let isCharging = isCharging { map["isCharging"] = isCharging }

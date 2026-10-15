@@ -60,6 +60,15 @@ class WearOsMessageReceiverService : WearableListenerService() {
                 val watchName = json.optString("watchName", "Galaxy Watch")
 
                 Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%")
+                val prefs = getSharedPreferences("careai_watch_telemetry", Context.MODE_PRIVATE)
+                prefs.edit().apply {
+                    if (isWorn != null) putBoolean("isWorn", isWorn)
+                    if (isCharging != null) putBoolean("isCharging", isCharging)
+                    if (batteryLevel != null) putInt("batteryLevel", batteryLevel)
+                    putString("watchName", watchName)
+                    apply()
+                }
+
                 sendBroadcast(Intent("vn.careai.companion.WATCH_CONNECTION_CHANGED").apply {
                     setPackage(packageName)
                     putExtra("isConnected", true)

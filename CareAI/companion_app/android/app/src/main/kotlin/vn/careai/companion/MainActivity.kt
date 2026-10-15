@@ -91,6 +91,40 @@ class MainActivity : FlutterActivity() {
                                 "reason" to "BLUETOOTH_OFF"
                             ))
                         }
+                    } else if (state == BluetoothAdapter.STATE_ON) {
+                        Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Bluetooth điện thoại vừa bật lại -> Truy vấn kết nối đồng hồ")
+                        Wearable.getNodeClient(this@MainActivity).connectedNodes.addOnSuccessListener { nodes ->
+                            val activeNodes = nodes.filter { it.isNearby }.ifEmpty { nodes }
+                            if (activeNodes.isNotEmpty()) {
+                                val watch = activeNodes[0]
+                                val prefs = getSharedPreferences("careai_watch_telemetry", Context.MODE_PRIVATE)
+                                val cachedWorn = if (prefs.contains("isWorn")) prefs.getBoolean("isWorn", true) else null
+                                val cachedCharging = if (prefs.contains("isCharging")) prefs.getBoolean("isCharging", false) else null
+                                val cachedBattery = if (prefs.contains("batteryLevel")) prefs.getInt("batteryLevel", -1).takeIf { it >= 0 } else null
+                                val cachedName = prefs.getString("watchName", null)
+
+                                runOnUiThread {
+                                    val map = mutableMapOf<String, Any?>(
+                                        "isConnected" to true,
+                                        "watchName" to (cachedName ?: watch.displayName),
+                                        "nodeId" to watch.id,
+                                        "isNearby" to watch.isNearby,
+                                        "connectedCount" to activeNodes.size,
+                                        "reason" to "CONNECTED",
+                                        "isPaired" to true
+                                    )
+                                    if (cachedWorn != null) map["isWorn"] = cachedWorn
+                                    if (cachedCharging != null) map["isCharging"] = cachedCharging
+                                    if (cachedBattery != null) map["batteryLevel"] = cachedBattery
+                                    fallMethodChannel?.invokeMethod("onWatchConnectionChanged", map)
+                                }
+                                Wearable.getMessageClient(this@MainActivity).sendMessage(
+                                    watch.id,
+                                    "/careai/request_telemetry",
+                                    ByteArray(0)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -457,25 +491,60 @@ class MainActivity : FlutterActivity() {
                 }
                 "getConnectedWatchStatus" -> {
                     try {
+                        val btAdapter = BluetoothAdapter.getDefaultAdapter()
+                        if (btAdapter == null || !btAdapter.isEnabled) {
+                            result.success(mapOf(
+                                "isConnected" to false,
+                                "watchName" to null,
+                                "nodeId" to null,
+                                "isNearby" to false,
+                                "connectedCount" to 0,
+                                "reason" to "BLUETOOTH_OFF",
+                                "isPaired" to false
+                            ))
+                            return@setMethodCallHandler
+                        }
+
+                        val prefs = getSharedPreferences("careai_watch_telemetry", Context.MODE_PRIVATE)
+                        val cachedWorn = if (prefs.contains("isWorn")) prefs.getBoolean("isWorn", true) else null
+                        val cachedCharging = if (prefs.contains("isCharging")) prefs.getBoolean("isCharging", false) else null
+                        val cachedBattery = if (prefs.contains("batteryLevel")) prefs.getInt("batteryLevel", -1).takeIf { it >= 0 } else null
+                        val cachedName = prefs.getString("watchName", null)
+
                         Wearable.getNodeClient(this).connectedNodes
                             .addOnSuccessListener { nodes ->
                                 val activeNodes = nodes.filter { it.isNearby }.ifEmpty { nodes }
                                 if (activeNodes.isNotEmpty()) {
                                     val watch = activeNodes[0]
-                                    result.success(mapOf(
+                                    val map = mutableMapOf<String, Any?>(
                                         "isConnected" to true,
-                                        "watchName" to watch.displayName,
+                                        "watchName" to (cachedName ?: watch.displayName),
                                         "nodeId" to watch.id,
                                         "isNearby" to watch.isNearby,
-                                        "connectedCount" to activeNodes.size
-                                    ))
+                                        "connectedCount" to activeNodes.size,
+                                        "reason" to "CONNECTED",
+                                        "isPaired" to true
+                                    )
+                                    if (cachedWorn != null) map["isWorn"] = cachedWorn
+                                    if (cachedCharging != null) map["isCharging"] = cachedCharging
+                                    if (cachedBattery != null) map["batteryLevel"] = cachedBattery
+                                    result.success(map)
+
+                                    // Yêu cầu đồng hồ cập nhật viễn trắc mới nhất
+                                    Wearable.getMessageClient(this@MainActivity).sendMessage(
+                                        watch.id,
+                                        "/careai/request_telemetry",
+                                        ByteArray(0)
+                                    )
                                 } else {
                                     result.success(mapOf(
                                         "isConnected" to false,
                                         "watchName" to null,
                                         "nodeId" to null,
                                         "isNearby" to false,
-                                        "connectedCount" to 0
+                                        "connectedCount" to 0,
+                                        "reason" to "NOT_PAIRED",
+                                        "isPaired" to false
                                     ))
                                 }
                             }
@@ -483,14 +552,18 @@ class MainActivity : FlutterActivity() {
                                 result.success(mapOf(
                                     "isConnected" to false,
                                     "error" to (ex.message ?: "Wearable API Failure"),
-                                    "connectedCount" to 0
+                                    "connectedCount" to 0,
+                                    "reason" to "ERROR",
+                                    "isPaired" to false
                                 ))
                             }
                     } catch (ex: Exception) {
                         result.success(mapOf(
                             "isConnected" to false,
                             "error" to (ex.message ?: "Exception"),
-                            "connectedCount" to 0
+                            "connectedCount" to 0,
+                            "reason" to "ERROR",
+                            "isPaired" to false
                         ))
                     }
                 }

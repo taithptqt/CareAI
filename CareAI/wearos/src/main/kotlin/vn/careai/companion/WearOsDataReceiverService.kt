@@ -1,6 +1,6 @@
-// wearos/src/main/kotlin/vn/careai/companion/WearOsDataReceiverService.kt
 package vn.careai.companion
 
+import android.content.Intent
 import android.util.Log
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
@@ -28,6 +28,10 @@ class WearOsDataReceiverService : WearableListenerService() {
                         WearOsConfigStore.saveBackendUrl(applicationContext, backendUrl)
                     }
                     Log.i(TAG, "Đã nhận và đồng bộ thông tin xác thực từ điện thoại Android! DeviceId=$deviceId, Elder=$elderName")
+                    sendBroadcast(Intent("vn.careai.watch.CREDENTIALS_UPDATED").apply {
+                        setPackage(packageName)
+                    })
+                    dispatchTelemetryFromService()
                 }
             }
         }
@@ -49,10 +53,37 @@ class WearOsDataReceiverService : WearableListenerService() {
                         WearOsConfigStore.saveBackendUrl(applicationContext, backendUrl)
                     }
                     Log.i(TAG, "MessageClient: Đã đồng bộ thông tin xác thực thành công từ điện thoại! DeviceId=$deviceId")
+                    sendBroadcast(Intent("vn.careai.watch.CREDENTIALS_UPDATED").apply {
+                        setPackage(packageName)
+                    })
+                    dispatchTelemetryFromService()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Lỗi phân tích credentials message: ${e.message}")
             }
+        } else if (messageEvent.path == "/careai/request_telemetry") {
+            Log.i(TAG, "Nhận yêu cầu cập nhật viễn trắc từ điện thoại Android (/careai/request_telemetry)")
+            dispatchTelemetryFromService()
+            sendBroadcast(Intent("vn.careai.watch.REQUEST_TELEMETRY").apply {
+                setPackage(packageName)
+            })
+        }
+    }
+
+    private fun dispatchTelemetryFromService() {
+        try {
+            val ifilter = android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val batteryStatus: Intent? = registerReceiver(null, ifilter)
+            val status: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING || status == android.os.BatteryManager.BATTERY_STATUS_FULL
+            val level: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+            val batteryLevel = if (level >= 0 && scale > 0) (level * 100 / scale) else 100
+            val isWorn = !isCharging
+            WearOsMainActivity.dispatchWatchTelemetry(applicationContext, isWorn, isCharging, batteryLevel)
+            Log.i(TAG, "Đã gửi telemetry trực tiếp từ background service: Pin=$batteryLevel%, Sạc=$isCharging, Đeo=$isWorn")
+        } catch (e: Exception) {
+            Log.w(TAG, "Lỗi đọc battery và gửi telemetry từ service: ${e.message}")
         }
     }
 }

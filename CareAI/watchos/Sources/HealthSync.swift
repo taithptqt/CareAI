@@ -6,7 +6,7 @@ import CoreMotion
 import WatchConnectivity
 
 /// Helper điều phối WatchConnectivity chuyển tiếp gói tin cứu nạn sang iPhone Companion (Apple Watch GPS)
-private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
+final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     static let shared = WatchConnectivityCoordinator()
     private var pendingSosPayload: [String: Any]?
 
@@ -29,6 +29,7 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         if activationState == .activated {
             sendWatchDeviceInfo()
+            syncCurrentBatteryAndWearState()
             if let pending = self.pendingSosPayload {
                 session.transferUserInfo(pending)
                 if session.isReachable {
@@ -132,24 +133,27 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-        if let action = userInfo["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" {
+        if let action = userInfo["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
             sendWatchDeviceInfo()
+            syncCurrentBatteryAndWearState()
             return
         }
         handleIncomingCredentials(userInfo)
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" {
+        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
             sendWatchDeviceInfo()
+            syncCurrentBatteryAndWearState()
             return
         }
         handleIncomingCredentials(message)
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
-        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" {
+        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
             sendWatchDeviceInfo()
+            syncCurrentBatteryAndWearState()
             replyHandler(["status": "OK"])
             return
         }
@@ -171,6 +175,7 @@ private final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             }
             NSLog("[CareAI-Watch] Đã nhận và tự động lưu credentials từ iPhone Companion thành công!")
             sendWatchDeviceInfo()
+            syncCurrentBatteryAndWearState()
             Task { @MainActor in
                 HealthSync.shared?.onCredentialsReceived()
             }
@@ -318,6 +323,7 @@ final class HealthSync: ObservableObject {
     init() {
         HealthSync.shared = self
         WatchConnectivityCoordinator.shared.activate()
+        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
         latestHeartRate = UserDefaults.standard.object(forKey: "latest.heartRate") as? Double
         latestHeartRateAt = UserDefaults.standard.object(forKey: "latest.heartRateAt") as? Date
         latestSpo2 = UserDefaults.standard.object(forKey: "latest.spo2") as? Double
@@ -335,6 +341,7 @@ final class HealthSync: ObservableObject {
             Task { @MainActor in
                 self?.updateHealthAlert()
                 self?.flush(force: true)
+                WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
             }
         }
         if UserDefaults.standard.string(forKey: "backend") != nil,
@@ -390,6 +397,7 @@ final class HealthSync: ObservableObject {
 
     func refreshInBackground() async {
         scheduleBackgroundRefresh()
+        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
         if !outboxReady { loadOutbox() }
         guard outboxReady, KeychainToken.load() != nil else { return }
         for (identifier, _, _, _) in metrics {
