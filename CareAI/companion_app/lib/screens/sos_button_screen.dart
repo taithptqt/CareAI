@@ -967,112 +967,125 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               const Divider(color: Color(0xFF334155), height: 1),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
-              // Thẻ thông tin Apple Watch (thanh lịch, hữu ích)
+              // Thẻ thông tin Apple Watch (Gọn gàng, vừa khít, cùng một hàng, không thừa không gian)
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F172A),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF334155)),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.watch_rounded,
-                          color: isConnected ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: (isConnected ? const Color(0xFF34D399) : const Color(0xFF94A3B8)).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.watch_rounded,
+                        color: isConnected ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
                             watchDisplayName ?? 'Chưa kết nối đồng hồ',
                             style: const TextStyle(
-                              fontSize: 13.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isConnected
-                          ? '🟢 Đang kết nối${_watchStatus.batteryLevel != null ? ' · Pin ${_watchStatus.batteryLevel}%' : ''}${_watchStatus.isWorn == true ? ' · Đang đeo' : ''}'
-                          : '⚪ Chưa nhận tín hiệu đồng hồ',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: isConnected ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
+                          const SizedBox(height: 1),
+                          Text(
+                            isConnected
+                                ? '🟢 ${_watchStatus.batteryLevel != null ? 'Pin ${_watchStatus.batteryLevel}%' : 'Đã kết nối'}${_watchStatus.isWorn == true ? ' · Đang đeo' : ''}'
+                                : '⚪ Chưa nhận tín hiệu',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isConnected ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                     if (hasKnownWatch || isConnected) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFFF97316),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      const SizedBox(width: 8),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFF97316),
+                          backgroundColor: const Color(0xFFF97316).withValues(alpha: 0.12),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: const Color(0xFFF97316).withValues(alpha: 0.35)),
                           ),
-                          icon: const Icon(Icons.link_off_rounded, size: 15),
-                          label: const Text(
-                            'Ngắt liên kết đồng hồ',
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _handleUnpairWatchOnly();
-                          },
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _handleUnpairWatchOnly();
+                        },
+                        child: const Text(
+                          'Ngắt kết nối',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Nút 1: Phòng thử nghiệm tín hiệu
               TextButton.icon(
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF38BDF8),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 7),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 icon: const Icon(Icons.biotech_outlined, size: 17),
                 label: const Text(
                   'Mở Phòng Thử Nghiệm Tín Hiệu',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 onPressed: () {
                   Navigator.pop(ctx);
                   _showDiagnosticTestLabSheet(context);
                 },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const Divider(color: Color(0xFF334155), height: 1),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-              // Nút 2: Đăng xuất hồ sơ người già (Vùng nguy hiểm)
+              // Nút 2: ĐĂNG XUẤT HỒ SƠ (Gọn gàng, đúng nhãn yêu cầu)
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFEF4444),
                   side: const BorderSide(color: Color(0xFFDC2626), width: 1.2),
                   backgroundColor: const Color(0xFF7F1D1D).withValues(alpha: 0.15),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.logout_rounded, size: 17),
+                icon: const Icon(Icons.logout_rounded, size: 16),
                 label: const Text(
-                  'ĐĂNG XUẤT HỒ SƠ NGƯỜI GIÀ',
+                  'ĐĂNG XUẤT HỒ SƠ',
                   style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, letterSpacing: 0.3),
                 ),
                 onPressed: () {
@@ -1080,7 +1093,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                   _handleLogoutAccount();
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // Nút 3: HỦY BỎ (Dưới cùng, đơn giản, rõ nét)
               ElevatedButton(
@@ -1186,7 +1199,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Xác Nhận Đăng Xuất?',
+                'Xác Nhận Đăng Xuất Hồ Sơ?',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -1199,7 +1212,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('HỦY BỎ (GIỮ HỒ SƠ)', style: TextStyle(color: Colors.white70)),
+            child: const Text('HỦY BỎ', style: TextStyle(color: Colors.white70)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1208,7 +1221,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('XÁC NHẬN ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
