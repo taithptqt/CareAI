@@ -37,7 +37,7 @@ struct ContentView: View {
                 pairingView
             } else {
                 TabView(selection: $selectedTab) {
-                    PrimaryEmergencyView(sync: sync, showSettings: $showSettings, showTestLab: $showTestLab)
+                    PrimaryEmergencyView(sync: sync, showSettings: $showSettings, showTestLab: $showTestLab, selectedTab: $selectedTab)
                         .tag(0)
 
                     DailyWellnessView(sync: sync, showSettings: $showSettings, showTestLab: $showTestLab)
@@ -302,11 +302,13 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Trang 1: Giám Sát Cấp Cứu & Sinh Hiệu Trực Tiếp (Primary Emergency View)
+// MARK: - Trang 1: Giám Sát Cấp CỨu & Sinh Hiệu Trực Tiếp (Primary Emergency View)
 struct PrimaryEmergencyView: View {
     @ObservedObject var sync: HealthSync
     @Binding var showSettings: Bool
     @Binding var showTestLab: Bool
+    @Binding var selectedTab: Int
+    @State private var showStatusDetail = false
     @State private var secretTapCount = 0
     @State private var lastSecretTapTime = Date.distantPast
 
@@ -435,12 +437,21 @@ struct PrimaryEmergencyView: View {
                 }
                 .padding(.horizontal, 4)
 
-                // Badge trạng thái giám sát / cảnh báo y tế
-                Text(statusTitle)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(statusColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                // Nút Huy Hiệu Trạng Thái (Status Badge Button - Chạm để xem chi tiết / chuyển trang / test)
+                Button(action: {
+                    WKInterfaceDevice.current().play(.click)
+                    showStatusDetail = true
+                }) {
+                    HStack(spacing: 4) {
+                        Text(statusTitle)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(statusColor)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.system(size: 8))
+                            .foregroundColor(statusColor.opacity(0.8))
+                    }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .frame(maxWidth: .infinity)
@@ -450,6 +461,8 @@ struct PrimaryEmergencyView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(statusColor.opacity(0.6), lineWidth: 1)
                     )
+                }
+                .buttonStyle(.plain)
 
                 // Thẻ sinh hiệu trực tiếp thông minh (Adaptive Vitals Card)
                 VStack(spacing: 4) {
@@ -552,6 +565,9 @@ struct PrimaryEmergencyView: View {
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
+        }
+        .sheet(isPresented: $showStatusDetail) {
+            StatusDetailSheetView(sync: sync, selectedTab: $selectedTab, showTestLab: $showTestLab)
         }
     }
 }
@@ -910,6 +926,12 @@ struct SettingsSheetView: View {
                     ))
                     .font(.system(size: 10))
 
+                    Toggle("Đang đeo trên cổ tay", isOn: Binding(
+                        get: { sync.isWorn },
+                        set: { if $0 { sync.simulateWorn() } else { sync.simulateUnworn() } }
+                    ))
+                    .font(.system(size: 10))
+
                     Button("Gửi dữ liệu ngay") { Task { await sync.sendNow() } }
                         .font(.system(size: 10))
                         .disabled(sync.simulatedOffline)
@@ -944,6 +966,117 @@ struct SettingsSheetView: View {
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 6)
+        }
+    }
+}
+
+struct StatusDetailSheetView: View {
+    @ObservedObject var sync: HealthSync
+    @Binding var selectedTab: Int
+    @Binding var showTestLab: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    private var batteryPercent: Int {
+        let dev = WKInterfaceDevice.current()
+        dev.isBatteryMonitoringEnabled = true
+        let raw = dev.batteryLevel
+        return raw >= 0 ? Int(raw * 100) : 100
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Trạng Thái Hệ Thống")
+                        .font(.system(size: 11.5, weight: .bold))
+                        .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 2)
+
+                // 1. Tình trạng đeo cổ tay
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("CỔ TAY")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.gray)
+                    Text(sync.isWorn ? "🟢 Đang đeo trên cổ tay" : "🟡 Đã tháo khỏi cổ tay")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(sync.isWorn ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
+                }
+                .padding(5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.06))
+                .cornerRadius(6)
+
+                // 2. Nguồn điện & Sạc
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("PIN & NGUỒN")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.gray)
+                    Text(sync.isCharging ? "⚡ Đang cắm sạc (\(batteryPercent)%)" : "🔋 Dung lượng pin: \(batteryPercent)%")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(sync.isCharging ? Color(red: 0.22, green: 0.74, blue: 0.97) : .white)
+                }
+                .padding(5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.06))
+                .cornerRadius(6)
+
+                // 3. Kết nối iPhone Companion
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("KẾT NỐI IPHONE")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.gray)
+                    Text(sync.isPhoneReachable ? "🟢 Trực tiếp (0ms qua Bluetooth)" : "🟡 Lưu đệm cục bộ (Chờ kết nối)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
+                }
+                .padding(5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.06))
+                .cornerRadius(6)
+
+                // Nút chuyển nhanh sang Trang 2
+                Button(action: {
+                    dismiss()
+                    selectedTab = 1
+                }) {
+                    HStack {
+                        Image(systemName: "list.bullet.clipboard.fill")
+                        Text("Xem Trang 2: Sức Khỏe")
+                    }
+                    .font(.system(size: 9.5, weight: .bold))
+                    .frame(maxWidth: .infinity, minHeight: 26)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.22, green: 0.74, blue: 0.97))
+                .padding(.top, 2)
+
+                // Nút mở Phòng Thử Nghiệm
+                Button(action: {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showTestLab = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "hammer.fill")
+                        Text("Phòng Thử Nghiệm & Test")
+                    }
+                    .font(.system(size: 9, weight: .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 24)
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
         }
     }
 }
@@ -1017,6 +1150,31 @@ struct VitalsTestLabSheetView: View {
                             .buttonStyle(.borderedProminent)
                             .tint(Color(red: 0.06, green: 0.73, blue: 0.51))
                     }
+                }
+
+                // 3. Thử nghiệm trạng thái đeo & sạc
+                Text("THỬ NGHIỆM ĐEO & SẠC PIN")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundColor(.gray)
+                    .padding(.top, 4)
+
+                HStack(spacing: 4) {
+                    Button("🟡 Tháo Tay") { sync.simulateUnworn() }
+                        .font(.system(size: 8.5, weight: .bold))
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.orange)
+
+                    Button("🟢 Đeo Lại") { sync.simulateWorn() }
+                        .font(.system(size: 8.5, weight: .bold))
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.06, green: 0.73, blue: 0.51))
+
+                    Button(sync.isCharging ? "⚡ Rút Sạc" : "⚡ Cắm Sạc") {
+                        sync.simulateCharging(charging: !sync.isCharging)
+                    }
+                    .font(.system(size: 8.5, weight: .bold))
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(red: 0.22, green: 0.74, blue: 0.97))
                 }
 
                 // 3. Nhật ký chẩn đoán / truyền tin

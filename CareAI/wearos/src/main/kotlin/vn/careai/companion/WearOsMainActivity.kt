@@ -263,6 +263,11 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             triggerManualSos(eventId)
         }
 
+        // Nhấn vào Huy hiệu Trạng thái chuyển nhanh sang Trang 2 xem chi tiết
+        tvStatus.setOnClickListener {
+            wearViewFlipper.displayedChild = 1
+        }
+
         // Mở phòng thử nghiệm tín hiệu & mô phỏng
         btnOpenTestLab.setOnClickListener {
             showTestLabDialog()
@@ -321,6 +326,32 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             currentSpo2 = 98.5
             updateVitalsUI(source = "Phòng thử nghiệm", customAlert = "NORMAL")
             tvDialogLogResult.text = "🟢 Đã khôi phục Chuẩn 75 BPM"
+        }
+
+        val btnTestUnworn: Button = dialog.findViewById(R.id.btnTestUnworn)
+        val btnTestWorn: Button = dialog.findViewById(R.id.btnTestWorn)
+        val btnTestCharging: Button = dialog.findViewById(R.id.btnTestCharging)
+
+        btnTestUnworn.setOnClickListener {
+            isWorn = false
+            dispatchCurrentWatchTelemetry()
+            updateVitalsUI(source = "Phòng thử nghiệm [Tháo tay]")
+            tvDialogLogResult.text = "🟡 Đã kích hoạt trạng thái Tháo Cổ Tay"
+        }
+
+        btnTestWorn.setOnClickListener {
+            isWorn = true
+            dispatchCurrentWatchTelemetry()
+            updateVitalsUI(source = "Phòng thử nghiệm [Đeo lại]")
+            tvDialogLogResult.text = "🟢 Đã khôi phục trạng thái Đang Đeo"
+        }
+
+        btnTestCharging.setOnClickListener {
+            isCharging = !isCharging
+            if (isCharging) isWorn = false
+            dispatchCurrentWatchTelemetry()
+            updateVitalsUI(source = "Phòng thử nghiệm [Cắm sạc]")
+            tvDialogLogResult.text = if (isCharging) "⚡ Đã kích hoạt Đang Cắm Sạc" else "⚡ Đã rút sạc"
         }
 
         btnDialogClose.setOnClickListener {

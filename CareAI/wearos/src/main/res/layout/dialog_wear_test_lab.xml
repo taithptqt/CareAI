@@ -133,6 +133,55 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- Row 3: Unworn | Worn | Charging -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnTestUnworn"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/bg_wear_btn_test_brady"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="🟡 Tháo Tay"
+                android:textColor="#FFFFFF"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnTestWorn"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/bg_wear_btn_test_norm"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="🟢 Đeo Lại"
+                android:textColor="#FFFFFF"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnTestCharging"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_wear_btn_test_hypo"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:text="⚡ Sạc Pin"
+                android:textColor="#FFFFFF"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <!-- Log result in dialog -->
         <TextView
             android:id="@+id/tvDialogLogResult"

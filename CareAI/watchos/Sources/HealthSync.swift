@@ -136,12 +136,13 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let rawLevel = device.batteryLevel
         let batteryLevel = rawLevel >= 0 ? Int(rawLevel * 100) : 100
         let isCharging = (device.batteryState == .charging || device.batteryState == .full)
-        let isWorn = !isCharging
         DispatchQueue.main.async {
+            let currentWorn = HealthSync.shared?.isWorn ?? true
+            let isWorn = isCharging ? false : currentWorn
             HealthSync.shared?.isCharging = isCharging
             HealthSync.shared?.isWorn = isWorn
+            self.relayWatchTelemetry(isWorn: isWorn, isCharging: isCharging, batteryLevel: batteryLevel)
         }
-        relayWatchTelemetry(isWorn: isWorn, isCharging: isCharging, batteryLevel: batteryLevel)
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
@@ -651,6 +652,37 @@ final class HealthSync: ObservableObject {
 
     func simulateLowSpo2() {
         simulateHypoxia()
+    }
+
+    // 5. Nút test Tháo cổ tay (Off-body)
+    func simulateUnworn() {
+        isWorn = false
+        status = "🟡 ĐÃ THÁO CỔ TAY"
+        diagnosticLog = "⚡ Mô phỏng: Đã tháo thiết bị khỏi cổ tay"
+        let raw = WKInterfaceDevice.current().batteryLevel
+        let bat = raw >= 0 ? Int(raw * 100) : 100
+        WatchConnectivityCoordinator.shared.relayWatchTelemetry(isWorn: false, isCharging: isCharging, batteryLevel: bat)
+    }
+
+    // 6. Nút test Đeo vào cổ tay
+    func simulateWorn() {
+        isWorn = true
+        status = "🟢 Đang Giám Sát Cổ Tay"
+        diagnosticLog = "⚡ Mô phỏng: Đã đeo thiết bị vào cổ tay"
+        let raw = WKInterfaceDevice.current().batteryLevel
+        let bat = raw >= 0 ? Int(raw * 100) : 100
+        WatchConnectivityCoordinator.shared.relayWatchTelemetry(isWorn: true, isCharging: isCharging, batteryLevel: bat)
+    }
+
+    // 7. Nút test Cắm sạc / Rút sạc
+    func simulateCharging(charging: Bool) {
+        isCharging = charging
+        isWorn = !charging
+        status = charging ? "⚡ Đang Cắm Sạc" : "🟢 Đang Giám Sát Cổ Tay"
+        diagnosticLog = charging ? "⚡ Mô phỏng: Đang cắm sạc" : "⚡ Mô phỏng: Đã rút sạc"
+        let raw = WKInterfaceDevice.current().batteryLevel
+        let bat = raw >= 0 ? Int(raw * 100) : 100
+        WatchConnectivityCoordinator.shared.relayWatchTelemetry(isWorn: !charging, isCharging: charging, batteryLevel: bat)
     }
 
     /// Kích hoạt gửi cảnh báo Cấp Cứu Fast-Lane SOS hoặc Phát hiện Té Ngã (Tuân thủ Bất biến Fact 35)
