@@ -17,6 +17,9 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Window
 import android.widget.Button
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.os.VibrationEffect
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.gms.tasks.Tasks
@@ -40,6 +43,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private var isWorn: Boolean = true
     private var isCharging: Boolean = false
     private var batteryLevel: Int = 100
+    private var isPhoneConnected: Boolean = true
 
     private var currentHeartRate: Int = 76
     private var currentSpo2: Double = 98.0
@@ -306,9 +310,40 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         }
     }
 
+    private fun triggerEmergencyVibration() {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val timings = longArrayOf(0, 450, 180, 450, 180, 700)
+                    val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
+                    val effect = VibrationEffect.createWaveform(timings, amplitudes, -1)
+                    vibrator.vibrate(effect)
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(longArrayOf(0, 450, 180, 450, 180, 700), -1)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("CareAI-Wear", "Không thể kích hoạt rung khẩn cấp: ${e.message}")
+        }
+    }
+
     private fun dispatchCurrentWatchTelemetry() {
         readBatteryStatus()
-        dispatchWatchTelemetry(this, isWorn, isCharging, batteryLevel)
+        dispatchWatchTelemetry(this, isWorn, isCharging, batteryLevel) { connected ->
+            runOnUiThread {
+                isPhoneConnected = connected
+                updateVitalsUI()
+            }
+        }
     }
 
     private fun updateVitalsUI(source: String = "Cảm biến", customAlert: String = "") {
@@ -341,6 +376,11 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     tvStatus.setTextColor(0xFFF59E0B.toInt())
                     tvLogResult.text = "⚡ $source [Tháo rời cổ tay, Pin $batteryLevel%]"
                 }
+                !isPhoneConnected -> {
+                    tvStatus.text = "🟡 Ngoại tuyến (Đang lưu đệm)"
+                    tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_amber_warning))
+                    tvLogResult.text = "⚡ $source [Lưu đệm, chờ kết nối điện thoại]"
+                }
                 else -> {
                     tvStatus.text = "🟢 Đang Giám Sát Cổ Tay"
                     tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_green_online))
@@ -353,6 +393,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private fun triggerSimulateFall(eventId: String) {
         val timestamp = System.currentTimeMillis()
         Log.w("CareAI-WearActivity", "Kích hoạt mô phỏng té ngã! EventId=$eventId")
+        triggerEmergencyVibration()
         tvStatus.text = "💥 CẢNH BÁO TÉ NGÃ!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
         tvLogResult.text = "Đang gửi cảnh báo té ngã (Bluetooth / Wi-Fi)..."
@@ -375,6 +416,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private fun triggerManualSos(eventId: String) {
         val timestamp = System.currentTimeMillis()
         Log.w("CareAI-WearActivity", "Kích hoạt SOS khẩn cấp! EventId=$eventId")
+        triggerEmergencyVibration()
         tvStatus.text = "🆘 ĐÃ BẮN TÍN HIỆU SOS!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
         tvLogResult.text = "Đang gửi SOS khẩn cấp (Bluetooth / Wi-Fi)..."
@@ -395,7 +437,13 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     }
 
     companion object {
-        fun dispatchWatchTelemetry(context: Context, isWorn: Boolean, isCharging: Boolean, batteryLevel: Int) {
+        fun dispatchWatchTelemetry(
+            context: Context,
+            isWorn: Boolean,
+            isCharging: Boolean,
+            batteryLevel: Int,
+            onConnectionResult: ((Boolean) -> Unit)? = null
+        ) {
             val payloadJson = JSONObject().apply {
                 put("isWorn", isWorn)
                 put("isCharging", isCharging)
@@ -406,9 +454,11 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             val payloadBytes = payloadJson.toByteArray(Charsets.UTF_8)
 
             Thread {
+                var isConnected = false
                 try {
                     val nodeClient = Wearable.getNodeClient(context)
                     val nodes = Tasks.await(nodeClient.connectedNodes, 1500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    isConnected = nodes.isNotEmpty()
                     for (node in nodes) {
                         Tasks.await(
                             Wearable.getMessageClient(context).sendMessage(node.id, "/careai/watch_telemetry", payloadBytes),
@@ -419,6 +469,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     }
                 } catch (e: Exception) {
                     Log.e("CareAI-Wear", "Lỗi gửi /careai/watch_telemetry: ${e.message}")
+                } finally {
+                    onConnectionResult?.invoke(isConnected)
                 }
             }.start()
         }

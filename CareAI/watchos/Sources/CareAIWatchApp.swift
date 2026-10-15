@@ -37,6 +37,8 @@ struct ContentView: View {
             return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
         } else if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 ?? 100) <= 90.0 {
             return Color(red: 0.66, green: 0.33, blue: 0.97) // Purple
+        } else if !sync.isPhoneReachable {
+            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber for Offline Buffer
         } else {
             return Color(red: 0.06, green: 0.73, blue: 0.51) // Green
         }
@@ -50,7 +52,7 @@ struct ContentView: View {
             case "HYPOXIA": return "🫁 THIẾU OXY: \(String(format: "%.1f", sync.latestSpo2 ?? 88.0))%"
             case "FALL_DETECTED": return "💥 CẢNH BÁO TÉ NGÃ!"
             case "MANUAL_SOS": return "🆘 ĐÃ BẮN TÍN HIỆU SOS!"
-            case "NORMAL": return "🟢 Đang Giám Sát Cổ Tay"
+            case "NORMAL": return sync.isPhoneReachable ? "🟢 Đang Giám Sát Cổ Tay" : "🟡 Ngoại tuyến (Đang lưu đệm)"
             default: break
             }
         }
@@ -60,6 +62,9 @@ struct ContentView: View {
             return "⚠️ NHỊP CHẬM: \(Int(hr)) BPM"
         } else if let spo2 = sync.latestSpo2, spo2 <= 90.0 {
             return "🫁 THIẾU OXY: \(String(format: "%.1f", spo2))%"
+        }
+        if !sync.isPhoneReachable {
+            return "🟡 Ngoại tuyến (Đang lưu đệm)"
         }
         return "🟢 Đang Giám Sát Cổ Tay"
     }
@@ -249,13 +254,13 @@ struct ContentView: View {
                     Button(action: {
                         Task { await sync.triggerEmergencySos(type: "MANUAL_SOS") }
                     }) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Image(systemName: "sos.circle.fill")
-                                .font(.system(size: 18))
+                                .font(.system(size: 20))
                             Text("BÁO ĐỘNG CẤP CỨU")
-                                .font(.system(size: 11.5, weight: .heavy))
+                                .font(.system(size: 13, weight: .heavy))
                         }
-                        .frame(maxWidth: .infinity, minHeight: 38)
+                        .frame(maxWidth: .infinity, minHeight: 46)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(red: 0.85, green: 0.15, blue: 0.25))

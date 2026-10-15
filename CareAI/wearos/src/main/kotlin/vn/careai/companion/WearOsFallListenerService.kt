@@ -38,6 +38,29 @@ class WearOsFallListenerService : PassiveListenerService() {
             onComplete: ((success: Boolean, channel: String) -> Unit)? = null
         ) {
             // [KHẮC PHỤC TRIỆT ĐỂ P1-11]: TRUNG THỰC DỮ LIỆU CẢM BIẾN (SENSOR DATA TRUTH)
+            try {
+                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                    vm?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                }
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val timings = longArrayOf(0, 450, 180, 450, 180, 700)
+                        val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
+                        val effect = android.os.VibrationEffect.createWaveform(timings, amplitudes, -1)
+                        vibrator.vibrate(effect)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(longArrayOf(0, 450, 180, 450, 180, 700), -1)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("CareAI-Watch", "Không thể kích hoạt rung khẩn cấp: ${e.message}")
+            }
+
             val payloadJson = JSONObject().apply {
                 put("eventId", eventId)
                 put("eventType", if (emergencyType == "FALL_DETECTED") "HARDWARE_FALL_DETECTED" else "MANUAL_SOS_ALERT")

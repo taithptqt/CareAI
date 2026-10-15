@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import '../models/fall_event.dart';
 import '../models/incident_dto.dart';
@@ -30,7 +32,7 @@ class SosButtonScreen extends StatefulWidget {
 }
 
 class _SosButtonScreenState extends State<SosButtonScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   String _elderName = 'Chưa xác định';
   String _deviceId = '';
   bool _isServerOnline = false;
@@ -75,6 +77,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       }
     });
 
+    WidgetsBinding.instance.addObserver(this);
     _initLastPairedWatchName();
     _loadDeviceInfo();
     _checkServerHealth();
@@ -111,6 +114,40 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     SyncService.instance.startPeriodicSync();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_checkWatchStatus());
+      unawaited(_checkServerHealth());
+      unawaited(_loadPendingCount());
+    }
+  }
+
+  Future<void> _openBluetoothSettings() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        const intent = AndroidIntent(
+          action: 'android.settings.BLUETOOTH_SETTINGS',
+        );
+        await intent.launch();
+        return;
+      } catch (e) {
+        debugPrint('[SosButtonScreen] Lỗi mở cài đặt Bluetooth Android: $e');
+      }
+    } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        final uri = Uri.parse('App-Prefs:Bluetooth');
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          return;
+        }
+      } catch (e) {
+        debugPrint('[SosButtonScreen] Lỗi mở App-Prefs:Bluetooth iOS: $e');
+      }
+    }
+    await openAppSettings();
+  }
+
   Future<void> _initLastPairedWatchName() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('last_paired_watch_name');
@@ -123,6 +160,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _healthCheckTimer?.cancel();
     _watchStatusTimer?.cancel();
     _watchDisconnectDebounceTimer?.cancel();
@@ -1172,7 +1210,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 }
 
                 return InkWell(
-                  onTap: () => _checkWatchStatus(showFeedback: true),
+                  onTap: isBtOff ? _openBluetoothSettings : () => _checkWatchStatus(showFeedback: true),
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
                     width: double.infinity,
@@ -1225,19 +1263,30 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                         ),
                         const SizedBox(width: 8),
                         if (isBtOff)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDC2626).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFEF4444)),
-                            ),
-                            child: const Text(
-                              'Bật BT',
-                              style: TextStyle(
-                                color: Color(0xFFF87171),
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                          InkWell(
+                            onTap: _openBluetoothSettings,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFEF4444)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.bluetooth_searching, size: 14, color: Color(0xFFF87171)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Bật BT',
+                                    style: TextStyle(
+                                      color: Color(0xFFF87171),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           )

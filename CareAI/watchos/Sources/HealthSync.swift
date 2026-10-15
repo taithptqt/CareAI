@@ -28,6 +28,10 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
 
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         if activationState == .activated {
+            let reachable = session.isReachable
+            DispatchQueue.main.async {
+                HealthSync.shared?.isPhoneReachable = reachable
+            }
             sendWatchDeviceInfo()
             syncCurrentBatteryAndWearState()
             if let pending = self.pendingSosPayload {
@@ -38,6 +42,14 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                 self.pendingSosPayload = nil
                 NSLog("[CareAI-Watch] Đã gửi gói SOS cứu nạn tồn đọng sau khi WCSession kích hoạt.")
             }
+        }
+    }
+
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
+        DispatchQueue.main.async {
+            HealthSync.shared?.isPhoneReachable = reachable
+            NSLog("[CareAI-Watch] WCSession reachability thay đổi: %d", reachable ? 1 : 0)
         }
     }
 
@@ -274,6 +286,7 @@ final class HealthSync: ObservableObject {
     static weak var shared: HealthSync?
 
     @Published var isPaired: Bool = KeychainToken.load() != nil
+    @Published var isPhoneReachable: Bool = WCSession.isSupported() && WCSession.default.isReachable
     @Published var status = "Set up backend to start"
     @Published var customAlert: String?
     @Published var diagnosticLog = "⚡ Cảm biến sẵn sàng"
@@ -474,6 +487,16 @@ final class HealthSync: ObservableObject {
     func triggerEmergencySos(type: String, eventId: String? = nil) async -> (success: Bool, message: String) {
         let baseEventId = eventId ?? "\(type)_\(Int64(Date().timeIntervalSince1970 * 1000))"
         let canonicalPacketId = type == "FALL_DETECTED" ? "FALL_\(baseEventId)" : "SOS_\(baseEventId)"
+
+        // Kích hoạt chuỗi rung xúc giác & chuông báo động khẩn cấp trực tiếp lên cổ tay
+        let device = WKInterfaceDevice.current()
+        device.play(.failure)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            device.play(.retry)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+            device.play(.failure)
+        }
 
         if type == "FALL_DETECTED" {
             customAlert = "FALL_DETECTED"
