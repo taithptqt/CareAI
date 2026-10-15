@@ -1039,8 +1039,8 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               ),
               const SizedBox(height: 6),
 
-              // Nút 3: HỦY BỎ (Nằm dưới cùng, nền rõ nét, chữ trắng sáng 100%, không mờ)
-              ElevatedButton.icon(
+              // Nút 3: HỦY BỎ (Nằm dưới cùng, nền rõ nét, chữ trắng sáng 100%, không icon, không giải thích thêm)
+              ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF334155),
                   foregroundColor: Colors.white,
@@ -1048,12 +1048,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-                label: const Text(
-                  'HỦY BỎ (GIỮ KẾT NỐI)',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.3),
-                ),
                 onPressed: () => Navigator.pop(ctx, false),
+                child: const Text(
+                  'HỦY BỎ',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                ),
               ),
             ],
           ),
