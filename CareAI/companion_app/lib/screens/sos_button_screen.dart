@@ -47,6 +47,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   String? _lastPairedWatchName;
   Timer? _watchStatusTimer;
   Timer? _watchDisconnectDebounceTimer;
+  bool _isDebouncingDisconnect = false;
   static const Duration _kWatchDisconnectDebounce = Duration(minutes: 3);
   Timer? _healthCheckTimer;
   StreamSubscription<FallEvent>? _fallSubscription;
@@ -178,16 +179,17 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final savedWatchName = prefs.getString('last_paired_watch_name');
 
     if (mounted) {
-      setState(() {
-        _watchStatus = status;
-        if (savedWatchName != null && savedWatchName.isNotEmpty) {
-          _lastPairedWatchName = savedWatchName;
-        }
-      });
       if (status.isConnected) {
         // Hủy bộ đếm hoãn ngắt kết nối nếu đang đếm (đồng hồ đã kết nối lại an toàn)
         _watchDisconnectDebounceTimer?.cancel();
         _watchDisconnectDebounceTimer = null;
+        setState(() {
+          _watchStatus = status;
+          _isDebouncingDisconnect = false;
+          if (savedWatchName != null && savedWatchName.isNotEmpty) {
+            _lastPairedWatchName = savedWatchName;
+          }
+        });
 
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
         final effectiveName = status.watchName ?? platformName;
@@ -216,32 +218,56 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         }());
       } else {
         // Đang không kết nối:
-        if (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) {
-          final watchNameToSync = _lastPairedWatchName!;
-
-          if (status.reason == 'BLUETOOTH_OFF') {
-            // Trường hợp A: Tắt Bluetooth chủ động trên điện thoại -> Báo Server ngay lập tức (0.1 giây)
-            _watchDisconnectDebounceTimer?.cancel();
-            _watchDisconnectDebounceTimer = null;
+        if (status.reason == 'BLUETOOTH_OFF') {
+          // Trường hợp A: Tắt Bluetooth chủ động trên điện thoại -> Báo Server ngay lập tức (0.1 giây)
+          _watchDisconnectDebounceTimer?.cancel();
+          _watchDisconnectDebounceTimer = null;
+          setState(() {
+            _watchStatus = status;
+            _isDebouncingDisconnect = false;
+            if (savedWatchName != null && savedWatchName.isNotEmpty) {
+              _lastPairedWatchName = savedWatchName;
+            }
+          });
+          if (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) {
             unawaited(ApiService.instance.syncConnectedWatch(
-              watchNameToSync,
+              _lastPairedWatchName!,
               isConnected: false,
               disconnectReason: 'BLUETOOTH_OFF',
             ));
-          } else {
-            // Trường hợp B: Mất sóng BLE thông thường do đi xa / qua tường / hết pin -> Debounce 3 phút chống báo động giả
-            if (_watchDisconnectDebounceTimer == null || !_watchDisconnectDebounceTimer!.isActive) {
-              _watchDisconnectDebounceTimer = Timer(_kWatchDisconnectDebounce, () {
-                if (mounted && !_watchStatus.isConnected) {
+          }
+        } else {
+          // Trường hợp B: Mất sóng BLE tạm thời do đi xa / qua tường -> Giữ trạng thái debounce 3 phút chống báo động giả
+          if (_watchDisconnectDebounceTimer == null || !_watchDisconnectDebounceTimer!.isActive) {
+            setState(() {
+              _watchStatus = status;
+              _isDebouncingDisconnect = true;
+              if (savedWatchName != null && savedWatchName.isNotEmpty) {
+                _lastPairedWatchName = savedWatchName;
+              }
+            });
+            _watchDisconnectDebounceTimer = Timer(_kWatchDisconnectDebounce, () {
+              if (mounted) {
+                setState(() {
+                  _isDebouncingDisconnect = false;
+                });
+                if (!_watchStatus.isConnected && _lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) {
                   debugPrint('[SosButtonScreen] Đã quá 3 phút mất sóng BLE -> Xác nhận ngắt kết nối thật, thông báo lên máy chủ');
                   unawaited(ApiService.instance.syncConnectedWatch(
-                    watchNameToSync,
+                    _lastPairedWatchName!,
                     isConnected: false,
                     disconnectReason: 'SIGNAL_LOST',
                   ));
                 }
-              });
-            }
+              }
+            });
+          } else {
+            setState(() {
+              _watchStatus = status;
+              if (savedWatchName != null && savedWatchName.isNotEmpty) {
+                _lastPairedWatchName = savedWatchName;
+              }
+            });
           }
         }
       }
@@ -1121,12 +1147,19 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                     iconColor = const Color(0xFFF87171);
                     subtextColor = const Color(0xFFF87171);
                     iconData = Icons.bluetooth_disabled_rounded;
-                  } else {
-                    statusSubtext = '🔴 Mất tín hiệu đồng hồ · Kiểm tra Bluetooth/Pin';
+                  } else if (_isDebouncingDisconnect) {
+                    statusSubtext = '🟡 Đang tìm lại đồng hồ (tạm xa điện thoại)';
                     borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.7);
                     iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.5);
                     iconColor = const Color(0xFFFBBF24);
-                    subtextColor = const Color(0xFFFBBF24);
+                    subtextColor = const Color(0xFFFDE68A);
+                    iconData = Icons.watch_later_outlined;
+                  } else {
+                    statusSubtext = '🔴 Mất tín hiệu đồng hồ · Kiểm tra khoảng cách/Pin';
+                    borderColor = const Color(0xFFEF4444).withValues(alpha: 0.7);
+                    iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.5);
+                    iconColor = const Color(0xFFF87171);
+                    subtextColor = const Color(0xFFF87171);
                     iconData = Icons.watch_off_outlined;
                   }
                 } else {
@@ -1190,11 +1223,45 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.science_outlined, color: Color(0xFF94A3B8), size: 20),
-                          tooltip: 'Phòng thử nghiệm tín hiệu',
-                          onPressed: () => _showDiagnosticTestLabSheet(context),
-                        ),
+                        const SizedBox(width: 8),
+                        if (isBtOff)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDC2626).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFEF4444)),
+                            ),
+                            child: const Text(
+                              'Bật BT',
+                              style: TextStyle(
+                                color: Color(0xFFF87171),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        else if (_isDebouncingDisconnect)
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFFBBF24),
+                            ),
+                          )
+                        else if (isConnected)
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFF22C55E),
+                            size: 18,
+                          )
+                        else
+                          const Icon(
+                            Icons.refresh_rounded,
+                            color: Color(0xFF64748B),
+                            size: 18,
+                          ),
                       ],
                     ),
                   ),
