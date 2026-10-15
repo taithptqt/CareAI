@@ -344,6 +344,7 @@ final class HealthSync: ObservableObject {
         updateHealthAlert()
         loadOutbox()
         setupFallDetection()
+        requestHealthKitAuthorization()
         pathMonitor.pathUpdateHandler = { [weak self] path in
             guard path.status == .satisfied else { return }
             Task { @MainActor [weak self] in self?.flush(force: false) }
@@ -378,10 +379,61 @@ final class HealthSync: ObservableObject {
         self.status = "Set up backend to start"
     }
 
+    func requestHealthKitAuthorization() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            status = "HealthKit unavailable"
+            return
+        }
+        let types = Set(metrics.compactMap { HKObjectType.quantityType(forIdentifier: $0.0) })
+        healthStore.requestAuthorization(toShare: [], read: types) { [weak self] success, error in
+            Task { @MainActor in
+                guard let self else { return }
+                if let error {
+                    self.status = "HealthKit: \(error.localizedDescription)"
+                    return
+                }
+                self.registerObservers()
+                self.fetchLatestSamples()
+            }
+        }
+    }
+
+    func fetchLatestSamples() {
+        for (identifier, _, _, _) in metrics {
+            fetchLatestSample(for: identifier)
+        }
+    }
+
+    func fetchLatestSample(for identifier: HKQuantityTypeIdentifier) {
+        guard let metric = metrics.first(where: { $0.0 == identifier }),
+              let type = HKObjectType.quantityType(forIdentifier: identifier) else { return }
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, error in
+            guard let self = self, let sample = samples?.first as? HKQuantitySample else { return }
+            let raw = sample.quantity.doubleValue(for: metric.2)
+            let value = identifier == .oxygenSaturation ? raw * 100 : raw
+            Task { @MainActor in
+                if identifier == .heartRate {
+                    self.latestHeartRate = value
+                    self.latestHeartRateAt = sample.endDate
+                    UserDefaults.standard.set(value, forKey: "latest.heartRate")
+                    UserDefaults.standard.set(sample.endDate, forKey: "latest.heartRateAt")
+                } else if identifier == .oxygenSaturation {
+                    self.latestSpo2 = value
+                    self.latestSpo2At = sample.endDate
+                    UserDefaults.standard.set(value, forKey: "latest.spo2")
+                    UserDefaults.standard.set(sample.endDate, forKey: "latest.spo2At")
+                }
+                self.updateHealthAlert()
+            }
+        }
+        healthStore.execute(query)
+    }
+
     func start() {
         if !outboxReady { loadOutbox() }
         if autoFallDetectionEnabled { setupFallDetection() }
-        guard HKHealthStore.isHealthDataAvailable() else { status = "HealthKit unavailable"; return }
+        requestHealthKitAuthorization()
         guard let url = URL(string: UserDefaults.standard.string(forKey: "backend") ?? ""),
               url.scheme == "https", url.host?.isEmpty == false,
               !(UserDefaults.standard.string(forKey: "deviceId") ?? "").isEmpty,
@@ -390,15 +442,7 @@ final class HealthSync: ObservableObject {
             return
         }
         scheduleBackgroundRefresh()
-        let types = Set(metrics.map { HKObjectType.quantityType(forIdentifier: $0.0)! })
-        healthStore.requestAuthorization(toShare: [], read: types) { [weak self] _, error in
-            Task { @MainActor in
-                guard let self else { return }
-                if let error { self.status = "HealthKit: \(error.localizedDescription)"; return }
-                self.registerObservers()
-                self.flush(force: false)
-            }
-        }
+        self.flush(force: false)
     }
 
     private func scheduleBackgroundRefresh() {

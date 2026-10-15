@@ -240,10 +240,17 @@ struct ContentView: View {
                                 Image(systemName: "heart.fill")
                                     .foregroundColor(Color(red: 0.94, green: 0.27, blue: 0.27))
                                     .font(.system(size: 13))
-                                Text("\(Int(sync.latestHeartRate ?? 76))")
-                                    .font(.system(size: 16, weight: .heavy))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
+                                if let hr = sync.latestHeartRate {
+                                    Text("\(Int(hr))")
+                                        .font(.system(size: 16, weight: .heavy))
+                                        .foregroundColor(.white)
+                                        .lineLimit(1)
+                                } else {
+                                    Text("--")
+                                        .font(.system(size: 16, weight: .heavy))
+                                        .foregroundColor(Color(white: 0.6))
+                                        .lineLimit(1)
+                                }
                                 Text("BPM")
                                     .font(.system(size: 8, weight: .bold))
                                     .foregroundColor(.gray)
@@ -256,10 +263,17 @@ struct ContentView: View {
                                 Image(systemName: "lungs.fill")
                                     .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
                                     .font(.system(size: 13))
-                                Text("\(Int(sync.latestSpo2 ?? 98))%")
-                                    .font(.system(size: 16, weight: .heavy))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
+                                if let spo2 = sync.latestSpo2 {
+                                    Text("\(Int(spo2))%")
+                                        .font(.system(size: 16, weight: .heavy))
+                                        .foregroundColor(.white)
+                                        .lineLimit(1)
+                                } else {
+                                    Text("--")
+                                        .font(.system(size: 16, weight: .heavy))
+                                        .foregroundColor(Color(white: 0.6))
+                                        .lineLimit(1)
+                                }
                                 Text("SpO2")
                                     .font(.system(size: 8, weight: .bold))
                                     .foregroundColor(.gray)
@@ -304,6 +318,8 @@ struct ContentView: View {
             VitalsTestLabSheetView(sync: sync)
         }
         .onAppear {
+            sync.requestHealthKitAuthorization()
+            sync.fetchLatestSamples()
             if KeychainToken.load() != nil {
                 sync.start()
             } else if !backend.isEmpty && pin.count == 6 {
@@ -313,6 +329,8 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                sync.requestHealthKitAuthorization()
+                sync.fetchLatestSamples()
                 WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                 if isPaired { sync.start() }
             }
