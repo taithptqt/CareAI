@@ -425,9 +425,6 @@ final class HealthSync: ObservableObject {
         if let dia = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) {
             types.insert(dia)
         }
-        if let corr = HKObjectType.correlationType(forIdentifier: .bloodPressure) {
-            types.insert(corr)
-        }
         healthStore.requestAuthorization(toShare: [], read: types) { [weak self] success, error in
             Task { @MainActor in
                 guard let self else { return }
@@ -497,21 +494,29 @@ final class HealthSync: ObservableObject {
     }
 
     func fetchLatestBloodPressure() {
-        guard let correlationType = HKCorrelationType.correlationType(forIdentifier: .bloodPressure),
-              let sysType = HKQuantityType.quantityType(forIdentifier: .bloodPressureSystolic),
+        guard let sysType = HKQuantityType.quantityType(forIdentifier: .bloodPressureSystolic),
               let diaType = HKQuantityType.quantityType(forIdentifier: .bloodPressureDiastolic) else { return }
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
-        let query = HKSampleQuery(sampleType: correlationType, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
-            guard let correlation = samples?.first as? HKCorrelation,
-                  let sysSample = correlation.objects(for: sysType).first as? HKQuantitySample,
-                  let diaSample = correlation.objects(for: diaType).first as? HKQuantitySample else { return }
+        let query = HKSampleQuery(sampleType: sysType, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+            guard let self = self, let sysSample = samples?.first as? HKQuantitySample else { return }
             let sys = sysSample.quantity.doubleValue(for: HKUnit.millimeterOfMercury())
-            let dia = diaSample.quantity.doubleValue(for: HKUnit.millimeterOfMercury())
-            Task { @MainActor in
-                self?.latestBpSystolic = sys
-                self?.latestBpDiastolic = dia
-                self?.latestBpAt = correlation.endDate
+            let sampleDate = sysSample.endDate
+
+            let diaPredicate = HKQuery.predicateForSamples(
+                withStart: sampleDate.addingTimeInterval(-120),
+                end: sampleDate.addingTimeInterval(120),
+                options: .strictStartDate
+            )
+            let diaQuery = HKSampleQuery(sampleType: diaType, predicate: diaPredicate, limit: 1, sortDescriptors: [sortDescriptor]) { [weak self] _, diaSamples, _ in
+                guard let self = self else { return }
+                let dia = (diaSamples?.first as? HKQuantitySample)?.quantity.doubleValue(for: HKUnit.millimeterOfMercury()) ?? 80.0
+                Task { @MainActor in
+                    self.latestBpSystolic = sys
+                    self.latestBpDiastolic = dia
+                    self.latestBpAt = sampleDate
+                }
             }
+            self.healthStore.execute(diaQuery)
         }
         healthStore.execute(query)
     }
