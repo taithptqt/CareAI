@@ -193,6 +193,38 @@ class LocationService {
     return false;
   }
 
+  /// Mở ứng dụng bản đồ (Apple Maps trên iOS, Google Maps trên Android/Web)
+  /// để chỉ đường trực tiếp tới địa chỉ văn bản đã đăng ký.
+  Future<bool> openDirectionsToAddress(String address) async {
+    final cleanAddress = address.trim();
+    if (cleanAddress.isEmpty) return false;
+
+    try {
+      // 1. Trên iOS: Ưu tiên Apple Maps vì tích hợp sâu với Turn-by-Turn GPS
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final appleMapsUri = Uri.https('maps.apple.com', '/', {
+          'daddr': cleanAddress,
+          'dirflg': 'd',
+        });
+        if (await canLaunchUrl(appleMapsUri)) {
+          return await launchUrl(appleMapsUri, mode: LaunchMode.externalApplication);
+        }
+      }
+
+      // 2. Trên Android & Fallback chung: Dùng Google Maps chuẩn quốc tế
+      final googleMapsUri = Uri.https('www.google.com', '/maps/dir/', {
+        'api': '1',
+        'destination': cleanAddress,
+      });
+      if (await canLaunchUrl(googleMapsUri)) {
+        return await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('[LocationService] Lỗi mở chỉ đường tới địa chỉ: $e');
+    }
+    return false;
+  }
+
   /// Kiểm tra quyền truy cập vị trí
   Future<bool> hasLocationPermission() async {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {

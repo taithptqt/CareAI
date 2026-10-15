@@ -1191,20 +1191,45 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                     }
                   } else if (isWorn == false) {
                     final pctStr = batteryPct != null ? ' · Pin $batteryPct%' : '';
-                    statusSubtext = '🟡 Đã tháo khỏi cổ tay$pctStr';
-                    borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.8);
-                    iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.6);
-                    iconColor = const Color(0xFFFBBF24);
-                    subtextColor = const Color(0xFFFDE68A);
-                    iconData = Icons.watch_off_outlined;
+                    if (batteryPct != null && batteryPct <= 20) {
+                      statusSubtext = '⚠️ Đã tháo khỏi cổ tay · Pin yếu $batteryPct%';
+                      borderColor = const Color(0xFFEF4444).withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.6);
+                      iconColor = const Color(0xFFF87171);
+                      subtextColor = const Color(0xFFFCA5A5);
+                      iconData = Icons.battery_alert_rounded;
+                    } else {
+                      statusSubtext = '🟡 Đã tháo khỏi cổ tay$pctStr';
+                      borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.6);
+                      iconColor = const Color(0xFFFBBF24);
+                      subtextColor = const Color(0xFFFDE68A);
+                      iconData = Icons.watch_off_outlined;
+                    }
                   } else {
-                    final pctStr = batteryPct != null ? ' (Pin $batteryPct%)' : '';
-                    statusSubtext = '🟢 Đã kết nối · Trên cổ tay$pctStr · $_platformSensorLabel';
-                    borderColor = const Color(0xFF22C55E).withValues(alpha: 0.6);
-                    iconBgColor = const Color(0xFF14532D).withValues(alpha: 0.5);
-                    iconColor = const Color(0xFF4ADE80);
-                    subtextColor = const Color(0xFF4ADE80);
-                    iconData = Icons.watch;
+                    if (batteryPct != null && batteryPct <= 10) {
+                      statusSubtext = '🚨 Pin đồng hồ sắp cạn ($batteryPct%) · Hãy sạc ngay';
+                      borderColor = const Color(0xFFEF4444).withValues(alpha: 0.9);
+                      iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.7);
+                      iconColor = const Color(0xFFF87171);
+                      subtextColor = const Color(0xFFFCA5A5);
+                      iconData = Icons.battery_alert_rounded;
+                    } else if (batteryPct != null && batteryPct <= 20) {
+                      statusSubtext = '⚠️ Pin đồng hồ yếu ($batteryPct%) · Vui lòng cắm sạc';
+                      borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.6);
+                      iconColor = const Color(0xFFFBBF24);
+                      subtextColor = const Color(0xFFFDE68A);
+                      iconData = Icons.battery_alert_rounded;
+                    } else {
+                      final pctStr = batteryPct != null ? ' (Pin $batteryPct%)' : '';
+                      statusSubtext = '🟢 Đã kết nối · Trên cổ tay$pctStr · $_platformSensorLabel';
+                      borderColor = const Color(0xFF22C55E).withValues(alpha: 0.6);
+                      iconBgColor = const Color(0xFF14532D).withValues(alpha: 0.5);
+                      iconColor = const Color(0xFF4ADE80);
+                      subtextColor = const Color(0xFF4ADE80);
+                      iconData = Icons.watch;
+                    }
                   }
                 } else if (isDisconnected) {
                   if (isBtOff) {

@@ -27,8 +27,10 @@ class FallCountdownDialog extends StatefulWidget {
 }
 
 class _FallCountdownDialogState extends State<FallCountdownDialog>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late int _remainingSeconds;
+  late final int _totalSeconds;
+  final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
   late AnimationController _pulseController;
   bool _isActionTaken = false;
@@ -37,7 +39,10 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
   @override
   void initState() {
     super.initState();
-    _remainingSeconds = widget.event.secondsRemaining;
+    WidgetsBinding.instance.addObserver(this);
+    _totalSeconds = widget.event.secondsRemaining > 0 ? widget.event.secondsRemaining : 30;
+    _remainingSeconds = _totalSeconds;
+    _stopwatch.start();
     _locationTask = EmergencyEvidenceService.captureCurrentLocation();
 
     _pulseController = AnimationController(
@@ -51,23 +56,47 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     _startCountdown();
   }
 
-  void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds <= 1) {
-        timer.cancel();
-        _handleSendEmergencyNow();
-      } else {
-        HapticFeedback.vibrate();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_isActionTaken) {
+      final remaining = _totalSeconds - _stopwatch.elapsed.inSeconds;
+      if (remaining <= 0) {
+        _timer?.cancel();
+        _handleSendEmergencyNow(isTimeout: true);
+      } else if (remaining != _remainingSeconds && mounted) {
         setState(() {
-          _remainingSeconds--;
+          _remainingSeconds = remaining;
         });
+      }
+    }
+  }
+
+  void _startCountdown() {
+    _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (_isActionTaken) {
+        timer.cancel();
+        return;
+      }
+      final remaining = _totalSeconds - _stopwatch.elapsed.inSeconds;
+      if (remaining <= 0) {
+        timer.cancel();
+        _handleSendEmergencyNow(isTimeout: true);
+      } else if (remaining != _remainingSeconds) {
+        HapticFeedback.vibrate();
+        if (mounted) {
+          setState(() {
+            _remainingSeconds = remaining;
+          });
+        }
       }
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _stopwatch.stop();
     _pulseController.dispose();
     FallService.instance.stopEmergencySound(widget.event.eventId);
     VoiceGuidanceService.instance.stop();
@@ -78,6 +107,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     if (_isActionTaken) return;
     _isActionTaken = true;
     _timer?.cancel();
+    _stopwatch.stop();
     VoiceGuidanceService.instance.stop();
 
     await FallService.instance.cancelFallAlarm(widget.event.eventId);
@@ -94,14 +124,17 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     }
   }
 
-  Future<void> _handleSendEmergencyNow() async {
+  Future<void> _handleSendEmergencyNow({bool isTimeout = false}) async {
     if (_isActionTaken) return;
     _isActionTaken = true;
     _timer?.cancel();
+    _stopwatch.stop();
     VoiceGuidanceService.instance.stop();
-    await FallService.instance.stopEmergencySound(widget.event.eventId);
+    unawaited(FallService.instance.stopEmergencySound(widget.event.eventId));
 
-    final canonicalPacketId = 'FALL_${widget.event.eventId}';
+    final canonicalPacketId = widget.event.eventId.startsWith('FALL_')
+        ? widget.event.eventId
+        : 'FALL_${widget.event.eventId}';
 
     final recentFix = EmergencyEvidenceService.recentFix;
     final initialGps = (recentFix != null && !recentFix.isSimulated) ? recentFix.coordinates : null;
@@ -115,6 +148,12 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
         metricType: 'FALL',
         value: widget.event.impactG ?? 2.5,
         unit: 'G',
+        timestamp: now,
+      ),
+      TelemetrySample(
+        metricType: 'FALL_TRIGGER',
+        value: isTimeout ? 0.0 : 1.0,
+        unit: isTimeout ? 'TIMEOUT_NO_DISMISSAL' : 'MANUAL_CONFIRMED',
         timestamp: now,
       ),
     ];
@@ -148,32 +187,35 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
       samples: samples,
     );
 
-    // Ghi trước vào Outbox SQLite
+    // Ghi trước vào Outbox SQLite ngay lập tức
     await LocalOfflineStore.instance.enqueuePacket(
       packetId: canonicalPacketId,
       packetType: 'FALL_ALERT',
       payload: jsonEncode(request.toJson()),
     );
 
-    // Bắn Fast-Lane SOS
-    try {
-      final result = await ApiService.instance.sendFastLaneSosWithResult(request);
-      if (result.accepted) {
-        await LocalOfflineStore.instance.markPacketSynced(canonicalPacketId);
-        if (result.incidentId != null) {
-          unawaited(EmergencyEvidenceService.attachLocationWhenReady(
-              result.incidentId!, _locationTask, initiallySentGps: initialGps));
-          unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
-        }
-      }
-    } catch (_) {
-      // Ngoại tuyến: Vẫn nằm an toàn trong SQLite Outbox
-    }
-
+    // Thoát dialog ngay lập tức để chuyển sang màn hình cứu hộ SOS, không bắt người già chờ mạng
     if (mounted) {
       widget.onEmergencyTriggered?.call(canonicalPacketId);
       Navigator.of(context).pop();
     }
+
+    // Bắn Fast-Lane SOS bất đồng bộ trong nền
+    unawaited(() async {
+      try {
+        final result = await ApiService.instance.sendFastLaneSosWithResult(request);
+        if (result.accepted) {
+          await LocalOfflineStore.instance.markPacketSynced(canonicalPacketId);
+          if (result.incidentId != null) {
+            unawaited(EmergencyEvidenceService.attachLocationWhenReady(
+                result.incidentId!, _locationTask, initiallySentGps: initialGps));
+            unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
+          }
+        }
+      } catch (_) {
+        // Ngoại tuyến: Vẫn nằm an toàn trong SQLite Outbox
+      }
+    }());
   }
 
   @override
@@ -299,7 +341,7 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: _handleSendEmergencyNow,
+                  onPressed: () => _handleSendEmergencyNow(isTimeout: false),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFDC2626), width: 2),
                     padding: const EdgeInsets.symmetric(vertical: 14),

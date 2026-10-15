@@ -12,7 +12,12 @@ import '../widgets/heart_rate_chart_widget.dart';
 
 class IncidentDetailScreen extends StatefulWidget {
   final Incident incident;
-  const IncidentDetailScreen({super.key, required this.incident});
+  final bool initialSilence;
+  const IncidentDetailScreen({
+    super.key,
+    required this.incident,
+    this.initialSilence = false,
+  });
 
   @override
   State<IncidentDetailScreen> createState() => _IncidentDetailScreenState();
@@ -21,6 +26,7 @@ class IncidentDetailScreen extends StatefulWidget {
 class _IncidentDetailScreenState extends State<IncidentDetailScreen> with WidgetsBindingObserver {
   static const _alarm = MethodChannel('vn.careai.companion/caregiver_alarm');
   late Incident _incident;
+  late bool _userSilenced;
   IncidentHeartRateWindow? _heartRateWindow;
   Uint8List? _photoBytes;
   bool _loadingPhoto = false;
@@ -38,6 +44,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
   void initState() {
     super.initState();
     _incident = widget.incident;
+    _userSilenced = widget.initialSilence;
     _heartRateWindow = widget.incident.heartRateSeries;
     CaregiverPushService.instance.visibleIncidentId = _incident.id;
     WidgetsBinding.instance.addObserver(this);
@@ -58,6 +65,10 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
   bool get _urgent => _incident.isOpen && _incident.severity == 'Critical';
 
   Future<void> _syncAlarm() async {
+    if (_userSilenced) {
+      if (_sounding) await _stopAlarm();
+      return;
+    }
     if (_urgent == _sounding) return;
     try {
       await _alarm.invokeMethod<void>(_urgent ? 'start' : 'stop', {
@@ -151,16 +162,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không mở được ứng dụng gọi điện.')),
-      );
-    }
-  }
-
-  Future<void> _openGps(String coordinates) async {
-    final uri = Uri.https('www.google.com', '/maps/search/',
-        {'api': '1', 'query': coordinates});
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không mở được bản đồ.')),
       );
     }
   }
@@ -362,6 +363,21 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
         backgroundColor: appBarColor,
         foregroundColor: Colors.white,
         actions: [
+          if (_urgent)
+            IconButton(
+              icon: Icon(_userSilenced ? Icons.volume_off_rounded : Icons.volume_up_rounded),
+              tooltip: _userSilenced ? 'Bật lại còi hú' : 'Tắt còi hú',
+              onPressed: () async {
+                setState(() {
+                  _userSilenced = !_userSilenced;
+                });
+                if (_userSilenced) {
+                  await _stopAlarm();
+                } else {
+                  await _syncAlarm();
+                }
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Làm mới',
@@ -588,49 +604,62 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                       _row('GPS lúc đầu', snapshot?.gpsLocation),
                     if (rescueGps != null) ...[
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0284C7),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              icon: const Icon(Icons.map_rounded, size: 16),
-                              label: const Text('Mở Bản Đồ Google', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              onPressed: () => _openGps(rescueGps),
-                            ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF0284C7),
-                                side: const BorderSide(color: Color(0xFF0284C7)),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              icon: const Icon(Icons.directions_rounded, size: 16),
-                              label: const Text('Chỉ Đường Cấp Cứu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              onPressed: () {
-                                final parts = rescueGps.split(',');
-                                if (parts.length == 2) {
-                                  final lat = double.tryParse(parts[0].trim());
-                                  final lng = double.tryParse(parts[1].trim());
-                                  if (lat != null && lng != null) {
-                                    LocationService.instance.openGoogleMapsDirections(lat, lng);
-                                  }
-                                }
-                              },
-                            ),
-                          ),
-                        ],
+                          icon: const Icon(Icons.directions_rounded, size: 18),
+                          label: const Text('CHỈ ĐƯỜNG ĐẾN VỊ TRÍ CỤ (GPS)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          onPressed: () {
+                            final parts = rescueGps.split(',');
+                            if (parts.length == 2) {
+                              final lat = double.tryParse(parts[0].trim());
+                              final lng = double.tryParse(parts[1].trim());
+                              if (lat != null && lng != null) {
+                                LocationService.instance.openGoogleMapsDirections(lat, lng);
+                              }
+                            }
+                          },
+                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                     ],
                     _row('Địa chỉ nhà', snapshot?.homeAddress),
+                    if (snapshot?.homeAddress != null && snapshot!.homeAddress!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      if (rescueGps == null)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0F766E),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.home_rounded, size: 18),
+                            label: const Text('CHỈ ĐƯỜNG ĐẾN NHÀ CỤ',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            onPressed: () => LocationService.instance.openDirectionsToAddress(snapshot.homeAddress!),
+                          ),
+                        )
+                      else
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF0F766E)),
+                            icon: const Icon(Icons.directions_car_rounded, size: 16),
+                            label: const Text('Chỉ đường về nhà', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: () => LocationService.instance.openDirectionsToAddress(snapshot.homeAddress!),
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               ),

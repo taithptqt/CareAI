@@ -496,19 +496,44 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         badgeTextColor = const Color(0xFF7DD3FC);
         badgeText = batteryPct == 100 ? 'Sạc đầy 100%' : 'Đang sạc ${batteryPct != null ? "$batteryPct%" : ""}';
       } else if (isWorn == false) {
-        iconData = Icons.watch_off_outlined;
-        iconColor = const Color(0xFFF59E0B);
-        badgeBg = const Color(0xFF78350F);
-        badgeBorder = const Color(0xFFF59E0B);
-        badgeTextColor = const Color(0xFFFDE68A);
-        badgeText = 'Đã tháo${batteryPct != null ? " · $batteryPct%" : ""}';
+        if (batteryPct != null && batteryPct <= 20) {
+          iconData = Icons.battery_alert_rounded;
+          iconColor = const Color(0xFFEF4444);
+          badgeBg = const Color(0xFF7F1D1D);
+          badgeBorder = const Color(0xFFEF4444);
+          badgeTextColor = const Color(0xFFFCA5A5);
+          badgeText = 'Đã tháo · Pin yếu $batteryPct%';
+        } else {
+          iconData = Icons.watch_off_outlined;
+          iconColor = const Color(0xFFF59E0B);
+          badgeBg = const Color(0xFF78350F);
+          badgeBorder = const Color(0xFFF59E0B);
+          badgeTextColor = const Color(0xFFFDE68A);
+          badgeText = 'Đã tháo${batteryPct != null ? " · $batteryPct%" : ""}';
+        }
       } else {
-        iconData = Icons.watch_rounded;
-        iconColor = const Color(0xFF10B981);
-        badgeBg = const Color(0xFF064E3B);
-        badgeBorder = const Color(0xFF10B981);
-        badgeTextColor = const Color(0xFF6EE7B7);
-        badgeText = 'Trên cổ tay${batteryPct != null ? " · $batteryPct%" : ""}';
+        if (batteryPct != null && batteryPct <= 10) {
+          iconData = Icons.battery_alert_rounded;
+          iconColor = const Color(0xFFEF4444);
+          badgeBg = const Color(0xFF7F1D1D);
+          badgeBorder = const Color(0xFFEF4444);
+          badgeTextColor = const Color(0xFFFCA5A5);
+          badgeText = 'Pin sắp cạn · $batteryPct%';
+        } else if (batteryPct != null && batteryPct <= 20) {
+          iconData = Icons.battery_alert_rounded;
+          iconColor = const Color(0xFFF59E0B);
+          badgeBg = const Color(0xFF78350F);
+          badgeBorder = const Color(0xFFF59E0B);
+          badgeTextColor = const Color(0xFFFDE68A);
+          badgeText = 'Pin yếu · $batteryPct%';
+        } else {
+          iconData = Icons.watch_rounded;
+          iconColor = const Color(0xFF10B981);
+          badgeBg = const Color(0xFF064E3B);
+          badgeBorder = const Color(0xFF10B981);
+          badgeTextColor = const Color(0xFF6EE7B7);
+          badgeText = 'Trên cổ tay${batteryPct != null ? " · $batteryPct%" : ""}';
+        }
       }
 
       return Row(

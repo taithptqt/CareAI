@@ -86,13 +86,23 @@ void main() {
       expect(incident.gpsLocation, isNull);
     });
 
-    test('LocationService fallback provides default coordinates when native channel unavailable', () async {
+    test('LocationService fallback provides unverified zero coordinates when native channel unavailable (Fact 35)', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
       final location = await LocationService.instance.getCurrentLocation(requestPermissionIfDenied: false);
 
-      expect(location.latitude, closeTo(10.776889, 0.0001));
-      expect(location.longitude, closeTo(106.700806, 0.0001));
-      expect(location.googleMapsWebUrl, startsWith('https://www.google.com/maps/search/'));
+      expect(location.latitude, equals(0.0));
+      expect(location.longitude, equals(0.0));
+      expect(location.isRealGps, isFalse);
+      expect(location.coordinatesFormatted, equals('Chưa có GPS'));
+    });
+
+    test('LocationService openDirectionsToAddress handles empty and non-empty address safely', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final emptyResult = await LocationService.instance.openDirectionsToAddress('');
+      expect(emptyResult, isFalse);
+
+      final whitespaceResult = await LocationService.instance.openDirectionsToAddress('   ');
+      expect(whitespaceResult, isFalse);
     });
   });
 }

@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _alertPollingTimer;
   Incident? _currentEmergency;
   final Map<String, int> _alarmCycles = {};
+  final Map<String, int> _silencedIncidentCycles = {};
   bool _refreshingIncidents = false;
 
   @override
@@ -136,8 +137,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  bool _isEmergencySilenced(Incident inc) {
+    final cycle = inc.alertState?.cycleNumber ?? 1;
+    return (_silencedIncidentCycles[inc.id] ?? -1) >= cycle;
+  }
+
+  Future<void> _silenceCurrentAlarm(Incident incident) async {
+    final cycle = incident.alertState?.cycleNumber ?? 1;
+    _silencedIncidentCycles[incident.id] = cycle;
+    try {
+      await _alarm.invokeMethod<void>('stop', {
+        'incidentId': incident.id,
+        'alertCycleNumber': cycle,
+      });
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
   Future<void> _syncEmergencyAlarms(List<Incident> emergencies) async {
     final currentIds = emergencies.map((i) => i.id).toSet();
+    _silencedIncidentCycles.removeWhere((id, _) => !currentIds.contains(id));
     for (final id in _alarmCycles.keys.toList()) {
       if (currentIds.contains(id)) continue;
       final cycle = _alarmCycles.remove(id)!;
@@ -151,6 +170,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     for (final incident in emergencies) {
       final cycle = incident.alertState?.cycleNumber ?? 1;
+      // Tuân thủ chuẩn báo động y tế IEC 60601-1-8: nếu chu kỳ hiện tại đã được người thân tắt còi, không hú lại;
+      // Nhưng nếu sự cố leo thang chu kỳ mới (cycle tăng sau SLA 60s), còi sẽ được phép hú lại.
+      if ((_silencedIncidentCycles[incident.id] ?? -1) >= cycle) continue;
       if ((_alarmCycles[incident.id] ?? -1) >= cycle) continue;
       try {
         await _alarm.invokeMethod<void>('start', {
@@ -601,6 +623,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final count = _activeIncidents.where((i) => i.isOpen && i.severity == 'Critical').length;
     final type = inc.emergencyType.toUpperCase();
     final isStale = type.contains('STALE') || type.contains('OFFLINE');
+    final isSilenced = _isEmergencySilenced(inc);
 
     final headerTitle = isStale ? 'CẢNH BÁO MẤT TÍN HIỆU' : 'BÁO ĐỘNG KHẨN CẤP';
     final headerIcon = isStale ? Icons.wifi_off_rounded : Icons.notification_important;
@@ -633,23 +656,85 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             style: const TextStyle(color: Colors.white, fontSize: 13),
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: btnTextColor,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+          if (!isSilenced) ...[
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => _silenceCurrentAlarm(inc),
+                    icon: const Icon(Icons.volume_off_rounded, size: 18),
+                    label: const Text('TẮT CÒI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 3,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: btnTextColor,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () async {
+                      final changed = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => IncidentDetailScreen(
+                          incident: inc,
+                          initialSilence: isSilenced,
+                        )),
+                      );
+                      if (changed == true) unawaited(_loadActiveIncidents());
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: const Text('TIẾP NHẬN',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+              ],
             ),
-            onPressed: () async {
-              final changed = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => IncidentDetailScreen(incident: inc)),
-              );
-              if (changed == true) unawaited(_loadActiveIncidents());
-            },
-            icon: const Icon(Icons.open_in_new),
-            label: Text(btnLabel,
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
+          ] else ...[
+            const Row(
+              children: [
+                Icon(Icons.volume_off_rounded, color: Colors.white70, size: 14),
+                SizedBox(width: 6),
+                Text(
+                  'Đã tạm tắt còi hú trên máy này',
+                  style: TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: btnTextColor,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final changed = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => IncidentDetailScreen(
+                    incident: inc,
+                    initialSilence: true,
+                  )),
+                );
+                if (changed == true) unawaited(_loadActiveIncidents());
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: Text(btnLabel,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
         ],
       ),
     );
