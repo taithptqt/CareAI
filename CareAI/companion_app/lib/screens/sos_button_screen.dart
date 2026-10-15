@@ -910,17 +910,20 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         ),
         actions: [
           TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
+            child: const Text('HỦY GHÉP NỐI', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
             onPressed: () {
               Navigator.pop(ctx, false);
               _showDiagnosticTestLabSheet(context);
             },
             child: const Text('🧪 PHÒNG THỬ NGHIỆM', style: TextStyle(color: Color(0xFF38BDF8))),
           ),
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY BỎ')),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('HỦY GHÉP NỐI'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY BỎ', style: TextStyle(color: Colors.white70)),
           ),
         ],
       ),
