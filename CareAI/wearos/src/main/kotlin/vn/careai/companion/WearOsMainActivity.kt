@@ -43,6 +43,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     // Trang 2: Sức khỏe hằng ngày & Thiết bị
     private lateinit var tvTodaySteps: TextView
     private lateinit var tvSleepSummary: TextView
+    private lateinit var tvBloodPressure: TextView
     private lateinit var tvDeviceModel: TextView
     private lateinit var tvSensorStatus: TextView
     private lateinit var btnBackToEmergency: Button
@@ -66,6 +67,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private var currentHeartRate: Int? = null
     private var currentSpo2: Double? = null
     private var currentSteps: Int? = null
+    private var currentBpSystolic: Double? = null
+    private var currentBpDiastolic: Double? = null
     private var hasHardwareSpo2: Boolean = false
 
     private lateinit var gestureDetector: GestureDetector
@@ -81,11 +84,15 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     val hr = intent.getIntExtra("heart_rate", intent.getFloatExtra("heart_rate", 0f).toInt())
                     val spo2 = intent.getDoubleExtra("spo2", intent.getFloatExtra("spo2", 0f).toDouble())
                     val steps = intent.getIntExtra("steps", 0)
+                    val bpSys = intent.getDoubleExtra("bp_systolic", 0.0)
+                    val bpDia = intent.getDoubleExtra("bp_diastolic", 0.0)
                     val alertType = intent.getStringExtra("alert_type") ?: ""
 
                     if (hr > 0) currentHeartRate = hr
                     if (spo2 > 0) currentSpo2 = spo2
                     if (steps > 0) currentSteps = steps
+                    if (bpSys > 0) currentBpSystolic = bpSys
+                    if (bpDia > 0) currentBpDiastolic = bpDia
 
                     updateVitalsUI(source = "Google/ADB", customAlert = alertType)
                 }
@@ -179,6 +186,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
         tvTodaySteps = findViewById(R.id.tvTodaySteps)
         tvSleepSummary = findViewById(R.id.tvSleepSummary)
+        tvBloodPressure = findViewById(R.id.tvBloodPressure)
         tvDeviceModel = findViewById(R.id.tvDeviceModel)
         tvSensorStatus = findViewById(R.id.tvSensorStatus)
         btnBackToEmergency = findViewById(R.id.btnBackToEmergency)
@@ -467,6 +475,20 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             // Cập nhật Trang 2: Sức khỏe hằng ngày & Thông tin phần cứng
             tvTodaySteps.text = "👟 Vận động: ${currentSteps?.toString() ?: "--"} bước"
             tvSleepSummary.text = "🌙 Giấc ngủ: Chưa ghi nhận"
+            if (currentBpSystolic != null && currentBpDiastolic != null) {
+                val sys = currentBpSystolic!!.toInt()
+                val dia = currentBpDiastolic!!.toInt()
+                val category = when {
+                    sys >= 180 || dia >= 120 -> "🚨 Cơn tăng HA"
+                    sys >= 140 || dia >= 90 -> "🟠 Tăng HA Độ 2"
+                    sys >= 130 || dia >= 80 -> "🟡 Tiền tăng HA"
+                    sys < 90 -> "⚠️ Tụt HA"
+                    else -> "🟢 Chuẩn"
+                }
+                tvBloodPressure.text = "🩸 Huyết áp: $sys/$dia mmHg ($category)"
+            } else {
+                tvBloodPressure.text = "🩸 Huyết áp: Chưa ghi nhận"
+            }
             val watchName = Build.MODEL ?: "Wear OS Watch"
             tvDeviceModel.text = "⌚ Model: $watchName"
             tvSensorStatus.text = "Cảm biến SpO2: ${if (hasHardwareSpo2) "Có quang học" else "Không hỗ trợ"}"
@@ -492,6 +514,22 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                     tvStatus.text = "🫁 Oxy ${spo2.toInt()}%"
                     tvStatus.setTextColor(0xFFA855F7.toInt()) // Purple
                     tvLogResult.text = "⚡ $source: Nồng độ SpO2 giảm sâu!"
+                }
+                (currentBpSystolic != null && (currentBpSystolic!! >= 180 || (currentBpDiastolic ?: 0.0) >= 120)) -> {
+                    wearViewFlipper.displayedChild = 0 // Tự động chuyển về Trang 1 khi có cảnh báo
+                    val sys = currentBpSystolic!!.toInt()
+                    val dia = currentBpDiastolic?.toInt() ?: 0
+                    tvStatus.text = "🚨 HA Cao $sys/$dia"
+                    tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
+                    tvLogResult.text = "⚡ $source: Phát hiện cơn tăng huyết áp khẩn cấp!"
+                }
+                (currentBpSystolic != null && currentBpSystolic!! < 90 && currentBpSystolic!! > 0) -> {
+                    wearViewFlipper.displayedChild = 0
+                    val sys = currentBpSystolic!!.toInt()
+                    val dia = currentBpDiastolic?.toInt() ?: 0
+                    tvStatus.text = "⚠️ HA Thấp $sys/$dia"
+                    tvStatus.setTextColor(0xFFF59E0B.toInt())
+                    tvLogResult.text = "⚡ $source: Phát hiện tụt huyết áp nguy kịch!"
                 }
                 isCharging -> {
                     tvStatus.text = if (batteryLevel >= 100) "🔋 Đầy 100%" else "⚡ Sạc: $batteryLevel%"

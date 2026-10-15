@@ -70,6 +70,26 @@ struct ContentView: View {
                 if isPaired { sync.start() }
             }
         }
+        .onChange(of: sync.customAlert) { _, newAlert in
+            if let alert = newAlert, alert != "NORMAL" {
+                selectedTab = 0
+            }
+        }
+        .onChange(of: sync.latestHeartRate) { _, newHr in
+            if let hr = newHr, hr >= 140 || (hr <= 45 && hr > 0) {
+                selectedTab = 0
+            }
+        }
+        .onChange(of: sync.latestSpo2) { _, newSpo2 in
+            if let spo2 = newSpo2, spo2 <= 90.0 {
+                selectedTab = 0
+            }
+        }
+        .onChange(of: sync.latestBpSystolic) { _, newSys in
+            if let sys = newSys, sys >= 180 || sys < 90 {
+                selectedTab = 0
+            }
+        }
     }
 
     // Giao diện ghép nối thiết bị khi chưa ghép nối
@@ -291,9 +311,9 @@ struct PrimaryEmergencyView: View {
     @State private var lastSecretTapTime = Date.distantPast
 
     private var statusColor: Color {
-        if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 {
+        if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 || (sync.latestBpSystolic ?? 0) >= 180 {
             return Color(red: 0.94, green: 0.27, blue: 0.27) // Red
-        } else if sync.customAlert == "BRADYCARDIA" || ((sync.latestHeartRate ?? 100) <= 45 && (sync.latestHeartRate ?? 0) > 0) {
+        } else if sync.customAlert == "BRADYCARDIA" || ((sync.latestHeartRate ?? 100) <= 45 && (sync.latestHeartRate ?? 0) > 0) || ((sync.latestBpSystolic ?? 120) < 90 && (sync.latestBpSystolic ?? 0) > 0) {
             return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
         } else if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 ?? 100) <= 90.0 {
             return Color(red: 0.66, green: 0.33, blue: 0.97) // Purple
@@ -322,6 +342,10 @@ struct PrimaryEmergencyView: View {
             return "⚠️ Chậm \(Int(hr)) BPM"
         } else if let spo2 = sync.latestSpo2, spo2 <= 90.0 {
             return "🫁 Oxy \(String(format: "%.0f", spo2))%"
+        } else if let sys = sync.latestBpSystolic, let dia = sync.latestBpDiastolic, sys >= 180 || dia >= 120 {
+            return "🚨 HA Cao \(Int(sys))/\(Int(dia))"
+        } else if let sys = sync.latestBpSystolic, let dia = sync.latestBpDiastolic, sys < 90 && sys > 0 {
+            return "⚠️ HA Thấp \(Int(sys))/\(Int(dia))"
         }
         if !sync.isPhoneReachable {
             return "🟡 Lưu Đệm Cục Bộ"
@@ -532,6 +556,22 @@ struct DailyWellnessView: View {
         }
     }
 
+    private func bpCategory(sys: Double, dia: Double) -> String {
+        if sys >= 180 || dia >= 120 { return "🚨 Cơn tăng HA" }
+        if sys >= 140 || dia >= 90 { return "🟠 Tăng HA Độ 2" }
+        if sys >= 130 || dia >= 80 { return "🟡 Tiền tăng HA" }
+        if sys < 90 { return "⚠️ Tụt HA" }
+        return "🟢 Chuẩn"
+    }
+
+    private func bpColor(sys: Double, dia: Double) -> Color {
+        if sys >= 180 || dia >= 120 { return Color(red: 0.94, green: 0.27, blue: 0.27) }
+        if sys >= 140 || dia >= 90 { return Color.orange }
+        if sys >= 130 || dia >= 80 { return Color.yellow }
+        if sys < 90 { return Color.orange }
+        return Color(red: 0.06, green: 0.73, blue: 0.51)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 6) {
@@ -618,7 +658,47 @@ struct DailyWellnessView: View {
                 .background(Color(red: 0.08, green: 0.11, blue: 0.18))
                 .cornerRadius(8)
 
-                // 3. Thẻ Thông Tin Thiết Bị & Cảm Biến
+                // 3. Thẻ Huyết Áp (Nếu có dữ liệu từ máy đo kết nối HealthKit)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Image(systemName: "waveform.path.ecg")
+                            .foregroundColor(Color(red: 0.94, green: 0.27, blue: 0.27))
+                            .font(.system(size: 11))
+                        Text("Huyết Áp Gần Nhất")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.gray)
+                        Spacer()
+                    }
+                    if let sys = sync.latestBpSystolic, let dia = sync.latestBpDiastolic {
+                        HStack {
+                            Text("\(Int(sys))/\(Int(dia))")
+                                .font(.system(size: 12.5, weight: .heavy))
+                                .foregroundColor(.white)
+                            Text("mmHg")
+                                .font(.system(size: 7.5, weight: .semibold))
+                                .foregroundColor(.gray)
+                            Spacer()
+                            Text(bpCategory(sys: sys, dia: dia))
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundColor(bpColor(sys: sys, dia: dia))
+                        }
+                    } else {
+                        HStack {
+                            Text("Chưa ghi nhận")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(white: 0.6))
+                            Spacer()
+                            Text("Apple Health / Máy đo")
+                                .font(.system(size: 7))
+                                .foregroundColor(Color(white: 0.4))
+                        }
+                    }
+                }
+                .padding(6)
+                .background(Color(red: 0.08, green: 0.11, blue: 0.18))
+                .cornerRadius(8)
+
+                // 4. Thẻ Thông Tin Thiết Bị & Cảm Biến
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Image(systemName: "applewatch")

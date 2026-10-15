@@ -313,6 +313,9 @@ final class HealthSync: ObservableObject {
     @Published private(set) var latestSpo2At: Date?
     @Published private(set) var todaySteps: Int?
     @Published private(set) var lastNightSleepMinutes: Int?
+    @Published private(set) var latestBpSystolic: Double?
+    @Published private(set) var latestBpDiastolic: Double?
+    @Published private(set) var latestBpAt: Date?
     @Published private(set) var pendingCount = 0
     @Published private(set) var healthAlert: String?
     @Published private(set) var simulatedOffline = false
@@ -416,6 +419,15 @@ final class HealthSync: ObservableObject {
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             types.insert(sleep)
         }
+        if let sys = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic) {
+            types.insert(sys)
+        }
+        if let dia = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) {
+            types.insert(dia)
+        }
+        if let corr = HKObjectType.correlationType(forIdentifier: .bloodPressure) {
+            types.insert(corr)
+        }
         healthStore.requestAuthorization(toShare: [], read: types) { [weak self] success, error in
             Task { @MainActor in
                 guard let self else { return }
@@ -435,6 +447,7 @@ final class HealthSync: ObservableObject {
         }
         fetchTodaySteps()
         fetchLastNightSleep()
+        fetchLatestBloodPressure()
     }
 
     func fetchTodaySteps() {
@@ -478,6 +491,26 @@ final class HealthSync: ObservableObject {
             let minutes = Int(totalSeconds / 60)
             Task { @MainActor in
                 self?.lastNightSleepMinutes = minutes > 0 ? minutes : nil
+            }
+        }
+        healthStore.execute(query)
+    }
+
+    func fetchLatestBloodPressure() {
+        guard let correlationType = HKCorrelationType.correlationType(forIdentifier: .bloodPressure),
+              let sysType = HKQuantityType.quantityType(forIdentifier: .bloodPressureSystolic),
+              let diaType = HKQuantityType.quantityType(forIdentifier: .bloodPressureDiastolic) else { return }
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        let query = HKSampleQuery(sampleType: correlationType, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+            guard let correlation = samples?.first as? HKCorrelation,
+                  let sysSample = correlation.objects(for: sysType).first as? HKQuantitySample,
+                  let diaSample = correlation.objects(for: diaType).first as? HKQuantitySample else { return }
+            let sys = sysSample.quantity.doubleValue(for: HKUnit.millimeterOfMercury())
+            let dia = diaSample.quantity.doubleValue(for: HKUnit.millimeterOfMercury())
+            Task { @MainActor in
+                self?.latestBpSystolic = sys
+                self?.latestBpDiastolic = dia
+                self?.latestBpAt = correlation.endDate
             }
         }
         healthStore.execute(query)
