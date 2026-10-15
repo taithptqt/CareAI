@@ -903,29 +903,161 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   Future<void> _handleUnpair() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hủy ghép nối thiết bị?'),
-        content: const Text(
-          'Thiết bị sẽ dừng kết nối với hệ thống CareAI. Bạn sẽ cần nhập mã PIN mới để ghép nối lại.',
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFF334155), width: 1),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
-            child: const Text('HỦY GHÉP NỐI', style: TextStyle(fontWeight: FontWeight.bold)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header với icon cài đặt & nút đóng
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.settings_outlined, color: Color(0xFF38BDF8), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cài Đặt Thiết Bị',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Quản lý ghép nối & kiểm thử',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(ctx, false),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(color: Color(0xFF334155), height: 1),
+              const SizedBox(height: 14),
+
+              // Thẻ cảnh báo hủy ghép nối gọn gàng, súc tích
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF7F1D1D).withValues(alpha: 0.6)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFF87171), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Hủy liên kết với CareAI?',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFFCA5A5),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Nếu hủy, máy sẽ dừng gửi tín hiệu SOS đến người thân. Bạn sẽ cần quét mã PIN mới để kết nối lại.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: const Color(0xFFCBD5E1).withValues(alpha: 0.9),
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Nút 1: Hủy ghép nối (Đỏ cảnh báo nổi bật)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFEF4444),
+                  side: const BorderSide(color: Color(0xFFDC2626), width: 1.2),
+                  backgroundColor: const Color(0xFF7F1D1D).withValues(alpha: 0.2),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.link_off_rounded, size: 18),
+                label: const Text(
+                  'HỦY GHÉP NỐI THIẾT BỊ',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 8),
+
+              // Nút 2: Phòng thử nghiệm tín hiệu (Nhẹ nhàng cho kỹ thuật)
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF38BDF8),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.biotech_outlined, size: 17),
+                label: const Text(
+                  'Mở Phòng Thử Nghiệm Tín Hiệu',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx, false);
+                  _showDiagnosticTestLabSheet(context);
+                },
+              ),
+              const SizedBox(height: 6),
+
+              // Nút 3: HỦY BỎ (Nằm dưới cùng, nền rõ nét, chữ trắng sáng 100%, không mờ)
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF334155),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                label: const Text(
+                  'HỦY BỎ (GIỮ KẾT NỐI)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                ),
+                onPressed: () => Navigator.pop(ctx, false),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx, false);
-              _showDiagnosticTestLabSheet(context);
-            },
-            child: const Text('🧪 PHÒNG THỬ NGHIỆM', style: TextStyle(color: Color(0xFF38BDF8))),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('HỦY BỎ', style: TextStyle(color: Colors.white70)),
-          ),
-        ],
+        ),
       ),
     );
 
