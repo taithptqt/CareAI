@@ -6,113 +6,267 @@
     android:layout_height="match_parent"
     android:background="@color/wear_black">
 
-    <ScrollView
+    <ViewFlipper
+        android:id="@+id/wearViewFlipper"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:scrollbars="none"
-        android:clipToPadding="false"
-        android:paddingTop="14dp"
-        android:paddingBottom="24dp"
-        app:boxedEdges="left|right">
+        android:layout_height="match_parent">
 
-        <LinearLayout
+        <!-- TRANG 1: BÁO ĐỘNG & SINH HIỆU KHẨN CẤP (Primary Emergency & Adaptive Vitals) -->
+        <ScrollView
+            android:id="@+id/pageEmergency"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:scrollbars="none"
+            android:clipToPadding="false"
+            android:paddingTop="12dp"
+            android:paddingBottom="20dp"
+            app:boxedEdges="left|right">
 
-            <!-- Title: App Name -->
-            <TextView
-                android:id="@+id/tvWearTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/wear_title"
-                android:textColor="#38BDF8"
-                android:textSize="12sp"
-                android:letterSpacing="0.04"
-                android:textStyle="bold" />
-
-            <!-- Subtitle / Monitoring Status Badge -->
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:background="@drawable/bg_wear_status_badge"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="2dp"
-                android:singleLine="true"
-                android:ellipsize="marquee"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:text="@string/wear_status_monitoring"
-                android:textColor="@color/wear_green_online"
-                android:textSize="9.5sp"
-                android:textStyle="bold" />
-
-            <!-- Vitals Card: Pill Shape with PPG & SpO2 -->
             <LinearLayout
-                android:id="@+id/layoutVitals"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/bg_wear_vitals"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="6dp">
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
 
+                <!-- Title: App Name (5-tap secret to open Test Lab) -->
                 <TextView
-                    android:id="@+id/tvVitals"
+                    android:id="@+id/tvWearTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:singleLine="true"
-                    android:text="@string/wear_vitals_label"
-                    android:textColor="@color/wear_text_primary"
-                    android:textSize="11sp"
+                    android:text="@string/wear_title"
+                    android:textColor="#38BDF8"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.04"
                     android:textStyle="bold" />
+
+                <!-- Subtitle / Monitoring Status Badge -->
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:background="@drawable/bg_wear_status_badge"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="2dp"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:text="@string/wear_status_monitoring"
+                    android:textColor="@color/wear_green_online"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+
+                <!-- Vitals Card: Adaptive Pill Shape (BPM + SpO2 OR BPM + Steps) -->
+                <LinearLayout
+                    android:id="@+id/layoutVitals"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:background="@drawable/bg_wear_vitals"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="6dp">
+
+                    <TextView
+                        android:id="@+id/tvVitals"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true"
+                        android:text="@string/wear_vitals_label"
+                        android:textColor="@color/wear_text_primary"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Touch SOS Button: Large Pill Shape for Emergency -->
+                <Button
+                    android:id="@+id/btnManualSos"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_wear_btn_sos"
+                    android:elevation="0dp"
+                    android:stateListAnimator="@null"
+                    android:text="🆘 BÁO ĐỘNG CẤP CỨU"
+                    android:textColor="@color/wear_text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- Page indicator hint (Tappable to swipe to Page 2) -->
+                <TextView
+                    android:id="@+id/tvPageIndicator1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="● ○  Vuốt xem sức khỏe ➔"
+                    android:textColor="#64748B"
+                    android:textSize="8sp" />
+
+                <!-- Discreet Open Test Lab Button (Accessible via 5-tap on Title or Page 2) -->
+                <Button
+                    android:id="@+id/btnOpenTestLab"
+                    android:layout_width="match_parent"
+                    android:layout_height="24dp"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_wear_btn_test_lab"
+                    android:elevation="0dp"
+                    android:stateListAnimator="@null"
+                    android:text="🛠️ Kiểm Thử Tín Hiệu &amp; Mô Phỏng"
+                    android:textColor="#94A3B8"
+                    android:textSize="8sp"
+                    android:visibility="gone" />
+
+                <!-- Diagnostic Status Log -->
+                <TextView
+                    android:id="@+id/tvLogResult"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center"
+                    android:text="@string/wear_status_ready"
+                    android:textColor="@color/wear_text_secondary"
+                    android:textSize="7.5sp"
+                    android:visibility="gone" />
+
             </LinearLayout>
+        </ScrollView>
 
-            <!-- Touch SOS Button: Large Pill Shape for Emergency -->
-            <Button
-                android:id="@+id/btnManualSos"
+        <!-- TRANG 2: SỨC KHỎE HẰNG NGÀY & THIẾT BỊ (Daily Wellness & Hardware Insights) -->
+        <ScrollView
+            android:id="@+id/pageWellness"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:scrollbars="none"
+            android:clipToPadding="false"
+            android:paddingTop="12dp"
+            android:paddingBottom="20dp"
+            app:boxedEdges="left|right">
+
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_wear_btn_sos"
-                android:elevation="0dp"
-                android:stateListAnimator="@null"
-                android:text="🆘 BÁO ĐỘNG CẤP CỨU"
-                android:textColor="@color/wear_text_primary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <!-- Discreet Open Test Lab Button (Hidden for Elderly, Accessible via 5-tap gesture on Title) -->
-            <Button
-                android:id="@+id/btnOpenTestLab"
-                android:layout_width="match_parent"
-                android:layout_height="26dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/bg_wear_btn_test_lab"
-                android:elevation="0dp"
-                android:stateListAnimator="@null"
-                android:text="🛠️ Kiểm Thử Tín Hiệu &amp; Mô Phỏng"
-                android:textColor="#94A3B8"
-                android:textSize="8sp"
-                android:visibility="gone" />
-
-            <!-- Diagnostic Status Log (Hidden from elderly main screen) -->
-            <TextView
-                android:id="@+id/tvLogResult"
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center"
-                android:text="@string/wear_status_ready"
-                android:textColor="@color/wear_text_secondary"
-                android:textSize="7.5sp"
-                android:visibility="gone" />
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
 
-        </LinearLayout>
-    </ScrollView>
+                <TextView
+                    android:id="@+id/tvWellnessTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sức Khỏe Hôm Nay"
+                    android:textColor="#38BDF8"
+                    android:textSize="11.5sp"
+                    android:textStyle="bold" />
+
+                <!-- Thẻ Vận Động (Bước chân) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:background="@drawable/bg_wear_vitals"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp">
+
+                    <TextView
+                        android:id="@+id/tvTodaySteps"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👟 Vận động: -- bước"
+                        android:textColor="#22C55E"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mục tiêu: 4.000 bước/ngày"
+                        android:textColor="#94A3B8"
+                        android:textSize="8sp" />
+                </LinearLayout>
+
+                <!-- Thẻ Giấc Ngủ -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_wear_vitals"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp">
+
+                    <TextView
+                        android:id="@+id/tvSleepSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🌙 Giấc ngủ: Chưa ghi nhận"
+                        android:textColor="#A855F7"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Chỉ số phân tích giấc ngủ đêm"
+                        android:textColor="#94A3B8"
+                        android:textSize="8sp" />
+                </LinearLayout>
+
+                <!-- Thẻ Thông Tin Thiết Bị -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_wear_vitals"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp">
+
+                    <TextView
+                        android:id="@+id/tvDeviceModel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⌚ Thiết bị: Wear OS Watch"
+                        android:textColor="#F1F5F9"
+                        android:textSize="9.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSensorStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cảm biến: Tự động thích ứng"
+                        android:textColor="#94A3B8"
+                        android:textSize="8sp" />
+                </LinearLayout>
+
+                <!-- Nút Quay Lại Màn Cấp Cứu -->
+                <Button
+                    android:id="@+id/btnBackToEmergency"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_wear_btn_sos"
+                    android:elevation="0dp"
+                    android:stateListAnimator="@null"
+                    android:text="⬅️ Quay Lại Màn Cấp Cứu"
+                    android:textColor="@color/wear_text_primary"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <!-- Page indicator hint (Tappable to return to Page 1) -->
+                <TextView
+                    android:id="@+id/tvPageIndicator2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="○ ●  Vuốt về cấp cứu ⬅️"
+                    android:textColor="#64748B"
+                    android:textSize="8sp" />
+
+            </LinearLayout>
+        </ScrollView>
+    </ViewFlipper>
 </androidx.wear.widget.BoxInsetLayout>

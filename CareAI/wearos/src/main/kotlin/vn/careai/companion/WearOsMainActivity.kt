@@ -15,12 +15,15 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.view.Window
 import android.widget.Button
+import android.widget.TextView
+import android.widget.ViewFlipper
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.os.VibrationEffect
-import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.Wearable
@@ -28,16 +31,28 @@ import org.json.JSONObject
 
 class WearOsMainActivity : Activity(), SensorEventListener {
 
+    private lateinit var wearViewFlipper: ViewFlipper
+    private lateinit var tvWearTitle: TextView
     private lateinit var tvStatus: TextView
     private lateinit var tvVitals: TextView
     private lateinit var tvLogResult: TextView
     private lateinit var btnManualSos: Button
     private lateinit var btnOpenTestLab: Button
+    private lateinit var tvPageIndicator1: TextView
+
+    // Trang 2: Sức khỏe hằng ngày & Thiết bị
+    private lateinit var tvTodaySteps: TextView
+    private lateinit var tvSleepSummary: TextView
+    private lateinit var tvDeviceModel: TextView
+    private lateinit var tvSensorStatus: TextView
+    private lateinit var btnBackToEmergency: Button
+    private lateinit var tvPageIndicator2: TextView
 
     private var testLabDialog: Dialog? = null
 
     private var sensorManager: SensorManager? = null
     private var heartRateSensor: Sensor? = null
+    private var stepSensor: Sensor? = null
     private var offBodySensor: Sensor? = null
 
     private var isWorn: Boolean = true
@@ -47,9 +62,13 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     private var secretTapCount: Int = 0
     private var lastSecretTapTime: Long = 0L
 
-    private var currentHeartRate: Int = 76
-    private var currentSpo2: Double = 98.0
-    private var currentSteps: Int = 3450
+    // Bất biến Fact 35: Khởi tạo null, không bịa đặt số liệu giả (76, 98%, 3450)
+    private var currentHeartRate: Int? = null
+    private var currentSpo2: Double? = null
+    private var currentSteps: Int? = null
+    private var hasHardwareSpo2: Boolean = false
+
+    private lateinit var gestureDetector: GestureDetector
 
     private val sensorInjectionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -149,12 +168,61 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_wear_main)
 
-        val tvWearTitle: TextView = findViewById(R.id.tvWearTitle)
+        wearViewFlipper = findViewById(R.id.wearViewFlipper)
+        tvWearTitle = findViewById(R.id.tvWearTitle)
         tvStatus = findViewById(R.id.tvStatus)
         tvVitals = findViewById(R.id.tvVitals)
         tvLogResult = findViewById(R.id.tvLogResult)
         btnManualSos = findViewById(R.id.btnManualSos)
         btnOpenTestLab = findViewById(R.id.btnOpenTestLab)
+        tvPageIndicator1 = findViewById(R.id.tvPageIndicator1)
+
+        tvTodaySteps = findViewById(R.id.tvTodaySteps)
+        tvSleepSummary = findViewById(R.id.tvSleepSummary)
+        tvDeviceModel = findViewById(R.id.tvDeviceModel)
+        tvSensorStatus = findViewById(R.id.tvSensorStatus)
+        btnBackToEmergency = findViewById(R.id.btnBackToEmergency)
+        tvPageIndicator2 = findViewById(R.id.tvPageIndicator2)
+
+        // Phát hiện phần cứng cảm biến tự động
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        heartRateSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_HEART_RATE)
+        offBodySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT)
+        stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            ?: sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
+
+        // Kiểm tra xem thiết bị có cảm biến SpO2 quang học không
+        val allSensors = sensorManager?.getSensorList(Sensor.TYPE_ALL) ?: emptyList()
+        hasHardwareSpo2 = allSensors.any { s ->
+            val n = s.name.lowercase()
+            val t = s.stringType.lowercase()
+            n.contains("oxygen") || n.contains("spo2") || t.contains("oxygen") || t.contains("spo2") || s.type == 65545
+        }
+
+        // Cử chỉ vuốt chuyển 2 trang
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                if (e1 == null) return false
+                val diffX = e2.x - e1.x
+                val diffY = e2.y - e1.y
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 100 && Math.abs(velocityX) > 100) {
+                    if (diffX < 0) {
+                        // Vuốt sang trái -> Xem Trang 2 (Sức khỏe hằng ngày)
+                        wearViewFlipper.displayedChild = 1
+                    } else {
+                        // Vuốt sang phải -> Về Trang 1 (Cấp cứu)
+                        wearViewFlipper.displayedChild = 0
+                    }
+                    return true
+                }
+                return false
+            }
+        })
+
+        // Chuyển trang khi nhấn vào chỉ báo
+        tvPageIndicator1.setOnClickListener { wearViewFlipper.displayedChild = 1 }
+        tvPageIndicator2.setOnClickListener { wearViewFlipper.displayedChild = 0 }
+        btnBackToEmergency.setOnClickListener { wearViewFlipper.displayedChild = 0 }
 
         // Cơ chế 5-tap bí mật mở phòng thử nghiệm tín hiệu dành riêng cho kỹ thuật/giám khảo
         tvWearTitle.setOnClickListener {
@@ -171,10 +239,6 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             lastSecretTapTime = now
         }
 
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-        heartRateSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_HEART_RATE)
-        offBodySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT)
-
         readBatteryStatus()
         dispatchCurrentWatchTelemetry()
         updateVitalsUI(source = "Cảm biến sẵn sàng")
@@ -189,6 +253,13 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         btnOpenTestLab.setOnClickListener {
             showTestLabDialog()
         }
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
+        if (ev != null && gestureDetector.onTouchEvent(ev)) {
+            return true
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     private fun showTestLabDialog() {
@@ -257,6 +328,10 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL)
             Log.i("CareAI-Wear", "Đã kích hoạt lắng nghe Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT")
         }
+        stepSensor?.let { sensor ->
+            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+            Log.i("CareAI-Wear", "Đã kích hoạt lắng nghe Sensor đếm bước")
+        }
 
         // Đăng ký BroadcastReceiver nhận lệnh kiểm thử từ Google / ADB
         val filter = IntentFilter().apply {
@@ -295,19 +370,29 @@ class WearOsMainActivity : Activity(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
-        if (event?.sensor?.type == Sensor.TYPE_HEART_RATE) {
-            val hr = event.values.firstOrNull()?.toInt() ?: 0
-            if (hr > 0) {
-                currentHeartRate = hr
-                updateVitalsUI(source = "Cảm biến PPG phần cứng")
+        when (event?.sensor?.type) {
+            Sensor.TYPE_HEART_RATE -> {
+                val hr = event.values.firstOrNull()?.toInt() ?: 0
+                if (hr > 0) {
+                    currentHeartRate = hr
+                    updateVitalsUI(source = "Cảm biến PPG phần cứng")
+                }
             }
-        } else if (event?.sensor?.type == Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT) {
-            val v = event.values.firstOrNull() ?: 1.0f
-            val nowWorn = v != 0.0f
-            if (isWorn != nowWorn) {
-                isWorn = nowWorn
-                dispatchCurrentWatchTelemetry()
-                updateVitalsUI(source = if (isWorn) "Đeo vào cổ tay" else "Tháo khỏi cổ tay")
+            Sensor.TYPE_STEP_COUNTER -> {
+                val steps = event.values.firstOrNull()?.toInt() ?: 0
+                if (steps > 0) {
+                    currentSteps = steps
+                    updateVitalsUI(source = "Cảm biến đếm bước phần cứng")
+                }
+            }
+            Sensor.TYPE_LOW_LATENCY_OFFBODY_DETECT -> {
+                val v = event.values.firstOrNull() ?: 1.0f
+                val nowWorn = v != 0.0f
+                if (isWorn != nowWorn) {
+                    isWorn = nowWorn
+                    dispatchCurrentWatchTelemetry()
+                    updateVitalsUI(source = if (isWorn) "Đeo vào cổ tay" else "Tháo khỏi cổ tay")
+                }
             }
         }
     }
@@ -366,21 +451,45 @@ class WearOsMainActivity : Activity(), SensorEventListener {
 
     private fun updateVitalsUI(source: String = "Cảm biến", customAlert: String = "") {
         runOnUiThread {
-            tvVitals.text = "❤️ $currentHeartRate BPM · ${String.format(java.util.Locale.US, "%.1f", currentSpo2)}% SpO2"
+            // Sắp xếp thông minh: Kiểm tra xem thiết bị đo được những gì
+            val isHypoxiaAlert = customAlert == "HYPOXIA" || (currentSpo2 != null && currentSpo2!! <= 90.0)
+            val showSpo2 = hasHardwareSpo2 || (currentSpo2 != null && currentSpo2!! > 0) || isHypoxiaAlert
+
+            val hrStr = currentHeartRate?.toString() ?: "--"
+            if (showSpo2) {
+                val spo2Str = currentSpo2?.let { String.format(java.util.Locale.US, "%.0f%%", it) } ?: "--"
+                tvVitals.text = "❤️ $hrStr BPM · 🫁 $spo2Str SpO2"
+            } else {
+                val stepsStr = currentSteps?.toString() ?: "--"
+                tvVitals.text = "❤️ $hrStr BPM · 👟 $stepsStr bước"
+            }
+
+            // Cập nhật Trang 2: Sức khỏe hằng ngày & Thông tin phần cứng
+            tvTodaySteps.text = "👟 Vận động: ${currentSteps?.toString() ?: "--"} bước"
+            tvSleepSummary.text = "🌙 Giấc ngủ: Chưa ghi nhận"
+            val watchName = Build.MODEL ?: "Wear OS Watch"
+            tvDeviceModel.text = "⌚ Model: $watchName"
+            tvSensorStatus.text = "Cảm biến SpO2: ${if (hasHardwareSpo2) "Có quang học" else "Không hỗ trợ"}"
+
+            val hr = currentHeartRate ?: 0
+            val spo2 = currentSpo2 ?: 100.0
 
             when {
-                customAlert == "TACHYCARDIA" || currentHeartRate >= 140 -> {
-                    tvStatus.text = "🚨 Nhanh $currentHeartRate BPM"
+                customAlert == "TACHYCARDIA" || hr >= 140 -> {
+                    wearViewFlipper.displayedChild = 0 // Tự động chuyển về Trang 1 khi có cảnh báo
+                    tvStatus.text = "🚨 Nhanh $hr BPM"
                     tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
                     tvLogResult.text = "⚡ $source: Phát hiện nhịp nhanh!"
                 }
-                customAlert == "BRADYCARDIA" || (currentHeartRate <= 45 && currentHeartRate > 0) -> {
-                    tvStatus.text = "⚠️ Chậm $currentHeartRate BPM"
+                customAlert == "BRADYCARDIA" || (hr <= 45 && hr > 0) -> {
+                    wearViewFlipper.displayedChild = 0
+                    tvStatus.text = "⚠️ Chậm $hr BPM"
                     tvStatus.setTextColor(0xFFF59E0B.toInt()) // Amber
                     tvLogResult.text = "⚡ $source: Phát hiện nhịp chậm!"
                 }
-                customAlert == "HYPOXIA" || currentSpo2 <= 90.0 -> {
-                    tvStatus.text = "🫁 Oxy ${currentSpo2.toInt()}%"
+                customAlert == "HYPOXIA" || spo2 <= 90.0 -> {
+                    wearViewFlipper.displayedChild = 0
+                    tvStatus.text = "🫁 Oxy ${spo2.toInt()}%"
                     tvStatus.setTextColor(0xFFA855F7.toInt()) // Purple
                     tvLogResult.text = "⚡ $source: Nồng độ SpO2 giảm sâu!"
                 }
@@ -402,7 +511,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
                 else -> {
                     tvStatus.text = "🟢 Giám Sát Cổ Tay"
                     tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_green_online))
-                    tvLogResult.text = "⚡ $source [${currentHeartRate} BPM, ${String.format(java.util.Locale.US, "%.1f", currentSpo2)}%]"
+                    tvLogResult.text = "⚡ $source [HR=$hrStr, Steps=${currentSteps?.toString() ?: "--"}]"
                 }
             }
         }
@@ -412,6 +521,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         val timestamp = System.currentTimeMillis()
         Log.w("CareAI-WearActivity", "Kích hoạt mô phỏng té ngã! EventId=$eventId")
         triggerEmergencyVibration()
+        wearViewFlipper.displayedChild = 0 // Tự động về Trang 1
         tvStatus.text = "💥 BÁO ĐỘNG NGÃ!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
         tvLogResult.text = "Đang gửi cảnh báo té ngã (Bluetooth / Wi-Fi)..."
@@ -421,8 +531,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             eventId = eventId,
             eventTime = timestamp,
             sensorType = "SAMSUNG_BIOACTIVE_SIMULATED_TEST",
-            heartRate = currentHeartRate,
-            spo2 = currentSpo2,
+            heartRate = currentHeartRate ?: 0,
+            spo2 = currentSpo2 ?: 0.0,
             emergencyType = "FALL_DETECTED"
         ) { _, channelInfo ->
             runOnUiThread {
@@ -435,6 +545,7 @@ class WearOsMainActivity : Activity(), SensorEventListener {
         val timestamp = System.currentTimeMillis()
         Log.w("CareAI-WearActivity", "Kích hoạt SOS khẩn cấp! EventId=$eventId")
         triggerEmergencyVibration()
+        wearViewFlipper.displayedChild = 0 // Tự động về Trang 1
         tvStatus.text = "🆘 ĐÃ GỬI SOS!"
         tvStatus.setTextColor(ContextCompat.getColor(this, R.color.wear_red_danger))
         tvLogResult.text = "Đang gửi SOS khẩn cấp (Bluetooth / Wi-Fi)..."
@@ -444,8 +555,8 @@ class WearOsMainActivity : Activity(), SensorEventListener {
             eventId = eventId,
             eventTime = timestamp,
             sensorType = "WATCH_TOUCH_SOS",
-            heartRate = currentHeartRate,
-            spo2 = currentSpo2,
+            heartRate = currentHeartRate ?: 0,
+            spo2 = currentSpo2 ?: 0.0,
             emergencyType = "MANUAL_SOS"
         ) { _, channelInfo ->
             runOnUiThread {

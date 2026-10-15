@@ -27,289 +27,24 @@ struct ContentView: View {
     }
     @State private var showSettings = false
     @State private var showTestLab = false
-    @State private var secretTapCount = 0
-    @State private var lastSecretTapTime = Date.distantPast
+    @State private var selectedTab = 0
 
     private var pinChars: [Character] { Array(pin) }
 
-    private var statusColor: Color {
-        if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 {
-            return Color(red: 0.94, green: 0.27, blue: 0.27) // Red
-        } else if sync.customAlert == "BRADYCARDIA" || ((sync.latestHeartRate ?? 100) <= 45 && (sync.latestHeartRate ?? 0) > 0) {
-            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
-        } else if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 ?? 100) <= 90.0 {
-            return Color(red: 0.66, green: 0.33, blue: 0.97) // Purple
-        } else if !sync.isPhoneReachable {
-            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber for Offline Buffer
-        } else {
-            return Color(red: 0.06, green: 0.73, blue: 0.51) // Green
-        }
-    }
-
-    private var statusTitle: String {
-        if let alert = sync.customAlert {
-            switch alert {
-            case "TACHYCARDIA": return "🚨 Nhanh \(Int(sync.latestHeartRate ?? 155)) BPM"
-            case "BRADYCARDIA": return "⚠️ Chậm \(Int(sync.latestHeartRate ?? 38)) BPM"
-            case "HYPOXIA": return "🫁 Oxy \(String(format: "%.0f", sync.latestSpo2 ?? 88.0))%"
-            case "FALL_DETECTED": return "💥 BÁO ĐỘNG NGÃ!"
-            case "MANUAL_SOS": return "🆘 ĐÃ GỬI SOS!"
-            case "NORMAL": return sync.isPhoneReachable ? "🟢 Giám Sát Cổ Tay" : "🟡 Lưu Đệm Cục Bộ"
-            default: break
-            }
-        }
-        if let hr = sync.latestHeartRate, hr >= 140 {
-            return "🚨 Nhanh \(Int(hr)) BPM"
-        } else if let hr = sync.latestHeartRate, hr <= 45 && hr > 0 {
-            return "⚠️ Chậm \(Int(hr)) BPM"
-        } else if let spo2 = sync.latestSpo2, spo2 <= 90.0 {
-            return "🫁 Oxy \(String(format: "%.0f", spo2))%"
-        }
-        if !sync.isPhoneReachable {
-            return "🟡 Lưu Đệm Cục Bộ"
-        }
-        return "🟢 Giám Sát Cổ Tay"
-    }
-
     var body: some View {
-        ScrollView {
-            VStack(spacing: 6) {
-                // 1. Tiêu đề ứng dụng (Tích hợp gõ 5 lần bí mật để mở Phòng Thử Nghiệm)
-                HStack {
-                    Button(action: {
-                        let now = Date()
-                        if now.timeIntervalSince(lastSecretTapTime) < 2.5 {
-                            secretTapCount += 1
-                            if secretTapCount >= 5 {
-                                secretTapCount = 0
-                                WKInterfaceDevice.current().play(.click)
-                                showTestLab = true
-                            }
-                        } else {
-                            secretTapCount = 1
-                        }
-                        lastSecretTapTime = now
-                    }) {
-                        Text("CareAI Watch")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
-                    }
-                    .buttonStyle(.plain)
+        Group {
+            if !isPaired {
+                pairingView
+            } else {
+                TabView(selection: $selectedTab) {
+                    PrimaryEmergencyView(sync: sync, showSettings: $showSettings, showTestLab: $showTestLab)
+                        .tag(0)
 
-                    Spacer()
-                    Button(action: { showSettings = true }) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 13))
-                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
-                            .frame(width: 34, height: 34)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                    DailyWellnessView(sync: sync, showSettings: $showSettings, showTestLab: $showTestLab)
+                        .tag(1)
                 }
-                .padding(.horizontal, 4)
-
-                if !isPaired {
-                    // Màn hình ghép nối trực quan với Bàn phím số cảm ứng trực tiếp (Numeric Keypad)
-                    VStack(spacing: 5) {
-                        Text("Ghép Nối Thiết Bị")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
-
-                        Text("Nhập mã PIN 6 số tạo từ app người thân")
-                            .font(.system(size: 8))
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-
-                        // 6 ô hiển thị số PIN
-                        HStack(spacing: 4) {
-                            ForEach(0..<6, id: \.self) { index in
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color.white.opacity(0.12))
-                                        .frame(width: 19, height: 23)
-                                    if index < pinChars.count {
-                                        Text(String(pinChars[index]))
-                                            .font(.system(size: 13, weight: .bold))
-                                            .foregroundColor(.white)
-                                    } else {
-                                        Circle()
-                                            .fill(Color.gray.opacity(0.4))
-                                            .frame(width: 4, height: 4)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.vertical, 2)
-
-                        // Bàn phím số cảm ứng trực tiếp (Numeric Keypad 3x4)
-                        VStack(spacing: 3) {
-                            HStack(spacing: 3) {
-                                keypadButton("1")
-                                keypadButton("2")
-                                keypadButton("3")
-                            }
-                            HStack(spacing: 3) {
-                                keypadButton("4")
-                                keypadButton("5")
-                                keypadButton("6")
-                            }
-                            HStack(spacing: 3) {
-                                keypadButton("7")
-                                keypadButton("8")
-                                keypadButton("9")
-                            }
-                            HStack(spacing: 3) {
-                                Button(action: clearPin) {
-                                    Text("C")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundColor(Color.orange)
-                                        .frame(maxWidth: .infinity, minHeight: 24)
-                                        .background(Color.white.opacity(0.08))
-                                        .cornerRadius(5)
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(pairing)
-
-                                keypadButton("0")
-
-                                Button(action: deletePinDigit) {
-                                    Image(systemName: "delete.left.fill")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(Color.red.opacity(0.9))
-                                        .frame(maxWidth: .infinity, minHeight: 24)
-                                        .background(Color.white.opacity(0.08))
-                                        .cornerRadius(5)
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(pairing)
-                            }
-                        }
-
-                        // Nút Ghép Nối
-                        Button(action: { Task { await pairWatch() } }) {
-                            HStack {
-                                if pairing {
-                                    ProgressView()
-                                        .scaleEffect(0.6)
-                                    Text("Đang ghép nối…")
-                                        .font(.system(size: 10, weight: .bold))
-                                } else {
-                                    Text("Ghép Nối Đồng Hồ")
-                                        .font(.system(size: 10, weight: .bold))
-                                }
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 26)
-                            .background(pin.count == 6 && !pairing ? Color.blue : Color.blue.opacity(0.3))
-                            .foregroundColor(.white)
-                            .cornerRadius(6)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(pairing || pin.count != 6)
-
-                        if let pairingError {
-                            Text(pairingError)
-                                .font(.system(size: 8))
-                                .foregroundColor(.red)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(6)
-                    .background(Color.white.opacity(0.05))
-                    .cornerRadius(8)
-                } else {
-                    // 2. Badge trạng thái giám sát / cảnh báo (Tự co giãn, không tràn viền màn hình 40mm)
-                    Text(statusTitle)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(statusColor)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .frame(maxWidth: .infinity)
-                        .background(statusColor.opacity(0.18))
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(statusColor.opacity(0.6), lineWidth: 1)
-                        )
-
-                    // 3. Card sinh hiệu trực tiếp (Vitals Card lớn, rõ ràng cho mắt người già)
-                    VStack(spacing: 4) {
-                        HStack {
-                            HStack(spacing: 4) {
-                                Image(systemName: "heart.fill")
-                                    .foregroundColor(Color(red: 0.94, green: 0.27, blue: 0.27))
-                                    .font(.system(size: 13))
-                                if let hr = sync.latestHeartRate {
-                                    Text("\(Int(hr))")
-                                        .font(.system(size: 16, weight: .heavy))
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-                                } else {
-                                    Text("--")
-                                        .font(.system(size: 16, weight: .heavy))
-                                        .foregroundColor(Color(white: 0.6))
-                                        .lineLimit(1)
-                                }
-                                Text("BPM")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(.gray)
-                                    .lineLimit(1)
-                            }
-
-                            Spacer()
-
-                            HStack(spacing: 4) {
-                                Image(systemName: "lungs.fill")
-                                    .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
-                                    .font(.system(size: 13))
-                                if let spo2 = sync.latestSpo2 {
-                                    Text("\(Int(spo2))%")
-                                        .font(.system(size: 16, weight: .heavy))
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-                                } else {
-                                    Text("--")
-                                        .font(.system(size: 16, weight: .heavy))
-                                        .foregroundColor(Color(white: 0.6))
-                                        .lineLimit(1)
-                                }
-                                Text("SpO2")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(.gray)
-                                    .lineLimit(1)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 10)
-                    .frame(maxWidth: .infinity)
-                    .background(Color(red: 0.08, green: 0.11, blue: 0.18))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color(red: 0.2, green: 0.25, blue: 0.35), lineWidth: 1)
-                    )
-
-                    // 4. NÚT SOS CẤP CỨU DUY NHẤT (Lớn, Đỏ, Ưu tiên tuyệt đối cho người già)
-                    Button(action: {
-                        Task { await sync.triggerEmergencySos(type: "MANUAL_SOS") }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "sos.circle.fill")
-                                .font(.system(size: 20))
-                            Text("BÁO ĐỘNG CẤP CỨU")
-                                .font(.system(size: 13, weight: .heavy))
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 46)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
-                    .padding(.top, 2)
-                }
+                .tabViewStyle(.page(indexDisplayMode: .automatic))
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 8)
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheetView(sync: sync, backend: $backend, isPaired: isPaired, showTestLab: $showTestLab)
@@ -334,6 +69,138 @@ struct ContentView: View {
                 WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                 if isPaired { sync.start() }
             }
+        }
+    }
+
+    // Giao diện ghép nối thiết bị khi chưa ghép nối
+    private var pairingView: some View {
+        ScrollView {
+            VStack(spacing: 6) {
+                HStack {
+                    Text("CareAI Watch")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                    Spacer()
+                    Button(action: { showSettings = true }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 4)
+
+                VStack(spacing: 5) {
+                    Text("Ghép Nối Thiết Bị")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+
+                    Text("Nhập mã PIN 6 số tạo từ app người thân")
+                        .font(.system(size: 8))
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+
+                    // 6 ô hiển thị số PIN
+                    HStack(spacing: 4) {
+                        ForEach(0..<6, id: \.self) { index in
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.white.opacity(0.12))
+                                    .frame(width: 19, height: 23)
+                                if index < pinChars.count {
+                                    Text(String(pinChars[index]))
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(.white)
+                                } else {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.4))
+                                        .frame(width: 4, height: 4)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+
+                    // Bàn phím số cảm ứng trực tiếp (Numeric Keypad 3x4)
+                    VStack(spacing: 3) {
+                        HStack(spacing: 3) {
+                            keypadButton("1")
+                            keypadButton("2")
+                            keypadButton("3")
+                        }
+                        HStack(spacing: 3) {
+                            keypadButton("4")
+                            keypadButton("5")
+                            keypadButton("6")
+                        }
+                        HStack(spacing: 3) {
+                            keypadButton("7")
+                            keypadButton("8")
+                            keypadButton("9")
+                        }
+                        HStack(spacing: 3) {
+                            Button(action: clearPin) {
+                                Text("C")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(Color.orange)
+                                    .frame(maxWidth: .infinity, minHeight: 24)
+                                    .background(Color.white.opacity(0.08))
+                                    .cornerRadius(5)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(pairing)
+
+                            keypadButton("0")
+
+                            Button(action: deletePinDigit) {
+                                Image(systemName: "delete.left.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color.red.opacity(0.9))
+                                    .frame(maxWidth: .infinity, minHeight: 24)
+                                    .background(Color.white.opacity(0.08))
+                                    .cornerRadius(5)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(pairing)
+                        }
+                    }
+
+                    // Nút Ghép Nối
+                    Button(action: { Task { await pairWatch() } }) {
+                        HStack {
+                            if pairing {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                Text("Đang ghép nối…")
+                                    .font(.system(size: 10, weight: .bold))
+                            } else {
+                                Text("Ghép Nối Đồng Hồ")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 26)
+                        .background(pin.count == 6 && !pairing ? Color.blue : Color.blue.opacity(0.3))
+                        .foregroundColor(.white)
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(pairing || pin.count != 6)
+
+                    if let pairingError {
+                        Text(pairingError)
+                            .font(.system(size: 8))
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(6)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(8)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 8)
         }
     }
 
@@ -412,6 +279,416 @@ struct ContentView: View {
     private func clearPin() {
         pin = ""
         pairingError = nil
+    }
+}
+
+// MARK: - Trang 1: Giám Sát Cấp Cứu & Sinh Hiệu Trực Tiếp (Primary Emergency View)
+struct PrimaryEmergencyView: View {
+    @ObservedObject var sync: HealthSync
+    @Binding var showSettings: Bool
+    @Binding var showTestLab: Bool
+    @State private var secretTapCount = 0
+    @State private var lastSecretTapTime = Date.distantPast
+
+    private var statusColor: Color {
+        if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 {
+            return Color(red: 0.94, green: 0.27, blue: 0.27) // Red
+        } else if sync.customAlert == "BRADYCARDIA" || ((sync.latestHeartRate ?? 100) <= 45 && (sync.latestHeartRate ?? 0) > 0) {
+            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
+        } else if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 ?? 100) <= 90.0 {
+            return Color(red: 0.66, green: 0.33, blue: 0.97) // Purple
+        } else if !sync.isPhoneReachable {
+            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber for Offline Buffer
+        } else {
+            return Color(red: 0.06, green: 0.73, blue: 0.51) // Green
+        }
+    }
+
+    private var statusTitle: String {
+        if let alert = sync.customAlert {
+            switch alert {
+            case "TACHYCARDIA": return "🚨 Nhanh \(Int(sync.latestHeartRate ?? 155)) BPM"
+            case "BRADYCARDIA": return "⚠️ Chậm \(Int(sync.latestHeartRate ?? 38)) BPM"
+            case "HYPOXIA": return "🫁 Oxy \(String(format: "%.0f", sync.latestSpo2 ?? 88.0))%"
+            case "FALL_DETECTED": return "💥 BÁO ĐỘNG NGÃ!"
+            case "MANUAL_SOS": return "🆘 ĐÃ GỬI SOS!"
+            case "NORMAL": return sync.isPhoneReachable ? "🟢 Giám Sát Cổ Tay" : "🟡 Lưu Đệm Cục Bộ"
+            default: break
+            }
+        }
+        if let hr = sync.latestHeartRate, hr >= 140 {
+            return "🚨 Nhanh \(Int(hr)) BPM"
+        } else if let hr = sync.latestHeartRate, hr <= 45 && hr > 0 {
+            return "⚠️ Chậm \(Int(hr)) BPM"
+        } else if let spo2 = sync.latestSpo2, spo2 <= 90.0 {
+            return "🫁 Oxy \(String(format: "%.0f", spo2))%"
+        }
+        if !sync.isPhoneReachable {
+            return "🟡 Lưu Đệm Cục Bộ"
+        }
+        return "🟢 Giám Sát Cổ Tay"
+    }
+
+    // Sắp xếp thông minh: Ưu tiên hiển thị SpO2 nếu có phần cứng hoặc đang có cảnh báo thiếu oxy;
+    // Nếu thiết bị không hỗ trợ SpO2 (như Apple Watch SE), tự chuyển sang Bước chân hôm nay
+    private var showSpo2: Bool {
+        if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 != nil && sync.latestSpo2! <= 90.0) {
+            return true
+        }
+        return sync.hasSpo2Hardware
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 5) {
+                // Tiêu đề ứng dụng (Tích hợp gõ 5 lần bí mật để mở Phòng Thử Nghiệm)
+                HStack {
+                    Button(action: {
+                        let now = Date()
+                        if now.timeIntervalSince(lastSecretTapTime) < 2.5 {
+                            secretTapCount += 1
+                            if secretTapCount >= 5 {
+                                secretTapCount = 0
+                                WKInterfaceDevice.current().play(.click)
+                                showTestLab = true
+                            }
+                        } else {
+                            secretTapCount = 1
+                        }
+                        lastSecretTapTime = now
+                    }) {
+                        Text("CareAI Watch")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Button(action: { showSettings = true }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 4)
+
+                // Badge trạng thái giám sát / cảnh báo y tế
+                Text(statusTitle)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(statusColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .frame(maxWidth: .infinity)
+                    .background(statusColor.opacity(0.18))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(statusColor.opacity(0.6), lineWidth: 1)
+                    )
+
+                // Thẻ sinh hiệu trực tiếp thông minh (Adaptive Vitals Card)
+                VStack(spacing: 4) {
+                    HStack {
+                        // Nhịp tim PPG (Luôn hiển thị)
+                        HStack(spacing: 4) {
+                            Image(systemName: "heart.fill")
+                                .foregroundColor(Color(red: 0.94, green: 0.27, blue: 0.27))
+                                .font(.system(size: 13))
+                            if let hr = sync.latestHeartRate {
+                                Text("\(Int(hr))")
+                                    .font(.system(size: 16, weight: .heavy))
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
+                            } else {
+                                Text("--")
+                                    .font(.system(size: 16, weight: .heavy))
+                                    .foregroundColor(Color(white: 0.6))
+                                    .lineLimit(1)
+                            }
+                            Text("BPM")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+
+                        Spacer()
+
+                        // Chỉ số thứ 2: SpO2 (nếu có phần cứng) HOẶC Bước chân (nếu Apple Watch SE không có SpO2)
+                        if showSpo2 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "lungs.fill")
+                                    .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                                    .font(.system(size: 13))
+                                if let spo2 = sync.latestSpo2 {
+                                    Text("\(Int(spo2))%")
+                                        .font(.system(size: 16, weight: .heavy))
+                                        .foregroundColor(.white)
+                                        .lineLimit(1)
+                                } else {
+                                    Text("--")
+                                        .font(.system(size: 16, weight: .heavy))
+                                        .foregroundColor(Color(white: 0.6))
+                                        .lineLimit(1)
+                                }
+                                Text("SpO2")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "figure.walk")
+                                    .foregroundColor(Color(red: 0.2, green: 0.8, blue: 0.4))
+                                    .font(.system(size: 13))
+                                if let steps = sync.todaySteps {
+                                    Text("\(steps)")
+                                        .font(.system(size: 15, weight: .heavy))
+                                        .foregroundColor(.white)
+                                        .lineLimit(1)
+                                } else {
+                                    Text("--")
+                                        .font(.system(size: 15, weight: .heavy))
+                                        .foregroundColor(Color(white: 0.6))
+                                        .lineLimit(1)
+                                }
+                                Text("Bước")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 7)
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity)
+                .background(Color(red: 0.08, green: 0.11, blue: 0.18))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(red: 0.2, green: 0.25, blue: 0.35), lineWidth: 1)
+                )
+
+                // NÚT SOS CẤP CỨU DUY NHẤT (Lớn, Đỏ, Ưu tiên tuyệt đối cho người già)
+                Button(action: {
+                    Task { await sync.triggerEmergencySos(type: "MANUAL_SOS") }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sos.circle.fill")
+                            .font(.system(size: 18))
+                        Text("BÁO ĐỘNG CẤP CỨU")
+                            .font(.system(size: 12.5, weight: .heavy))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.85, green: 0.15, blue: 0.25))
+                .padding(.top, 2)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+// MARK: - Trang 2: Sức Khỏe Hằng Ngày & Thông Tin Thiết Bị (Daily Wellness View)
+struct DailyWellnessView: View {
+    @ObservedObject var sync: HealthSync
+    @Binding var showSettings: Bool
+    @Binding var showTestLab: Bool
+
+    private var watchModelName: String {
+        var size: Int = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        var machine = [CChar](repeating: 0, count: max(1, size))
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        let machineCode = String(cString: machine)
+        return HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: WKInterfaceDevice.current().name)
+    }
+
+    private var batteryPercent: Int {
+        let dev = WKInterfaceDevice.current()
+        dev.isBatteryMonitoringEnabled = true
+        let raw = dev.batteryLevel
+        return raw >= 0 ? Int(raw * 100) : 100
+    }
+
+    private var sleepFormatted: String {
+        guard let minutes = sync.lastNightSleepMinutes, minutes > 0 else {
+            return "Chưa ghi nhận"
+        }
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours > 0 {
+            return "\(hours)h \(mins)p"
+        } else {
+            return "\(mins) phút"
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                // Header
+                HStack {
+                    Text("Sức Khỏe Hôm Nay")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                    Spacer()
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                }
+                .padding(.horizontal, 2)
+
+                // 1. Thẻ Vận Động (Bước chân)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Image(systemName: "figure.walk")
+                            .foregroundColor(Color(red: 0.2, green: 0.8, blue: 0.4))
+                            .font(.system(size: 12))
+                        Text("Vận Động")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.gray)
+                        Spacer()
+                        if let steps = sync.todaySteps {
+                            Text("\(steps)")
+                                .font(.system(size: 13, weight: .heavy))
+                                .foregroundColor(.white)
+                            Text("bước")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundColor(.gray)
+                        } else {
+                            Text("-- bước")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(white: 0.6))
+                        }
+                    }
+
+                    // Thanh tiến trình vận động (Mục tiêu 4.000 bước)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.white.opacity(0.12))
+                                .frame(height: 5)
+                            let progress = min(1.0, max(0.0, Double(sync.todaySteps ?? 0) / 4000.0))
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color(red: 0.2, green: 0.8, blue: 0.4))
+                                .frame(width: geo.size.width * CGFloat(progress), height: 5)
+                        }
+                    }
+                    .frame(height: 5)
+
+                    Text("Mục tiêu: 4.000 bước/ngày")
+                        .font(.system(size: 7.5))
+                        .foregroundColor(Color(white: 0.5))
+                }
+                .padding(6)
+                .background(Color(red: 0.08, green: 0.11, blue: 0.18))
+                .cornerRadius(8)
+
+                // 2. Thẻ Giấc Ngủ
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Image(systemName: "moon.stars.fill")
+                            .foregroundColor(Color(red: 0.58, green: 0.44, blue: 0.86))
+                            .font(.system(size: 12))
+                        Text("Giấc Ngủ Đêm Qua")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.gray)
+                        Spacer()
+                    }
+                    HStack {
+                        Text(sleepFormatted)
+                            .font(.system(size: 12, weight: .heavy))
+                            .foregroundColor(sync.lastNightSleepMinutes != nil ? .white : Color(white: 0.6))
+                        Spacer()
+                        Text("HealthKit")
+                            .font(.system(size: 7.5))
+                            .foregroundColor(Color(white: 0.4))
+                    }
+                }
+                .padding(6)
+                .background(Color(red: 0.08, green: 0.11, blue: 0.18))
+                .cornerRadius(8)
+
+                // 3. Thẻ Thông Tin Thiết Bị & Cảm Biến
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Image(systemName: "applewatch")
+                            .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            .font(.system(size: 11))
+                        Text("Phần Cứng & Cảm Biến")
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundColor(.gray)
+                    }
+
+                    Text("Model: \(watchModelName)")
+                        .font(.system(size: 8))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+
+                    HStack(spacing: 4) {
+                        Text("Cảm biến SpO2:")
+                            .font(.system(size: 7.5))
+                            .foregroundColor(.gray)
+                        Text(sync.hasSpo2Hardware ? "Có quang học" : "Không hỗ trợ (SE)")
+                            .font(.system(size: 7.5, weight: .semibold))
+                            .foregroundColor(sync.hasSpo2Hardware ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
+                    }
+
+                    HStack(spacing: 8) {
+                        Text("Pin: \(batteryPercent)%")
+                            .font(.system(size: 7.5))
+                            .foregroundColor(.white.opacity(0.8))
+                        Text(sync.isPhoneReachable ? "🟢 Kết nối iPhone" : "🟡 Ngoại tuyến")
+                            .font(.system(size: 7.5))
+                            .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
+                    }
+                }
+                .padding(6)
+                .background(Color(red: 0.08, green: 0.11, blue: 0.18))
+                .cornerRadius(8)
+
+                // Nút Cài đặt & Test Lab
+                HStack(spacing: 4) {
+                    Button(action: { showSettings = true }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 8.5))
+                            Text("Cài Đặt")
+                                .font(.system(size: 8.5, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 22)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: { showTestLab = true }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "hammer.fill")
+                                .font(.system(size: 8.5))
+                            Text("Test Lab")
+                                .font(.system(size: 8.5, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 22)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 2)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+        }
     }
 }
 
@@ -625,4 +902,3 @@ struct VitalsTestLabSheetView: View {
         }
     }
 }
-

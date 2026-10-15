@@ -283,6 +283,21 @@ final class HealthSync: ObservableObject {
         }
     }
 
+    nonisolated static func isSpo2HardwareSupported(machineCode: String) -> Bool {
+        let clean = machineCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.starts(with: "Watch1,") ||
+           clean.starts(with: "Watch2,") ||
+           clean.starts(with: "Watch3,") ||
+           clean.starts(with: "Watch4,") ||
+           clean.starts(with: "Watch5,") {
+            return false
+        }
+        if clean == "Watch6,10" || clean == "Watch6,11" || clean == "Watch6,12" || clean == "Watch6,13" {
+            return false // Apple Watch SE (Gen 2)
+        }
+        return true
+    }
+
     static weak var shared: HealthSync?
 
     @Published var isPaired: Bool = KeychainToken.load() != nil
@@ -291,10 +306,13 @@ final class HealthSync: ObservableObject {
     @Published var customAlert: String?
     @Published var diagnosticLog = "⚡ Cảm biến sẵn sàng"
     @Published var autoFallDetectionEnabled = true
+    @Published private(set) var hasSpo2Hardware: Bool = true
     @Published private(set) var latestHeartRate: Double?
     @Published private(set) var latestHeartRateAt: Date?
     @Published private(set) var latestSpo2: Double?
     @Published private(set) var latestSpo2At: Date?
+    @Published private(set) var todaySteps: Int?
+    @Published private(set) var lastNightSleepMinutes: Int?
     @Published private(set) var pendingCount = 0
     @Published private(set) var healthAlert: String?
     @Published private(set) var simulatedOffline = false
@@ -335,6 +353,13 @@ final class HealthSync: ObservableObject {
 
     init() {
         HealthSync.shared = self
+        var size: Int = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        var machine = [CChar](repeating: 0, count: max(1, size))
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        let machineCode = String(cString: machine)
+        self.hasSpo2Hardware = HealthSync.isSpo2HardwareSupported(machineCode: machineCode)
+
         WatchConnectivityCoordinator.shared.activate()
         WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
         latestHeartRate = UserDefaults.standard.object(forKey: "latest.heartRate") as? Double
@@ -384,7 +409,13 @@ final class HealthSync: ObservableObject {
             status = "HealthKit unavailable"
             return
         }
-        let types = Set(metrics.compactMap { HKObjectType.quantityType(forIdentifier: $0.0) })
+        var types: Set<HKObjectType> = Set(metrics.compactMap { HKObjectType.quantityType(forIdentifier: $0.0) })
+        if let steps = HKObjectType.quantityType(forIdentifier: .stepCount) {
+            types.insert(steps)
+        }
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            types.insert(sleep)
+        }
         healthStore.requestAuthorization(toShare: [], read: types) { [weak self] success, error in
             Task { @MainActor in
                 guard let self else { return }
@@ -402,6 +433,54 @@ final class HealthSync: ObservableObject {
         for (identifier, _, _, _) in metrics {
             fetchLatestSample(for: identifier)
         }
+        fetchTodaySteps()
+        fetchLastNightSleep()
+    }
+
+    func fetchTodaySteps() {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+        let now = Date()
+        let startOfDay = Calendar.current.startOfDay(for: now)
+        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now, options: .strictStartDate)
+        let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
+            guard let sum = result?.sumQuantity() else { return }
+            let steps = Int(sum.doubleValue(for: .count()))
+            Task { @MainActor in
+                self?.todaySteps = steps
+            }
+        }
+        healthStore.execute(query)
+    }
+
+    func fetchLastNightSleep() {
+        guard let type = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { return }
+        let now = Date()
+        guard let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: now)) else { return }
+        let predicate = HKQuery.predicateForSamples(withStart: startOfYesterday, end: now, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 100, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+            guard let samples = samples as? [HKCategorySample] else { return }
+            var totalSeconds: TimeInterval = 0
+            for s in samples {
+                if #available(watchOS 9.0, *) {
+                    if s.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue ||
+                       s.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue ||
+                       s.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue ||
+                       s.value == HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue {
+                        totalSeconds += s.endDate.timeIntervalSince(s.startDate)
+                    }
+                } else {
+                    if s.value == HKCategoryValueSleepAnalysis.asleep.rawValue {
+                        totalSeconds += s.endDate.timeIntervalSince(s.startDate)
+                    }
+                }
+            }
+            let minutes = Int(totalSeconds / 60)
+            Task { @MainActor in
+                self?.lastNightSleepMinutes = minutes > 0 ? minutes : nil
+            }
+        }
+        healthStore.execute(query)
     }
 
     func fetchLatestSample(for identifier: HKQuantityTypeIdentifier) {

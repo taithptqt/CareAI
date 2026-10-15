@@ -4,8 +4,8 @@
     <string name="wear_title">CareAI Watch</string>
     <string name="wear_status_monitoring">🟢 Giám Sát Cổ Tay</string>
     <string name="wear_status_offline_buffer">🟡 Lưu Đệm Cục Bộ</string>
-    <string name="wear_vitals_label">❤️ 76 BPM   •   🫁 98% SpO2</string>
+    <string name="wear_vitals_label">❤️ -- BPM   •   --</string>
     <string name="wear_simulate_fall_btn">🚨 THỬ NGHIỆM TÉ NGÃ</string>
-    <string name="wear_send_sos_btn">🆘 BẮN TÍN HIỆU SOS</string>
+    <string name="wear_send_sos_btn">🆘 BÁO ĐỘNG CẤP CỨU</string>
     <string name="wear_status_ready">Cảm biến BioActive sẵn sàng</string>
 </resources>
