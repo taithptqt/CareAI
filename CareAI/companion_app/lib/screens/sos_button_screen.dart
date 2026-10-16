@@ -1643,7 +1643,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           ],
         ),
         content: Text(
-          'Toàn bộ tính năng bảo vệ, định vị và gửi tín hiệu SOS của cụ ${_elderName.isNotEmpty ? _elderName : "người cao tuổi"} trên CẢ ĐIỆN THOẠI VÀ ĐỒNG HỒ sẽ dừng hoạt động.\n\nBạn sẽ cần quét mã PIN mới để kết nối lại.',
+          'Toàn bộ tính năng bảo vệ, định vị và gửi tín hiệu SOS của ông/bà ${_elderName.isNotEmpty ? _elderName : "người cao tuổi"} trên CẢ ĐIỆN THOẠI VÀ ĐỒNG HỒ sẽ dừng hoạt động.\n\nBạn sẽ cần quét mã PIN mới để kết nối lại.',
           style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 13, height: 1.4),
         ),
         actions: [
@@ -2205,7 +2205,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                           const SizedBox(height: 2),
                           Text(
                             _activeIncidentStatus == 'ACKNOWLEDGED'
-                                ? '${_acknowledgedByName ?? 'Người thân'} đã tiếp nhận${_acknowledgedAt != null ? ' lúc ${DateFormat('HH:mm').format(_acknowledgedAt!.toLocal())}' : ''}\n${_acknowledgedNote != null && _acknowledgedNote!.isNotEmpty ? _acknowledgedNote! : 'Đang đến hỗ trợ, cụ yên tâm nhé!'}'
+                                ? '${_acknowledgedByName ?? 'Người thân'} đã tiếp nhận${_acknowledgedAt != null ? ' lúc ${DateFormat('HH:mm').format(_acknowledgedAt!.toLocal())}' : ''}\n${_acknowledgedNote != null && _acknowledgedNote!.isNotEmpty ? _acknowledgedNote! : 'Đang đến hỗ trợ, ông/bà yên tâm nhé!'}'
                                 : 'Mã: ${_lastSosPacketId ?? 'SOS'}\nĐang chờ người nhà tiếp nhận...',
                             style: TextStyle(
                               color: _activeIncidentStatus == 'ACKNOWLEDGED'

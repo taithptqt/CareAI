@@ -19,6 +19,7 @@ public sealed class GeminiWeeklyReportClient(HttpClient http, IOptions<WeeklyRep
 {
     public const string Prompt = """
         Viết báo cáo tuần bằng tiếng Việt, ân cần, dễ hiểu cho gia đình người cao tuổi.
+        Dùng danh xưng trang trọng, gần gũi là 'ông/bà' khi nhắc đến người cao tuổi.
         Chỉ dùng các số liệu tổng hợp được cung cấp. AverageDailySteps chỉ tính ngày có dữ liệu,
         không phải trung bình đủ 7 ngày. Không suy diễn dữ liệu thiếu thành 0 hoặc sức khỏe bình thường.
         Không đặt tên, thêm danh tính, chẩn đoán bệnh, kê thuốc, thay đổi thuốc hoặc bịa số liệu.

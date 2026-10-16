@@ -71,7 +71,7 @@ public class IncidentLocationsController(CareAiDbContext db) : ControllerBase
         {
             IncidentId = incidentId, AlertCycleNumber = incident.AlertCycleNumber,
             EventType = "LOCATION_ATTACHED",
-            Description = $"Điện thoại của cụ gửi {(request.IsSimulated ? "GPS mô phỏng" : "GPS")} lúc {capturedAt:O}: {coordinates}",
+            Description = $"Điện thoại của ông/bà gửi {(request.IsSimulated ? "GPS mô phỏng" : "GPS")} lúc {capturedAt:O}: {coordinates}",
             RecordedAt = now
         });
         var recipients = await db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive)

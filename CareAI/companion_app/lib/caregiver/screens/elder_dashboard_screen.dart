@@ -2898,7 +2898,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Trong khung giờ này, CareAI sẽ áp dụng dải ngưỡng ban đêm để tự động triệt tiêu báo động giả khi nhịp tim cụ chậm sinh lý lúc ngủ sâu.',
+                'Trong khung giờ này, CareAI sẽ áp dụng dải ngưỡng ban đêm để tự động triệt tiêu báo động giả khi nhịp tim ông/bà chậm sinh lý lúc ngủ sâu.',
                 style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.4),
               ),
               const SizedBox(height: 16),
