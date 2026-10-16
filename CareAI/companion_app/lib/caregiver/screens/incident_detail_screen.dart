@@ -190,12 +190,27 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     }
   }
 
+  bool get _isStaleIncident {
+    final upper = _incident.emergencyType.toUpperCase();
+    return upper.contains('STALE') || upper.contains('OFFLINE');
+  }
+
   Future<void> _resolve() async {
     final caregiverName = await CaregiverApiService.instance.getCaregiverName();
-    final defaultNote = (caregiverName != null && caregiverName.trim().isNotEmpty)
-        ? '$caregiverName đã tiếp nhận và hỗ trợ an toàn.'
-        : 'Người thân đã tiếp nhận và hỗ trợ an toàn.';
-    _notes.text = defaultNote;
+    final isTechnical = _isStaleIncident;
+
+    String finalNotes;
+    if (isTechnical) {
+      // Hướng 1: 1-Tap Resolve cho sự cố kỹ thuật (mất tín hiệu, kết nối thiết bị)
+      // Tự động giải quyết ngay 1 chạm, bỏ hoàn toàn popup hộp thoại giải quyết
+      finalNotes = (caregiverName != null && caregiverName.trim().isNotEmpty)
+          ? '$caregiverName đã kiểm tra kết nối thiết bị bình thường.'
+          : 'Người thân đã kiểm tra kết nối thiết bị bình thường.';
+    } else {
+      final defaultNote = (caregiverName != null && caregiverName.trim().isNotEmpty)
+          ? '$caregiverName đã tiếp nhận và hỗ trợ an toàn.'
+          : 'Người thân đã tiếp nhận và hỗ trợ an toàn.';
+      _notes.text = defaultNote;
 
     final quickChips = [
       'Cụ đã an toàn',
@@ -204,6 +219,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
       'Đã liên hệ 115',
     ];
 
+    if (!mounted) return;
     final notes = await showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -279,8 +295,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
         ),
       ),
     );
-    if (notes == null || !mounted) return;
-    final finalNotes = notes.trim().isEmpty ? defaultNote : notes.trim();
+      if (notes == null || !mounted) return;
+      finalNotes = notes.trim().isEmpty ? defaultNote : notes.trim();
+    }
 
     setState(() => _busy = true);
     try {
@@ -289,7 +306,13 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
       await _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã giải quyết sự cố thành công.')),
+          SnackBar(
+            content: Text(
+              isTechnical
+                  ? 'Đã giải quyết sự cố mất tín hiệu: Kết nối thiết bị bình thường.'
+                  : 'Đã giải quyết sự cố thành công.',
+            ),
+          ),
         );
       }
     } catch (error) {

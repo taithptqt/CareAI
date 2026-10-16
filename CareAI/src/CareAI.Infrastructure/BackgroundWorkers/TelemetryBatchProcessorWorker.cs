@@ -118,6 +118,8 @@ public class TelemetryBatchProcessorWorker : BackgroundService
                 using var scope = _serviceProvider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<CareAiDbContext>();
                 var clinicalEngine = scope.ServiceProvider.GetRequiredService<ClinicalDiagnosticEngine>();
+                var staleEngine = scope.ServiceProvider.GetService<DeviceStaleEngine>()
+                    ?? new DeviceStaleEngine(db, Microsoft.Extensions.Logging.Abstractions.NullLogger<DeviceStaleEngine>.Instance);
 
                 var now = DateTime.UtcNow;
                 int addedMeasurements = 0;
@@ -237,6 +239,13 @@ public class TelemetryBatchProcessorWorker : BackgroundService
                         measuredAtUtc: eval.Timestamp,
                         ct: ct,
                         maxBackfillAge: TimeSpan.FromMinutes(20));
+                }
+
+                // 6. Hướng 3: Tự động đóng sự cố STALE_OFFLINE khi thiết bị gửi lại viễn trắc thành công
+                var elderIds = batch.Select(b => b.ElderProfileId).Where(id => !string.IsNullOrEmpty(id)).Distinct();
+                foreach (var elderId in elderIds)
+                {
+                    await staleEngine.TryAutoResolveStaleIncidentAsync(elderId, now, ct);
                 }
 
                 return; // Thành công, thoát vòng lặp retry

@@ -216,6 +216,42 @@ public class DeviceStaleTests
         }
     }
 
+    [Fact]
+    public async Task TryAutoResolveStaleIncident_AutoResolves_ActiveStaleOfflineIncident_Immediately()
+    {
+        await using var db = NewMemoryDb();
+        var now = DateTime.UtcNow;
+        await SeedAsync(db, now.AddMinutes(-10));
+
+        // Tạo sự cố mất tín hiệu STALE_OFFLINE
+        var incident = new Incident
+        {
+            Id = "inc-stale-01",
+            ElderProfileId = "elder",
+            TriggeredByDeviceId = "device-a",
+            EmergencyType = EmergencyType.StaleOffline,
+            Severity = IncidentSeverity.Medium,
+            Status = IncidentStatus.Open,
+            TriggeredAt = now.AddMinutes(-5),
+            CreatedAt = now.AddMinutes(-5),
+            UpdatedAt = now.AddMinutes(-5)
+        };
+        db.Incidents.Add(incident);
+        await db.SaveChangesAsync();
+
+        var engine = Engine(db);
+        var resolved = await engine.TryAutoResolveStaleIncidentAsync("elder", now);
+
+        Assert.True(resolved);
+        var updated = await db.Incidents.SingleAsync(i => i.Id == "inc-stale-01");
+        Assert.Equal(IncidentStatus.Resolved, updated.Status);
+        Assert.NotNull(updated.ResolvedAt);
+        Assert.Contains("kết nối lại", updated.ResolutionNotes);
+
+        var timelineEvent = await db.IncidentTimelineEvents.SingleAsync(e => e.IncidentId == "inc-stale-01" && e.EventType == "AUTO_RESOLVED");
+        Assert.NotNull(timelineEvent);
+    }
+
     private static DeviceStaleEngine Engine(CareAiDbContext db) =>
         new(db, NullLogger<DeviceStaleEngine>.Instance);
 

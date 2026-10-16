@@ -20,11 +20,17 @@ public class DevicesController : ControllerBase
 {
     private readonly CareAiDbContext _db;
     private readonly ILogger<DevicesController> _logger;
+    private readonly DeviceStaleEngine _staleEngine;
 
-    public DevicesController(CareAiDbContext db, ILogger<DevicesController> logger)
+    [ActivatorUtilitiesConstructor]
+    public DevicesController(
+        CareAiDbContext db,
+        ILogger<DevicesController> logger,
+        DeviceStaleEngine? staleEngine = null)
     {
         _db = db;
         _logger = logger;
+        _staleEngine = staleEngine ?? new DeviceStaleEngine(db, Microsoft.Extensions.Logging.Abstractions.NullLogger<DeviceStaleEngine>.Instance);
     }
 
     /// <summary>
@@ -194,6 +200,7 @@ public class DevicesController : ControllerBase
         elder.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
+        await _staleEngine.TryAutoResolveStaleIncidentAsync(elder.Id, now, ct);
         _logger.LogInformation("[PAIR-SUCCESS] Thiết bị {DeviceId} đã ghép nối thành công với Cụ {ElderId} ({Name})", 
             request.DeviceId, elder.Id, elder.FullName);
 
@@ -754,6 +761,11 @@ public class DevicesController : ControllerBase
         }
 
         await _db.SaveChangesAsync(ct);
+        if (isConnected)
+        {
+            // Hướng 3: Tự động đóng sự cố STALE_OFFLINE khi đồng hồ kết nối lại với điện thoại
+            await _staleEngine.TryAutoResolveStaleIncidentAsync(companionDevice.ElderProfileId, now, ct);
+        }
         _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}, TodaySteps={TodaySteps}, HR={HR}, SpO2={SpO2}, BP={BP}, Sleep={Sleep}, Deep={Deep}, Wake={Wake}) cho Cụ {ElderId}",
             authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, request.TodaySteps, request.HeartRate, request.Spo2, request.BpSystolic, request.SleepMinutes, request.DeepSleepMinutes, request.WakeCount, companionDevice.ElderProfileId);
 

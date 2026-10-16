@@ -180,6 +180,43 @@ void main() {
       );
       expect(find.text('Nhịp tim nguy kịch mới sau ACK. Tái mở chu kỳ 2.'), findsOneWidget);
     });
+
+    testWidgets('resolves technical signal loss incident in 1 tap without showing AlertDialog', (tester) async {
+      final incident = Incident.fromJson({
+        'id': 'inc-stale-201',
+        'elderProfileId': 'elder-stale',
+        'elderName': 'Cụ Đỗ Văn Khang',
+        'triggeredByDeviceId': 'watch-stale',
+        'emergencyType': 'STALE_OFFLINE',
+        'severity': 'Medium',
+        'status': 'Acknowledged',
+        'triggeredAt': '2026-10-17T08:00:00Z',
+        'acknowledgedAt': '2026-10-17T08:05:00Z',
+        'acknowledgedByCaregiverId': 'caregiver-01',
+        'timeline': [
+          {
+            'eventType': 'TRIGGERED',
+            'description': 'Mất tín hiệu thiết bị',
+            'recordedAt': '2026-10-17T08:00:00Z',
+          },
+          {
+            'eventType': 'ACKNOWLEDGED',
+            'description': 'Người thân tiếp nhận',
+            'recordedAt': '2026-10-17T08:05:00Z',
+          },
+        ],
+      });
+
+      await tester.pumpWidget(MaterialApp(home: IncidentDetailScreen(incident: incident)));
+
+      expect(find.text('Giải quyết sự cố'), findsOneWidget);
+
+      await tester.tap(find.text('Giải quyết sự cố'));
+      await tester.pump();
+
+      // Kiểm tra KHÔNG xuất hiện AlertDialog (1-Tap resolve)
+      expect(find.byType(AlertDialog), findsNothing);
+    });
   });
 
   group('IncidentHistoryScreen UI & Filters Tests', () {

@@ -20,6 +20,7 @@ public class TelemetryController : ControllerBase
     private readonly TelemetryEngine _telemetryEngine;
     private readonly ClinicalDiagnosticEngine _clinicalEngine;
     private readonly UrgentTelemetryEngine _urgentEngine;
+    private readonly DeviceStaleEngine _staleEngine;
     private readonly ILogger<TelemetryController> _logger;
 
     [ActivatorUtilitiesConstructor]
@@ -30,6 +31,7 @@ public class TelemetryController : ControllerBase
         TelemetryEngine telemetryEngine,
         ClinicalDiagnosticEngine clinicalEngine,
         UrgentTelemetryEngine? urgentEngine = null,
+        DeviceStaleEngine? staleEngine = null,
         ILogger<TelemetryController>? logger = null)
     {
         _db = db;
@@ -38,6 +40,7 @@ public class TelemetryController : ControllerBase
         _telemetryEngine = telemetryEngine;
         _clinicalEngine = clinicalEngine;
         _urgentEngine = urgentEngine ?? new UrgentTelemetryEngine(db, clinicalEngine);
+        _staleEngine = staleEngine ?? new DeviceStaleEngine(db, Microsoft.Extensions.Logging.Abstractions.NullLogger<DeviceStaleEngine>.Instance);
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<TelemetryController>.Instance;
     }
 
@@ -47,7 +50,7 @@ public class TelemetryController : ControllerBase
         ClinicalDiagnosticEngine clinicalEngine,
         UrgentTelemetryEngine urgentEngine,
         ILogger<TelemetryController> logger)
-        : this(db, null, null, telemetryEngine, clinicalEngine, urgentEngine, logger)
+        : this(db, null, null, telemetryEngine, clinicalEngine, urgentEngine, null, logger)
     {
     }
 
@@ -58,7 +61,7 @@ public class TelemetryController : ControllerBase
         TelemetryEngine telemetryEngine,
         ClinicalDiagnosticEngine clinicalEngine,
         ILogger<TelemetryController> logger)
-        : this(db, queue, cache, telemetryEngine, clinicalEngine, null, logger)
+        : this(db, queue, cache, telemetryEngine, clinicalEngine, null, null, logger)
     {
     }
 
@@ -274,6 +277,9 @@ public class TelemetryController : ControllerBase
         device.LastHeartbeat = now;
         device.UpdatedAt = now;
         await _db.SaveChangesAsync(ct);
+
+        // Hướng 3: Tự động đóng sự cố STALE_OFFLINE khi thiết bị gửi lại tín hiệu Heartbeat
+        await _staleEngine.TryAutoResolveStaleIncidentAsync(device.ElderProfileId, now, ct);
 
         return Ok(new
         {

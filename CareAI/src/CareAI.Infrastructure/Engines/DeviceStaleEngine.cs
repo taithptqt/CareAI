@@ -120,36 +120,66 @@ public class DeviceStaleEngine
             return;
         }
 
-        if (active == null) return;
-        if (active.EmergencyType == EmergencyType.StaleOffline)
+        await TryAutoResolveStaleIncidentAsync(elderId, now, ct);
+    }
+
+    /// <summary>
+    /// Tự động đóng (Auto-resolve) sự cố STALE_OFFLINE khi thiết bị gửi lại tín hiệu (telemetry/heartbeat/sync) (Hướng 3).
+    /// </summary>
+    public async Task<bool> TryAutoResolveStaleIncidentAsync(string elderId, DateTime now, CancellationToken ct = default)
+    {
+        try
         {
-            active.Status = IncidentStatus.Resolved;
-            active.ResolvedAt = now;
-            active.ResolutionNotes = "Hệ thống tự động đóng: Ít nhất một thiết bị đã kết nối lại.";
-            active.ConnectivityLostAt = null;
-            active.UpdatedAt = now;
-            _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
+            var active = await _db.Incidents.FirstOrDefaultAsync(i => i.ElderProfileId == elderId &&
+                (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged), ct);
+
+            if (active == null) return false;
+
+            if (active.EmergencyType == EmergencyType.StaleOffline)
             {
-                IncidentId = active.Id, AlertCycleNumber = active.AlertCycleNumber,
-                EventType = "AUTO_RESOLVED", Description = active.ResolutionNotes,
-                RecordedAt = now
-            });
-            await QueueOutboxAsync(active, "DEVICE_RECONNECTED",
-                "Thiết bị đã kết nối lại", active.ResolutionNotes, now, ct);
-            await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("[WATCHDOG-RECOVER] Connectivity restored for elder {ElderId}.", elderId);
+                active.Status = IncidentStatus.Resolved;
+                active.ResolvedAt = now;
+                active.ResolutionNotes = "Hệ thống tự động đóng: Ít nhất một thiết bị đã kết nối lại.";
+                active.ConnectivityLostAt = null;
+                active.UpdatedAt = now;
+                _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
+                {
+                    IncidentId = active.Id, AlertCycleNumber = active.AlertCycleNumber,
+                    EventType = "AUTO_RESOLVED", Description = active.ResolutionNotes,
+                    RecordedAt = now
+                });
+                await QueueOutboxAsync(active, "DEVICE_RECONNECTED",
+                    "Thiết bị đã kết nối lại", active.ResolutionNotes, now, ct);
+                await _db.SaveChangesAsync(ct);
+                _logger.LogInformation("[DEVICE-RECONNECT-AUTO-RESOLVED] STALE_OFFLINE incident {IncidentId} auto-resolved for elder {ElderId}.", active.Id, elderId);
+                return true;
+            }
+            else if (active.ConnectivityLostAt.HasValue)
+            {
+                active.ConnectivityLostAt = null;
+                active.UpdatedAt = now;
+                _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
+                {
+                    IncidentId = active.Id, AlertCycleNumber = active.AlertCycleNumber,
+                    EventType = "DEVICE_RECONNECTED",
+                    Description = "Ít nhất một thiết bị đã gửi tín hiệu trở lại.", RecordedAt = now
+                });
+                await _db.SaveChangesAsync(ct);
+                return false;
+            }
+
+            return false;
         }
-        else if (active.ConnectivityLostAt.HasValue)
+        catch (DbUpdateConcurrencyException)
         {
-            active.ConnectivityLostAt = null;
-            active.UpdatedAt = now;
-            _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
-            {
-                IncidentId = active.Id, AlertCycleNumber = active.AlertCycleNumber,
-                EventType = "DEVICE_RECONNECTED",
-                Description = "Ít nhất một thiết bị đã gửi tín hiệu trở lại.", RecordedAt = now
-            });
-            await _db.SaveChangesAsync(ct);
+            _db.ChangeTracker.Clear();
+            _logger.LogInformation("[DEVICE-RECONNECT-RACE] Incident changed during auto-resolve for elder {ElderId}.", elderId);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[DEVICE-RECONNECT-ERROR] Failed to auto-resolve stale incident for elder {ElderId}.", elderId);
+            return false;
         }
     }
 
