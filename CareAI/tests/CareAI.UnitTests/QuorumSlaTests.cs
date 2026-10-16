@@ -308,6 +308,105 @@ public class QuorumSlaTests
     }
 
     [Fact]
+    public async Task PostAck_VitalsStable_QueuesGentleReminderNotification()
+    {
+        await using var db = NewMemoryDb();
+        var start = DateTime.UtcNow;
+        await SeedAsync(db, start, twoCaregivers: true);
+        var incident = await db.Incidents.SingleAsync();
+        incident.Status = IncidentStatus.Acknowledged;
+        incident.AcknowledgedAt = start;
+        incident.ReminderCount = 0;
+        incident.NextReminderAt = start.AddMinutes(15);
+        await db.SaveChangesAsync();
+
+        var sla = Sla(db, stableVitalsReminderMinutes: 15, maxStableVitalsReminders: 2);
+
+        // Trước 15 phút: Chưa gửi
+        await sla.CheckDueAsync(start.AddMinutes(14));
+        Assert.Empty(db.NotificationOutboxes);
+
+        // Đủ 15 phút: Gửi nhắc nhở thông báo nhẹ nhàng đánh thức màn hình
+        await sla.CheckDueAsync(start.AddMinutes(15));
+        Assert.Equal(2, await db.NotificationOutboxes.CountAsync()); // 2 caregivers
+        var outbox = await db.NotificationOutboxes.FirstAsync();
+        Assert.Contains("🟢 Sinh hiệu của Test Elder đã ổn định", outbox.Title);
+        Assert.Contains("STABLE_VITALS_REMINDER", outbox.DataPayloadJson);
+        Assert.Contains("\"siren\":false", outbox.DataPayloadJson);
+        Assert.Contains("\"priority\":\"HIGH\"", outbox.DataPayloadJson);
+
+        var timelineEvent = Assert.Single(db.IncidentTimelineEvents.Where(e => e.EventType == "STABLE_VITALS_REMINDER"));
+        Assert.Contains("Sinh hiệu của Test Elder đã ổn định", timelineEvent.Description);
+
+        // Incident chuyển sang lượt nhắc thứ 2 sau 15 phút nữa
+        Assert.Equal(1, incident.ReminderCount);
+        Assert.Equal(start.AddMinutes(30), incident.NextReminderAt);
+
+        // Lượt nhắc thứ 2 (đạt max 2 lần):
+        await sla.CheckDueAsync(start.AddMinutes(30));
+        Assert.Equal(4, await db.NotificationOutboxes.CountAsync());
+        Assert.Equal(2, incident.ReminderCount);
+        Assert.Null(incident.NextReminderAt); // Đã đạt max, không gửi thêm
+    }
+
+    [Fact]
+    public async Task PostAck_VitalsReescalating_DefersReminder()
+    {
+        await using var db = NewMemoryDb();
+        var start = DateTime.UtcNow;
+        await SeedAsync(db, start);
+        var incident = await db.Incidents.SingleAsync();
+        incident.Status = IncidentStatus.Acknowledged;
+        incident.AcknowledgedAt = start;
+        incident.ReminderCount = 0;
+        incident.NextReminderAt = start.AddMinutes(15);
+
+        // Có telemetry nguy kịch sau khi ACK (nhịp tim 195 bpm)
+        db.HealthMeasurements.Add(new HealthMeasurement
+        {
+            ElderProfileId = incident.ElderProfileId,
+            DeviceId = "device",
+            MetricType = "HEART_RATE",
+            Value = 195,
+            Timestamp = start.AddMinutes(10),
+            RecordedAt = start.AddMinutes(10)
+        });
+        await db.SaveChangesAsync();
+
+        var sla = Sla(db, stableVitalsReminderMinutes: 15);
+        await sla.CheckDueAsync(start.AddMinutes(15));
+
+        // Không gửi nhắc nhở sinh hiệu ổn định vì tim đang nguy kịch
+        Assert.Empty(db.NotificationOutboxes);
+        Assert.Equal(0, incident.ReminderCount);
+        Assert.Equal(start.AddMinutes(20), incident.NextReminderAt); // Bị hoãn 5 phút
+    }
+
+    [Fact]
+    public void FirebaseMessage_StableVitalsReminder_BuildsHighPriorityWithoutSiren()
+    {
+        var item = new NotificationOutbox
+        {
+            Id = "outbox-reminder",
+            IncidentId = "incident-1",
+            AlertCycleNumber = 1,
+            PushToken = "token-1",
+            Title = "🟢 Sinh hiệu của cụ đã ổn định",
+            Body = "Chỉ số an toàn 15 phút qua",
+            DataPayloadJson = "{\"incidentId\":\"incident-1\",\"eventType\":\"STABLE_VITALS_REMINDER\",\"priority\":\"HIGH\",\"siren\":false}"
+        };
+
+        var message = FirebasePushSender.BuildMessage(item);
+        Assert.Null(message.Notification); // Data-only push to reach Flutter background handler
+        Assert.Equal(Priority.High, message.Android.Priority);
+        Assert.Equal("false", message.Data["siren"]);
+        Assert.Equal("STABLE_VITALS_REMINDER", message.Data["eventType"]);
+        Assert.Equal("10", message.Apns.Headers["apns-priority"]);
+        Assert.Equal("time-sensitive", message.Apns.Aps.CustomData["interruption-level"]);
+        Assert.Equal("default", message.Apns.Aps.Sound);
+    }
+
+    [Fact]
     public async Task SqlServer_TwoSlaAndDispatchWorkers_DoNotDuplicateOutboxOrSend()
     {
         var configured = Environment.GetEnvironmentVariable("CAREAI_TEST_SQL_CONNECTION_STRING");
@@ -368,9 +467,14 @@ public class QuorumSlaTests
     private static NotificationDispatchEngine Dispatch(CareAiDbContext db, IPushSender sender) =>
         new(db, sender, NullLogger<NotificationDispatchEngine>.Instance);
 
-    private static AlertSlaEngine Sla(CareAiDbContext db, int maxReminders = 3) =>
-        new(db, Options.Create(new AlertingOptions { MaxReminders = maxReminders }),
-            NullLogger<AlertSlaEngine>.Instance);
+    private static AlertSlaEngine Sla(CareAiDbContext db, int maxReminders = 3, int stableVitalsReminderMinutes = 15, int maxStableVitalsReminders = 2) =>
+        new(db, Options.Create(new AlertingOptions
+        {
+            MaxReminders = maxReminders,
+            StableVitalsReminderMinutes = stableVitalsReminderMinutes,
+            MaxStableVitalsReminders = maxStableVitalsReminders
+        }),
+        NullLogger<AlertSlaEngine>.Instance);
 
     private static CareAiDbContext NewMemoryDb() => new(new DbContextOptionsBuilder<CareAiDbContext>()
         .UseInMemoryDatabase($"Quorum_{Guid.NewGuid():N}").Options);

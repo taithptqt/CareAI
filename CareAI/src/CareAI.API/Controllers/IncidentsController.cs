@@ -8,6 +8,8 @@ using CareAI.Core.Entities;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
 using CareAI.Infrastructure.Engines;
+using CareAI.Infrastructure.Notifications;
+using Microsoft.Extensions.Options;
 
 namespace CareAI.API.Controllers;
 
@@ -17,16 +19,19 @@ public class IncidentsController : ControllerBase
 {
     private readonly CareAiDbContext _db;
     private readonly TelemetryEngine _telemetryEngine;
+    private readonly AlertingOptions _alertingOptions;
     private readonly ILogger<IncidentsController> _logger;
 
     public IncidentsController(
         CareAiDbContext db,
         TelemetryEngine telemetryEngine,
-        ILogger<IncidentsController> logger)
+        ILogger<IncidentsController> logger,
+        IOptions<AlertingOptions>? alertingOptions = null)
     {
         _db = db;
         _telemetryEngine = telemetryEngine;
         _logger = logger;
+        _alertingOptions = alertingOptions?.Value ?? new AlertingOptions();
     }
 
     /// <summary>
@@ -338,7 +343,8 @@ public class IncidentsController : ControllerBase
         incident.Status = IncidentStatus.Acknowledged;
         incident.AcknowledgedAt = now;
         incident.AcknowledgedByCaregiverId = caregiverId;
-        incident.NextReminderAt = null;
+        incident.ReminderCount = 0;
+        incident.NextReminderAt = now.AddMinutes(_alertingOptions.StableVitalsReminderMinutes);
         incident.AcknowledgedCriticalHeartRateBpm = incident.LatestCriticalHeartRateBpm;
         incident.AcknowledgedCriticalRuleCode = incident.LatestCriticalRuleCode;
         incident.UpdatedAt = now;

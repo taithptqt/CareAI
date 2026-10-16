@@ -128,7 +128,8 @@ public class FirebasePushSender : IPushSender
             string.Equals(siren, "true", StringComparison.OrdinalIgnoreCase);
         var statusUpdate = data.TryGetValue("eventType", out var eventType) &&
             (eventType.Equals("ACKNOWLEDGED", StringComparison.OrdinalIgnoreCase) ||
-             eventType.Equals("RESOLVED", StringComparison.OrdinalIgnoreCase));
+             eventType.Equals("RESOLVED", StringComparison.OrdinalIgnoreCase) ||
+             eventType.Equals("STABLE_VITALS_REMINDER", StringComparison.OrdinalIgnoreCase));
         if (data.TryGetValue("priority", out var priority) &&
             (priority.Equals("HIGH", StringComparison.OrdinalIgnoreCase) ||
              priority.Equals("CRITICAL", StringComparison.OrdinalIgnoreCase)))

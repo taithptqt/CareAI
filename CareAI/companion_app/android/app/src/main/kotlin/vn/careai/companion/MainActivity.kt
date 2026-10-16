@@ -287,8 +287,9 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun checkCaregiverAlertFromIntent(intent: Intent?) {
-        val id = intent?.getStringExtra("caregiver_incident_id")?.takeIf { it.isNotBlank() } ?: return
+        val id = (intent?.getStringExtra("caregiver_incident_id") ?: intent?.getStringExtra("incidentId"))?.takeIf { it.isNotBlank() } ?: return
         intent.removeExtra("caregiver_incident_id")
+        intent.removeExtra("incidentId")
         if (caregiverAlertChannel == null) pendingCaregiverIncidentId = id
         else caregiverAlertChannel?.invokeMethod("openIncident", id)
     }
