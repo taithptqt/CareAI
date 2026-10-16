@@ -488,9 +488,7 @@ final class HealthSync: ObservableObject {
             (.stepCount, "STEPS", HKUnit.count(), "count"),
             (.oxygenSaturation, "SPO2", HKUnit.percent(), "%"),
             (.bloodPressureSystolic, "BP_SYSTOLIC", HKUnit.millimeterOfMercury(), "mmHg"),
-            (.bloodPressureDiastolic, "BP_DIASTOLIC", HKUnit.millimeterOfMercury(), "mmHg"),
-            (.bodyTemperature, "BODY_TEMPERATURE", HKUnit.degreeCelsius(), "°C"),
-            (.respiratoryRate, "RESPIRATORY_RATE", HKUnit.count().unitDivided(by: .minute()), "count/min")
+            (.bloodPressureDiastolic, "BP_DIASTOLIC", HKUnit.millimeterOfMercury(), "mmHg")
         ]
         return list
     }
