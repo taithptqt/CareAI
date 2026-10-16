@@ -565,9 +565,61 @@ public class DevicesController : ControllerBase
         companionDevice.LastHeartbeat = now;
         companionDevice.UpdatedAt = now;
 
+        // Tích hợp đồng bộ bước chân thực tế từ cảm biến đồng hồ (chỉ lưu khi có giá trị thực > 0, không lưu rác)
+        if (request.TodaySteps.HasValue && request.TodaySteps.Value > 0)
+        {
+            var startOfDayUtc = now.Date;
+            var hasIntervalSteps = await _db.HealthMeasurements
+                .AnyAsync(m => m.ElderProfileId == companionDevice.ElderProfileId &&
+                               m.MetricType == "STEPS" &&
+                               m.Timestamp >= startOfDayUtc &&
+                               !m.PacketId.StartsWith("SYNC_STEPS_"), ct);
+
+            if (!hasIntervalSteps)
+            {
+                var existingStepsToday = await _db.HealthMeasurements
+                    .FirstOrDefaultAsync(m => m.ElderProfileId == companionDevice.ElderProfileId &&
+                                              m.MetricType == "STEPS" &&
+                                              m.Timestamp >= startOfDayUtc &&
+                                              m.PacketId.StartsWith("SYNC_STEPS_"), ct);
+                if (existingStepsToday != null)
+                {
+                    existingStepsToday.Value = request.TodaySteps.Value;
+                    existingStepsToday.Timestamp = now;
+                }
+                else
+                {
+                    _db.HealthMeasurements.Add(new HealthMeasurement
+                    {
+                        ElderProfileId = companionDevice.ElderProfileId,
+                        DeviceId = watchDevice?.Id ?? companionDevice.Id,
+                        PacketId = $"SYNC_STEPS_{now.Ticks}",
+                        MetricType = "STEPS",
+                        Value = request.TodaySteps.Value,
+                        Unit = "count",
+                        Timestamp = now,
+                        RecordedAt = now
+                    });
+                }
+            }
+            else
+            {
+                var legacySyncSteps = await _db.HealthMeasurements
+                    .Where(m => m.ElderProfileId == companionDevice.ElderProfileId &&
+                                m.MetricType == "STEPS" &&
+                                m.Timestamp >= startOfDayUtc &&
+                                m.PacketId.StartsWith("SYNC_STEPS_"))
+                    .ToListAsync(ct);
+                if (legacySyncSteps.Count > 0)
+                {
+                    _db.HealthMeasurements.RemoveRange(legacySyncSteps);
+                }
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}) cho Cụ {ElderId}",
-            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, companionDevice.ElderProfileId);
+        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}, TodaySteps={TodaySteps}) cho Cụ {ElderId}",
+            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, request.TodaySteps, companionDevice.ElderProfileId);
 
         return Ok(new
         {
@@ -577,7 +629,8 @@ public class DevicesController : ControllerBase
             disconnectReason = request.DisconnectReason,
             isWorn = watchDevice?.IsWatchWorn ?? request.IsWorn,
             isCharging = watchDevice?.IsWatchCharging ?? request.IsCharging,
-            batteryLevel = watchDevice?.WatchBatteryLevel ?? request.BatteryLevel
+            batteryLevel = watchDevice?.WatchBatteryLevel ?? request.BatteryLevel,
+            todaySteps = request.TodaySteps
         });
     }
 }

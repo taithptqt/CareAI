@@ -57,14 +57,16 @@ class WearOsMessageReceiverService : WearableListenerService() {
                 val isWorn = if (json.has("isWorn")) json.getBoolean("isWorn") else null
                 val isCharging = if (json.has("isCharging")) json.getBoolean("isCharging") else null
                 val batteryLevel = if (json.has("batteryLevel")) json.getInt("batteryLevel") else null
+                val todaySteps = if (json.has("todaySteps")) json.getInt("todaySteps") else null
                 val watchName = json.optString("watchName", "Galaxy Watch")
 
-                Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%")
+                Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%, steps=$todaySteps")
                 val prefs = getSharedPreferences("careai_watch_telemetry", Context.MODE_PRIVATE)
                 prefs.edit().apply {
                     if (isWorn != null) putBoolean("isWorn", isWorn)
                     if (isCharging != null) putBoolean("isCharging", isCharging)
                     if (batteryLevel != null) putInt("batteryLevel", batteryLevel)
+                    if (todaySteps != null && todaySteps > 0) putInt("todaySteps", todaySteps)
                     putString("watchName", watchName)
                     apply()
                 }
@@ -77,6 +79,7 @@ class WearOsMessageReceiverService : WearableListenerService() {
                     if (isWorn != null) putExtra("isWorn", isWorn)
                     if (isCharging != null) putExtra("isCharging", isCharging)
                     if (batteryLevel != null) putExtra("batteryLevel", batteryLevel)
+                    if (todaySteps != null && todaySteps > 0) putExtra("todaySteps", todaySteps)
                 })
             } catch (e: Exception) {
                 Log.e("CareAI-WearReceiver", "Lỗi phân tích /careai/watch_telemetry: ${e.message}")

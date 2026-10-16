@@ -66,6 +66,10 @@ class MainActivity : FlutterActivity() {
                 val b = intent.getIntExtra("batteryLevel", -1)
                 if (b >= 0) payload["batteryLevel"] = b
             }
+            if (intent.hasExtra("todaySteps")) {
+                val s = intent.getIntExtra("todaySteps", -1)
+                if (s > 0) payload["todaySteps"] = s
+            }
 
             Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Nhận sự kiện đồng hồ: isConnected=$isConnected, watch=$watchName, worn=${payload["isWorn"]}, charging=${payload["isCharging"]}, battery=${payload["batteryLevel"]} (0.1s)")
             runOnUiThread {

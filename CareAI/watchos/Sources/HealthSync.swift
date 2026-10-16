@@ -140,13 +140,16 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let machineCode = String(cString: machine)
         let resolvedModel = HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: device.name)
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "action": "WATCH_TELEMETRY",
             "isWorn": isWorn,
             "isCharging": isCharging,
             "batteryLevel": batteryLevel,
             "watchModel": resolvedModel
         ]
+        if let steps = HealthSync.shared?.todaySteps, steps > 0 {
+            payload["todaySteps"] = steps
+        }
         if session.activationState == .activated {
             session.transferUserInfo(payload)
             if session.isReachable {
@@ -453,10 +456,16 @@ final class HealthSync: ObservableObject {
     private var outboxReady = false
     private var isSending = false
     private var retryTimer: Timer?
-    private let metrics: [(HKQuantityTypeIdentifier, String, HKUnit, String)] = [
-        (.heartRate, "HEART_RATE", HKUnit.count().unitDivided(by: .minute()), "bpm"),
-        (.oxygenSaturation, "SPO2", HKUnit.percent(), "%")
-    ]
+    private var metrics: [(HKQuantityTypeIdentifier, String, HKUnit, String)] {
+        var list: [(HKQuantityTypeIdentifier, String, HKUnit, String)] = [
+            (.heartRate, "HEART_RATE", HKUnit.count().unitDivided(by: .minute()), "bpm"),
+            (.stepCount, "STEPS", HKUnit.count(), "count")
+        ]
+        if hasSpo2Hardware {
+            list.append((.oxygenSaturation, "SPO2", HKUnit.percent(), "%"))
+        }
+        return list
+    }
 
     // Cảm biến chuyển động & Phát hiện té ngã
     @Published var batterySaverEnabled = true
@@ -587,6 +596,9 @@ final class HealthSync: ObservableObject {
             let steps = Int(sum.doubleValue(for: .count()))
             Task { @MainActor in
                 self?.todaySteps = steps
+                if steps > 0 {
+                    WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                }
             }
         }
         healthStore.execute(query)
@@ -1293,6 +1305,10 @@ final class HealthSync: ObservableObject {
                     guard let quantity = sample as? HKQuantitySample else { continue }
                     let raw = quantity.quantity.doubleValue(for: metric.2)
                     let value = identifier == .oxygenSaturation ? raw * 100 : raw
+                    if identifier == .stepCount {
+                        if value <= 0 { continue }
+                        self.fetchTodaySteps()
+                    }
                     if identifier == .heartRate,
                        sample.endDate > (self.latestHeartRateAt ?? .distantPast) {
                         self.latestHeartRate = value

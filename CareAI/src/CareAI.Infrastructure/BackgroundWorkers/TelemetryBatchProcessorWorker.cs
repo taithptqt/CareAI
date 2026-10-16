@@ -154,6 +154,10 @@ public class TelemetryBatchProcessorWorker : BackgroundService
                     // 2. Thêm các mẫu đo sinh hiệu vào HealthMeasurements (tránh trùng lặp theo UIX_HealthMeasurements_Deduplication)
                     foreach (var sample in msg.Samples)
                     {
+                        if (string.IsNullOrWhiteSpace(sample.MetricType) || !double.IsFinite(sample.Value) || sample.Value <= 0)
+                        {
+                            continue;
+                        }
                         var timestamp = sample.Timestamp == default ? msg.ReceivedAt : sample.Timestamp;
                         var metricType = sample.MetricType.ToUpperInvariant();
 

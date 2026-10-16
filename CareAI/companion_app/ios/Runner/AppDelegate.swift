@@ -616,6 +616,9 @@ import workmanager_apple
     if let charging = UserDefaults.standard.object(forKey: "careai_watch_is_charging") as? Bool {
       payload["isCharging"] = charging
     }
+    if let steps = UserDefaults.standard.object(forKey: "careai_watch_today_steps") as? Int, steps > 0 {
+      payload["todaySteps"] = steps
+    }
 
     DispatchQueue.main.async { [weak self] in
       self?.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: payload)
@@ -669,6 +672,7 @@ import workmanager_apple
       let isWorn = payload["isWorn"] as? Bool
       let isCharging = payload["isCharging"] as? Bool
       let batteryLevel = payload["batteryLevel"] as? Int
+      let todaySteps = payload["todaySteps"] as? Int
       let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
       let rawWatchModel = payload["watchModel"] as? String
       let watchModel = (rawWatchModel != nil && rawWatchModel != "Apple Watch" && !rawWatchModel!.isEmpty)
@@ -677,11 +681,12 @@ import workmanager_apple
       if watchModel != "Apple Watch" {
         UserDefaults.standard.set(watchModel, forKey: "careai_apple_watch_name")
       }
-      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: model=%@, worn=%@, charging=%@, battery=%@", watchModel, String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel))
+      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: model=%@, worn=%@, charging=%@, battery=%@, steps=%@", watchModel, String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel), String(describing: todaySteps))
 
       if let isWorn = isWorn { UserDefaults.standard.set(isWorn, forKey: "careai_watch_is_worn") }
       if let isCharging = isCharging { UserDefaults.standard.set(isCharging, forKey: "careai_watch_is_charging") }
       if let batteryLevel = batteryLevel { UserDefaults.standard.set(batteryLevel, forKey: "careai_watch_battery_level") }
+      if let todaySteps = todaySteps, todaySteps > 0 { UserDefaults.standard.set(todaySteps, forKey: "careai_watch_today_steps") }
 
       DispatchQueue.main.async { [weak self] in
         guard let self = self else { return }
@@ -697,6 +702,7 @@ import workmanager_apple
         if let isWorn = isWorn { map["isWorn"] = isWorn }
         if let isCharging = isCharging { map["isCharging"] = isCharging }
         if let batteryLevel = batteryLevel { map["batteryLevel"] = batteryLevel }
+        if let todaySteps = todaySteps, todaySteps > 0 { map["todaySteps"] = todaySteps }
         self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: map)
       }
       return
@@ -707,6 +713,7 @@ import workmanager_apple
       UserDefaults.standard.removeObject(forKey: "careai_watch_battery_level")
       UserDefaults.standard.removeObject(forKey: "careai_watch_is_worn")
       UserDefaults.standard.removeObject(forKey: "careai_watch_is_charging")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_today_steps")
       NSLog("[CareAI-iOS] Nhận thông báo WATCH_UNPAIRED từ Apple Watch. Đã xóa trạng thái ghép nối đồng hồ.")
       notifyWatchConnectionStatus()
       return

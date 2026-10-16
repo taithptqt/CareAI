@@ -462,6 +462,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           isWorn: status.isWorn,
           isCharging: status.isCharging,
           batteryLevel: status.batteryLevel,
+          todaySteps: status.todaySteps,
         ));
         unawaited(() async {
           final serverUrl = await ApiService.instance.getServerUrl();
@@ -614,6 +615,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         isWorn: _watchStatus.isWorn,
         isCharging: _watchStatus.isCharging,
         batteryLevel: _watchStatus.batteryLevel,
+        todaySteps: _watchStatus.todaySteps,
       ));
     }
   }
@@ -1254,6 +1256,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         isWorn: _watchStatus.isWorn,
         isCharging: _watchStatus.isCharging,
         batteryLevel: _watchStatus.batteryLevel,
+        todaySteps: _watchStatus.todaySteps,
       ));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

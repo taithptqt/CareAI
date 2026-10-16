@@ -813,6 +813,94 @@ public class DashboardAndGpsTests : IDisposable
         Assert.Equal("Đã kiểm tra an toàn", resolvedDto.ResolutionNotes);
     }
 
+    [Fact]
+    public async Task Fact_WatchTelemetry_TodaySteps_SyncsProperlyAndPreventsDoubleCounting()
+    {
+        var elderId = "ELDER_STEPS_ISOLATED";
+        _db.ElderProfiles.Add(new ElderProfile
+        {
+            Id = elderId,
+            FullName = "Cụ Đo Bước Chân",
+            DateOfBirth = new DateTime(1948, 1, 1),
+            CreatedAt = DateTime.UtcNow
+        });
+        _db.ElderCaregivers.Add(new ElderCaregiver
+        {
+            CaregiverId = _authCaregiverId,
+            ElderProfileId = elderId,
+            IsActive = true
+        });
+
+        var companionId = "DEV_COMPANION_STEPS_TEST";
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = companionId,
+            ElderProfileId = elderId,
+            DeviceTokenHash = "companion_hash_steps",
+            DeviceType = "CompanionPhone",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow,
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var devicesController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devicesController.HttpContext.Items["ValidatedDeviceId"] = companionId;
+
+        // 1. Đồng bộ ban đầu khi chưa có batch chi tiết: 2500 bước
+        var res1 = await devicesController.SyncWatch(
+            new SyncWatchRequest("Apple Watch Series 10", IsConnected: true, DisconnectReason: null, IsWorn: true, IsCharging: false, BatteryLevel: 90, TodaySteps: 2500),
+            CancellationToken.None);
+        var ok1 = Assert.IsType<OkObjectResult>(res1);
+        Assert.NotNull(ok1.Value);
+
+        var dashController = CreateController(_authCaregiverId);
+        var dashRes1 = await dashController.GetElderDashboard(elderId, CancellationToken.None);
+        var okDash1 = Assert.IsType<OkObjectResult>(dashRes1);
+        var dto1 = Assert.IsType<ElderDashboardResponse>(okDash1.Value);
+        Assert.Equal(2500, dto1.TodaySteps);
+
+        // 2. Sau đó nhận các mẻ viễn trắc chi tiết từ cảm biến: 1000 + 1500 = 2500 bước
+        var now = DateTime.UtcNow;
+        _db.HealthMeasurements.AddRange(
+            new HealthMeasurement
+            {
+                ElderProfileId = elderId,
+                DeviceId = companionId,
+                PacketId = "HK_BATCH_INTERVAL_1",
+                MetricType = "STEPS",
+                Value = 1000,
+                Timestamp = now.AddHours(-2)
+            },
+            new HealthMeasurement
+            {
+                ElderProfileId = elderId,
+                DeviceId = companionId,
+                PacketId = "HK_BATCH_INTERVAL_2",
+                MetricType = "STEPS",
+                Value = 1500,
+                Timestamp = now.AddHours(-1)
+            }
+        );
+        await _db.SaveChangesAsync();
+
+        // 3. Khi đồng bộ lại với 2500 bước, hệ thống phải tự dọn SYNC_STEPS_ cũ để không cộng trùng thành 5000
+        await devicesController.SyncWatch(
+            new SyncWatchRequest("Apple Watch Series 10", IsConnected: true, DisconnectReason: null, IsWorn: true, IsCharging: false, BatteryLevel: 88, TodaySteps: 2500),
+            CancellationToken.None);
+
+        var dashRes2 = await dashController.GetElderDashboard(elderId, CancellationToken.None);
+        var okDash2 = Assert.IsType<OkObjectResult>(dashRes2);
+        var dto2 = Assert.IsType<ElderDashboardResponse>(okDash2.Value);
+        Assert.Equal(2500, dto2.TodaySteps); // Chính xác 2500, không bị nhân đôi lên 5000!
+    }
+
     public void Dispose()
     {
         _db.Dispose();

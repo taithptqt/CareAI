@@ -266,6 +266,7 @@ class WatchStatus {
   final bool? isWorn; // true = trên cổ tay, false = tháo ra, null = chưa xác định
   final bool? isCharging; // true = đang cắm sạc, false = không sạc, null = chưa xác định
   final int? batteryLevel; // 0 - 100%, null = chưa xác định
+  final int? todaySteps; // Số bước chân hôm nay đo từ đồng hồ, null = chưa có/không hỗ trợ
 
   const WatchStatus({
     required this.isConnected,
@@ -280,6 +281,7 @@ class WatchStatus {
     this.isWorn,
     this.isCharging,
     this.batteryLevel,
+    this.todaySteps,
   });
 
   factory WatchStatus.fromMap(Map<dynamic, dynamic> map) {
@@ -297,6 +299,7 @@ class WatchStatus {
       isWorn: map['isWorn'] as bool?,
       isCharging: map['isCharging'] as bool?,
       batteryLevel: map['batteryLevel'] as int?,
+      todaySteps: map['todaySteps'] as int?,
     );
   }
 }

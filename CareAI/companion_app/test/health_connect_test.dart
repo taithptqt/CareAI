@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:careai_companion/models/telemetry_sample.dart';
 import 'package:careai_companion/models/client_packet.dart';
 import 'package:careai_companion/services/health_connect_service.dart';
+import 'package:careai_companion/services/fall_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +67,29 @@ void main() {
       );
 
       expect(samples, isEmpty);
+    });
+
+    test('WatchStatus parses todaySteps correctly from native bridge payload', () {
+      final withSteps = WatchStatus.fromMap({
+        'isConnected': true,
+        'watchName': 'Apple Watch Series 10',
+        'isWorn': true,
+        'isCharging': false,
+        'batteryLevel': 92,
+        'todaySteps': 4520,
+      });
+      expect(withSteps.isConnected, isTrue);
+      expect(withSteps.watchName, 'Apple Watch Series 10');
+      expect(withSteps.todaySteps, 4520);
+      expect(withSteps.isWorn, isTrue);
+      expect(withSteps.batteryLevel, 92);
+
+      final withoutSteps = WatchStatus.fromMap({
+        'isConnected': true,
+        'watchName': 'Apple Watch SE',
+      });
+      expect(withoutSteps.isConnected, isTrue);
+      expect(withoutSteps.todaySteps, isNull);
     });
   });
 }

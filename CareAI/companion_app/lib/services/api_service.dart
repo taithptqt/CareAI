@@ -215,6 +215,7 @@ class ApiService {
     bool? isWorn,
     bool? isCharging,
     int? batteryLevel,
+    int? todaySteps,
   }) async {
     final deviceId = await getDeviceId();
     final deviceToken = await getDeviceToken();
@@ -240,6 +241,9 @@ class ApiService {
     }
     if (batteryLevel != null) {
       bodyMap['batteryLevel'] = batteryLevel;
+    }
+    if (todaySteps != null && todaySteps > 0) {
+      bodyMap['todaySteps'] = todaySteps;
     }
     final body = jsonEncode(bodyMap);
     final endpoints = _getEndpointsToTry();
@@ -335,9 +339,14 @@ class ApiService {
       'X-Device-Token': deviceToken,
     };
 
+    final validSamples = samples.where((s) => s.value > 0 && s.value.isFinite).toList();
+    if (validSamples.isEmpty) {
+      return true;
+    }
+
     final payload = {
       'batchId': batchId,
-      'samples': samples.map((s) => s.toJson()).toList(),
+      'samples': validSamples.map((s) => s.toJson()).toList(),
     };
 
     final endpoints = _getEndpointsToTry();
