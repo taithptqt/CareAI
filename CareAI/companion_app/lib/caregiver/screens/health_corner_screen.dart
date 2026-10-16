@@ -472,22 +472,16 @@ class _WeeklyReportDetailScreenState extends State<WeeklyReportDetailScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Tuần từ ${_date(report['weekStartUtc'])}',
+            report['weekEndUtc'] != null
+                ? 'Tuần từ ${_date(report['weekStartUtc'])} đến ${_date(report['weekEndUtc'])}'
+                : 'Tuần từ ${_date(report['weekStartUtc'])}',
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16.5,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               letterSpacing: 0.2,
             ),
           ),
-          if (report['weekEndUtc'] != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Đến trước ${_date(report['weekEndUtc'])}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-              ),
-            ),
         ],
       ),
     );
