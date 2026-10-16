@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -46,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final Map<String, int> _alarmCycles = {};
   final Map<String, int> _silencedIncidentCycles = {};
   bool _refreshingIncidents = false;
+  CriticalPermissionsStatus? _permissionStatus;
+  bool _isPermissionDialogShowing = false;
 
   @override
   void initState() {
@@ -59,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       CaregiverPushService.instance.registerCurrentToken();
       CaregiverPushService.instance.openPendingIncident();
       _checkBatteryOptimizationOnboarding();
+      _checkCriticalPermissionsRealtime(showPopupIfMissing: false);
     });
   }
 
@@ -71,7 +75,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_loadActiveIncidents());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadActiveIncidents());
+      unawaited(_checkCriticalPermissionsRealtime(showPopupIfMissing: true));
+    }
   }
 
   void _startAlertPolling() {
@@ -569,6 +576,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           // Banner Cảnh Báo Khẩn Cấp Bật Ngay Khi Người Cao Tuổi Ngã (UC-08 Quorum Alerting)
           if (_currentEmergency != null) _buildStickyEmergencyAlert(),
+
+          // Banner Đỏ Cảnh Báo Khi Bị Tắt Quyền Khẩn Cấp (Còi hú bị vô hiệu hóa)
+          if (_permissionStatus?.hasMissingCriticalPermissions == true)
+            _buildStickyPermissionWarning(),
 
           // Nội dung theo Tab
           Expanded(
@@ -1477,6 +1488,215 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: const Text('ĐÃ NẮM RÕ', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _checkCriticalPermissionsRealtime({bool showPopupIfMissing = false}) async {
+    if (!mounted) return;
+    final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+    if (!mounted) return;
+    setState(() {
+      _permissionStatus = status;
+    });
+
+    if (status.hasMissingCriticalPermissions && showPopupIfMissing && !_isPermissionDialogShowing) {
+      await _showPermissionRecoveryDialog(status);
+    }
+  }
+
+  Future<void> _handleFixPermission(CriticalPermissionsStatus status) async {
+    if (!status.batteryOptimizationIgnored) {
+      await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+      await _checkCriticalPermissionsRealtime();
+      return;
+    }
+    if (!status.notificationsEnabled) {
+      await PowerOptimizationService.instance.openNotificationSettings();
+      await _checkCriticalPermissionsRealtime();
+      return;
+    }
+  }
+
+  Future<void> _showPermissionRecoveryDialog(CriticalPermissionsStatus status) async {
+    if (_isPermissionDialogShowing || !mounted) return;
+    _isPermissionDialogShowing = true;
+
+    final isNotifOff = !status.notificationsEnabled;
+    final isBatteryOff = !status.batteryOptimizationIgnored;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Còi Hú Đang Bị Tắt!',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Hệ thống phát hiện quyền bảo vệ cấp cứu đang bị vô hiệu hóa:',
+              style: TextStyle(fontSize: 13, color: Color(0xFF334155)),
+            ),
+            const SizedBox(height: 10),
+            if (isNotifOff)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.notifications_off_rounded, color: Color(0xFFDC2626), size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Thông báo đang tắt: Điện thoại không thể kêu khi người già ngã.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF991B1B)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (isBatteryOff)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.battery_alert_rounded, color: Color(0xFFDC2626), size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Chạy ngầm bị hạn chế: Máy có thể đóng băng app khi tắt màn hình.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF991B1B)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+            },
+            child: const Text('ĐỂ SAU (RỦI RO)', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _handleFixPermission(status);
+            },
+            child: Text(
+              isBatteryOff && defaultTargetPlatform == TargetPlatform.android
+                  ? 'BỎ TỐI ƯU PIN (1 CHẠM)'
+                  : 'MỞ CÀI ĐẶT BẬT LẠI',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    _isPermissionDialogShowing = false;
+  }
+
+  Widget _buildStickyPermissionWarning() {
+    final status = _permissionStatus;
+    if (status == null || !status.hasMissingCriticalPermissions) {
+      return const SizedBox.shrink();
+    }
+    final message = status.primaryWarningMessage ?? 'Quyền bảo vệ còi hú cấp cứu đang bị vô hiệu hóa!';
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFEF2F2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFEF4444).withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.gpp_bad_rounded, color: Color(0xFFEF4444), size: 26),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'CÒI HÚ CẤP CỨU ĐANG TẮT!',
+                    style: TextStyle(
+                      color: Color(0xFFDC2626),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      color: Color(0xFF1E293B),
+                      fontSize: 12,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              onPressed: () => _handleFixPermission(status),
+              child: const Text('BẬT LẠI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -494,6 +494,7 @@ import workmanager_apple
     setupCaregiverAlertChannel(messenger: messenger)
     setupTtsBridgeChannel(messenger: messenger)
     setupLocationSourceChannel(messenger: messenger)
+    setupPowerOptimizationChannel(messenger: messenger)
 
     // Nếu có sự cố ngã phần cứng tồn đọng khi app vừa mở, đẩy ngay lập tức cho Flutter
     if let pendingFall = self.pendingFallPayload {
@@ -518,6 +519,45 @@ import workmanager_apple
         result(false)
         #endif
       } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  // MARK: - Kênh kiểm tra và điều hướng quyền thông báo & chạy ngầm
+  private func setupPowerOptimizationChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "vn.careai.companion/power_optimization", binaryMessenger: messenger)
+    channel.setMethodCallHandler { (call: FlutterMethodCall, result: @escaping FlutterResult) in
+      switch call.method {
+      case "isIgnoringBatteryOptimizations":
+        result(true)
+      case "requestIgnoreBatteryOptimizations":
+        result(true)
+      case "openAutostartSettings":
+        result(true)
+      case "getManufacturer":
+        result("Apple")
+      case "areNotificationsEnabled":
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+          let enabled = settings.authorizationStatus == .authorized ||
+                        settings.authorizationStatus == .provisional ||
+                        settings.authorizationStatus == .ephemeral
+          DispatchQueue.main.async {
+            result(enabled)
+          }
+        }
+      case "openNotificationSettings":
+        DispatchQueue.main.async {
+          if let url = URL(string: UIApplication.openSettingsURLString) {
+            if UIApplication.shared.canOpenURL(url) {
+              UIApplication.shared.open(url, options: [:], completionHandler: nil)
+              result(true)
+              return
+            }
+          }
+          result(false)
+        }
+      default:
         result(FlutterMethodNotImplemented)
       }
     }

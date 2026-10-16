@@ -25,6 +25,10 @@ void main() {
             return true;
           case 'getManufacturer':
             return 'Xiaomi';
+          case 'areNotificationsEnabled':
+            return false;
+          case 'openNotificationSettings':
+            return true;
           default:
             return null;
         }
@@ -42,6 +46,25 @@ void main() {
 
       await PowerOptimizationService.instance.dismissOnboarding();
       expect(prefs.getBool('caregiver_power_onboarding_dismissed'), isTrue);
+    });
+
+    test('areNotificationsEnabled queries native channel correctly', () async {
+      final enabled = await PowerOptimizationService.instance.areNotificationsEnabled();
+      expect(enabled, isFalse);
+      expect(log.any((c) => c.method == 'areNotificationsEnabled'), isTrue);
+    });
+
+    test('openNotificationSettings invokes native channel', () async {
+      final res = await PowerOptimizationService.instance.openNotificationSettings();
+      expect(res, isTrue);
+      expect(log.any((c) => c.method == 'openNotificationSettings'), isTrue);
+    });
+
+    test('checkCriticalPermissionsStatus detects missing notifications and battery opt', () async {
+      final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+      expect(status.notificationsEnabled, isFalse);
+      expect(status.hasMissingCriticalPermissions, isTrue);
+      expect(status.primaryWarningMessage, contains('Thông báo bị tắt'));
     });
   });
 }

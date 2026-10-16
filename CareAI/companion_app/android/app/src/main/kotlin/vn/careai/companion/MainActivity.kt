@@ -489,6 +489,35 @@ class MainActivity : FlutterActivity() {
                 "getManufacturer" -> {
                     result.success(Build.MANUFACTURER)
                 }
+                "areNotificationsEnabled" -> {
+                    val enabled = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
+                    result.success(enabled)
+                }
+                "openNotificationSettings" -> {
+                    val intent = Intent().apply {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            action = android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                            putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+                        } else {
+                            action = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                            data = Uri.parse("package:$packageName")
+                        }
+                    }
+                    try {
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        try {
+                            val fallback = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(fallback)
+                            result.success(true)
+                        } catch (ex: Exception) {
+                            result.success(false)
+                        }
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

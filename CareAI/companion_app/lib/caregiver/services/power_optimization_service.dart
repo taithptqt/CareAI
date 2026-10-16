@@ -2,12 +2,57 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class CriticalPermissionsStatus {
+  final bool notificationsEnabled;
+  final bool batteryOptimizationIgnored;
+  final String manufacturer;
+
+  const CriticalPermissionsStatus({
+    required this.notificationsEnabled,
+    required this.batteryOptimizationIgnored,
+    required this.manufacturer,
+  });
+
+  bool get hasMissingCriticalPermissions =>
+      !notificationsEnabled || !batteryOptimizationIgnored;
+
+  String? get primaryWarningMessage {
+    if (!notificationsEnabled) {
+      return 'Thông báo bị tắt! Còi hú cấp cứu không thể kêu khi người thân gặp nạn.';
+    }
+    if (!batteryOptimizationIgnored) {
+      return 'Chạy ngầm bị hạn chế! Điện thoại có thể không nhận được cảnh báo khi tắt màn hình.';
+    }
+    return null;
+  }
+}
+
 class PowerOptimizationService {
   PowerOptimizationService._();
   static final instance = PowerOptimizationService._();
 
   static const _channel = MethodChannel('vn.careai.companion/power_optimization');
   static const _prefDismissed = 'caregiver_power_onboarding_dismissed';
+
+  Future<bool> areNotificationsEnabled() async {
+    if (kIsWeb) return true;
+    try {
+      final res = await _channel.invokeMethod<bool>('areNotificationsEnabled');
+      return res ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<bool> openNotificationSettings() async {
+    if (kIsWeb) return true;
+    try {
+      final res = await _channel.invokeMethod<bool>('openNotificationSettings');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<bool> isIgnoringBatteryOptimizations() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
@@ -55,6 +100,17 @@ class PowerOptimizationService {
     } catch (_) {
       return 'Android';
     }
+  }
+
+  Future<CriticalPermissionsStatus> checkCriticalPermissionsStatus() async {
+    final notifs = await areNotificationsEnabled();
+    final battery = await isIgnoringBatteryOptimizations();
+    final mfg = await getManufacturer();
+    return CriticalPermissionsStatus(
+      notificationsEnabled: notifs,
+      batteryOptimizationIgnored: battery,
+      manufacturer: mfg,
+    );
   }
 
   Future<bool> shouldShowOnboarding() async {
