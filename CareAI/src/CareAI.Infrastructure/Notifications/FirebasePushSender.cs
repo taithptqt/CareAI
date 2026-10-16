@@ -149,6 +149,27 @@ public class FirebasePushSender : IPushSender
                 Priority = urgent || statusUpdate ? Priority.High : Priority.Normal,
                 DirectBootOk = false,
                 TimeToLive = urgent || statusUpdate ? TimeSpan.FromMinutes(5) : TimeSpan.FromHours(1)
+            },
+            Apns = new ApnsConfig
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    ["apns-priority"] = urgent || statusUpdate ? "10" : "5",
+                    ["apns-push-type"] = "alert"
+                },
+                Aps = new Aps
+                {
+                    Alert = new ApsAlert
+                    {
+                        Title = outbox.Title,
+                        Body = outbox.Body
+                    },
+                    Sound = urgent ? "default" : null,
+                    ContentAvailable = true,
+                    CustomData = (urgent || statusUpdate)
+                        ? new Dictionary<string, object> { ["interruption-level"] = "time-sensitive" }
+                        : null
+                }
             }
         };
 #pragma warning restore CS0618

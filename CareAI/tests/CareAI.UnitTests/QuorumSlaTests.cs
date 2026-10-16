@@ -38,6 +38,31 @@ public class QuorumSlaTests
         Assert.Equal("1", message.Data["reminderNumber"]);
         Assert.Equal("2", message.Data["alertCycleNumber"]);
         Assert.Equal("outbox", message.Data["outboxId"]);
+        Assert.NotNull(message.Apns);
+        Assert.Equal("10", message.Apns.Headers["apns-priority"]);
+    }
+
+    [Fact]
+    public void UrgentAlert_ConfiguresApnsTimeSensitiveAlert_ForIos()
+    {
+        var item = new NotificationOutbox
+        {
+            Id = "outbox-ios", IncidentId = "incident-ios", AlertCycleNumber = 1,
+            PushToken = "ios-token", Title = "CẢNH BÁO TÉ NGÃ", Body = "Cụ Nam vừa bị ngã",
+            DataPayloadJson = "{\"incidentId\":\"incident-ios\",\"siren\":true,\"priority\":\"CRITICAL\"}"
+        };
+        var message = FirebasePushSender.BuildMessage(item);
+        Assert.Null(message.Notification);
+        Assert.NotNull(message.Apns);
+        Assert.Equal("10", message.Apns.Headers["apns-priority"]);
+        Assert.Equal("alert", message.Apns.Headers["apns-push-type"]);
+        Assert.NotNull(message.Apns.Aps);
+        Assert.True(message.Apns.Aps.ContentAvailable);
+        Assert.Equal("default", message.Apns.Aps.Sound);
+        var alert = Assert.IsType<ApsAlert>(message.Apns.Aps.Alert);
+        Assert.Equal("CẢNH BÁO TÉ NGÃ", alert.Title);
+        Assert.Equal("Cụ Nam vừa bị ngã", alert.Body);
+        Assert.Equal("time-sensitive", message.Apns.Aps.CustomData["interruption-level"]);
     }
 
     [Fact]
