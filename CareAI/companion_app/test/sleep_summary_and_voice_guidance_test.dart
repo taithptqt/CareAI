@@ -33,6 +33,37 @@ void main() {
       expect(data.statusColor, equals('GREEN'));
     });
 
+    test('SleepSummaryData parses advanced sleep stages, night vitals, and detects apnea warning', () {
+      final json = {
+        'elderProfileId': 'elder-adv-sleep',
+        'date': '2026-10-16T00:00:00.000Z',
+        'totalSleepMinutes': 460,
+        'deepSleepMinutes': 85,
+        'lightSleepMinutes': 250,
+        'wakeCount': 4,
+        'sleepQuality': 'Nguy cơ ngưng thở / Thiếu oxy ban đêm',
+        'statusColor': 'RED',
+        'remSleepMinutes': 85,
+        'awakeMinutes': 40,
+        'minSleepingHeartRate': 52.0,
+        'avgSleepingHeartRate': 60.5,
+        'minNightSpo2': 84.0,
+        'nightSpo2DipsCount': 6,
+        'breathingDisturbances': 'ELEVATED',
+      };
+
+      final data = SleepSummaryData.fromJson(json);
+
+      expect(data.remSleepMinutes, equals(85));
+      expect(data.formattedRemSleep, equals('1h 25p'));
+      expect(data.awakeMinutes, equals(40));
+      expect(data.formattedAwake, equals('40p'));
+      expect(data.hasAdvancedStages, isTrue);
+      expect(data.hasApneaWarning, isTrue);
+      expect(data.minNightSpo2, equals(84.0));
+      expect(data.breathingDisturbances, equals('ELEVATED'));
+    });
+
     test('ThresholdData correctly parses circadian night thresholds and sleep window', () {
       final json = {
         'elderProfileId': 'elder-circadian-1',

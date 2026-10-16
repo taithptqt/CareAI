@@ -221,6 +221,16 @@ class ApiService {
     double? bpSystolic,
     double? bpDiastolic,
     int? sleepMinutes,
+    int? deepSleepMinutes,
+    int? coreSleepMinutes,
+    int? remSleepMinutes,
+    int? awakeMinutes,
+    int? wakeCount,
+    double? minSleepingHr,
+    double? avgSleepingHr,
+    double? minNightSpo2,
+    int? nightSpo2DipsCount,
+    String? breathingDisturbances,
     List<String>? supportedMetrics,
   }) async {
     final deviceId = await getDeviceId();
@@ -265,6 +275,36 @@ class ApiService {
     }
     if (sleepMinutes != null && sleepMinutes > 0) {
       bodyMap['sleepMinutes'] = sleepMinutes;
+    }
+    if (deepSleepMinutes != null && deepSleepMinutes > 0) {
+      bodyMap['deepSleepMinutes'] = deepSleepMinutes;
+    }
+    if (coreSleepMinutes != null && coreSleepMinutes > 0) {
+      bodyMap['coreSleepMinutes'] = coreSleepMinutes;
+    }
+    if (remSleepMinutes != null && remSleepMinutes > 0) {
+      bodyMap['remSleepMinutes'] = remSleepMinutes;
+    }
+    if (awakeMinutes != null && awakeMinutes > 0) {
+      bodyMap['awakeMinutes'] = awakeMinutes;
+    }
+    if (wakeCount != null && wakeCount > 0) {
+      bodyMap['wakeCount'] = wakeCount;
+    }
+    if (minSleepingHr != null && minSleepingHr > 0) {
+      bodyMap['minSleepingHr'] = minSleepingHr;
+    }
+    if (avgSleepingHr != null && avgSleepingHr > 0) {
+      bodyMap['avgSleepingHr'] = avgSleepingHr;
+    }
+    if (minNightSpo2 != null && minNightSpo2 > 0) {
+      bodyMap['minNightSpo2'] = minNightSpo2;
+    }
+    if (nightSpo2DipsCount != null && nightSpo2DipsCount > 0) {
+      bodyMap['nightSpo2DipsCount'] = nightSpo2DipsCount;
+    }
+    if (breathingDisturbances != null && breathingDisturbances.isNotEmpty) {
+      bodyMap['breathingDisturbances'] = breathingDisturbances;
     }
     if (supportedMetrics != null && supportedMetrics.isNotEmpty) {
       bodyMap['supportedMetrics'] = supportedMetrics;

@@ -165,6 +165,36 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         if let sleep = HealthSync.shared?.lastNightSleepMinutes, sleep > 0 {
             payload["sleepMinutes"] = sleep
         }
+        if let deep = HealthSync.shared?.deepSleepMinutes, deep > 0 {
+            payload["deepSleepMinutes"] = deep
+        }
+        if let core = HealthSync.shared?.coreSleepMinutes, core > 0 {
+            payload["coreSleepMinutes"] = core
+        }
+        if let rem = HealthSync.shared?.remSleepMinutes, rem > 0 {
+            payload["remSleepMinutes"] = rem
+        }
+        if let awake = HealthSync.shared?.awakeMinutes, awake > 0 {
+            payload["awakeMinutes"] = awake
+        }
+        if let wake = HealthSync.shared?.wakeCount, wake > 0 {
+            payload["wakeCount"] = wake
+        }
+        if let minHr = HealthSync.shared?.minSleepingHr, minHr > 0 {
+            payload["minSleepingHr"] = minHr
+        }
+        if let avgHr = HealthSync.shared?.avgSleepingHr, avgHr > 0 {
+            payload["avgSleepingHr"] = avgHr
+        }
+        if let minSpo2 = HealthSync.shared?.minNightSpo2, minSpo2 > 0 {
+            payload["minNightSpo2"] = minSpo2
+        }
+        if let dips = HealthSync.shared?.nightSpo2DipsCount, dips > 0 {
+            payload["nightSpo2DipsCount"] = dips
+        }
+        if let apnea = HealthSync.shared?.breathingDisturbances, !apnea.isEmpty {
+            payload["breathingDisturbances"] = apnea
+        }
         var supported: [String] = ["HEART_RATE", "STEPS"]
         if HealthSync.shared?.hasSpo2Hardware == true || (HealthSync.shared?.latestSpo2 ?? 0) > 0 {
             supported.append("SPO2")
@@ -174,6 +204,12 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         }
         if HealthSync.shared?.lastNightSleepMinutes != nil {
             supported.append("SLEEP")
+        }
+        if HealthSync.shared?.deepSleepMinutes != nil || HealthSync.shared?.coreSleepMinutes != nil {
+            supported.append("SLEEP_STAGES")
+        }
+        if HealthSync.shared?.breathingDisturbances != nil || (HealthSync.shared?.nightSpo2DipsCount ?? 0) > 0 {
+            supported.append("SLEEP_APNEA")
         }
         payload["supportedMetrics"] = supported
         if session.activationState == .activated {
@@ -465,6 +501,16 @@ final class HealthSync: ObservableObject {
     @Published private(set) var latestSpo2At: Date?
     @Published private(set) var todaySteps: Int?
     @Published private(set) var lastNightSleepMinutes: Int?
+    @Published private(set) var deepSleepMinutes: Int?
+    @Published private(set) var coreSleepMinutes: Int?
+    @Published private(set) var remSleepMinutes: Int?
+    @Published private(set) var awakeMinutes: Int?
+    @Published private(set) var wakeCount: Int?
+    @Published private(set) var minSleepingHr: Double?
+    @Published private(set) var avgSleepingHr: Double?
+    @Published private(set) var minNightSpo2: Double?
+    @Published private(set) var nightSpo2DipsCount: Int?
+    @Published private(set) var breathingDisturbances: String?
     @Published private(set) var latestBpSystolic: Double?
     @Published private(set) var latestBpDiastolic: Double?
     @Published private(set) var latestBpAt: Date?
@@ -636,32 +682,143 @@ final class HealthSync: ObservableObject {
         guard let startOfYesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: now)) else { return }
         let predicate = HKQuery.predicateForSamples(withStart: startOfYesterday, end: now, options: .strictStartDate)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
-        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 100, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
-            guard let samples = samples as? [HKCategorySample] else { return }
+        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 300, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+            guard let self = self, let samples = samples as? [HKCategorySample], !samples.isEmpty else { return }
             var totalSeconds: TimeInterval = 0
+            var deepSeconds: TimeInterval = 0
+            var coreSeconds: TimeInterval = 0
+            var remSeconds: TimeInterval = 0
+            var awakeSeconds: TimeInterval = 0
+            var wakeEpisodes = 0
+            var earliestSleep: Date?
+            var latestSleep: Date?
+
             for s in samples {
+                let dur = s.endDate.timeIntervalSince(s.startDate)
+                guard dur > 0 else { continue }
+
                 if #available(watchOS 9.0, *) {
-                    if s.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue ||
-                       s.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue ||
-                       s.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue ||
-                       s.value == HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue {
-                        totalSeconds += s.endDate.timeIntervalSince(s.startDate)
+                    switch s.value {
+                    case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
+                        deepSeconds += dur
+                        totalSeconds += dur
+                        earliestSleep = earliestSleep == nil ? s.startDate : min(earliestSleep!, s.startDate)
+                        latestSleep = latestSleep == nil ? s.endDate : max(latestSleep!, s.endDate)
+                    case HKCategoryValueSleepAnalysis.asleepCore.rawValue:
+                        coreSeconds += dur
+                        totalSeconds += dur
+                        earliestSleep = earliestSleep == nil ? s.startDate : min(earliestSleep!, s.startDate)
+                        latestSleep = latestSleep == nil ? s.endDate : max(latestSleep!, s.endDate)
+                    case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
+                        remSeconds += dur
+                        totalSeconds += dur
+                        earliestSleep = earliestSleep == nil ? s.startDate : min(earliestSleep!, s.startDate)
+                        latestSleep = latestSleep == nil ? s.endDate : max(latestSleep!, s.endDate)
+                    case HKCategoryValueSleepAnalysis.awake.rawValue:
+                        awakeSeconds += dur
+                        wakeEpisodes += 1
+                    case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
+                        totalSeconds += dur
+                        earliestSleep = earliestSleep == nil ? s.startDate : min(earliestSleep!, s.startDate)
+                        latestSleep = latestSleep == nil ? s.endDate : max(latestSleep!, s.endDate)
+                    default:
+                        break
                     }
                 } else {
                     if s.value == HKCategoryValueSleepAnalysis.asleep.rawValue {
-                        totalSeconds += s.endDate.timeIntervalSince(s.startDate)
+                        totalSeconds += dur
+                        earliestSleep = earliestSleep == nil ? s.startDate : min(earliestSleep!, s.startDate)
+                        latestSleep = latestSleep == nil ? s.endDate : max(latestSleep!, s.endDate)
                     }
                 }
             }
+
             let minutes = Int(totalSeconds / 60)
+            let deepMin = Int(deepSeconds / 60)
+            let coreMin = Int(coreSeconds / 60)
+            let remMin = Int(remSeconds / 60)
+            let awakeMin = Int(awakeSeconds / 60)
+
             Task { @MainActor in
-                self?.lastNightSleepMinutes = minutes > 0 ? minutes : nil
-                if minutes > 0 {
+                self.lastNightSleepMinutes = minutes > 0 ? minutes : nil
+                self.deepSleepMinutes = deepMin > 0 ? deepMin : nil
+                self.coreSleepMinutes = coreMin > 0 ? coreMin : nil
+                self.remSleepMinutes = remMin > 0 ? remMin : nil
+                self.awakeMinutes = awakeMin > 0 ? awakeMin : nil
+                self.wakeCount = wakeEpisodes > 0 ? wakeEpisodes : nil
+
+                if let sleepStart = earliestSleep, let sleepEnd = latestSleep, sleepEnd > sleepStart {
+                    self.fetchSleepingNightVitals(start: sleepStart, end: sleepEnd)
+                } else {
                     WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                 }
             }
         }
         healthStore.execute(query)
+    }
+
+    func fetchSleepingNightVitals(start: Date, end: Date) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: true)
+
+        // 1. Nhịp tim trong lúc ngủ (Sleeping Heart Rate)
+        if let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate) {
+            let hrQuery = HKSampleQuery(sampleType: hrType, predicate: predicate, limit: 500, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+                guard let self = self, let hrSamples = samples as? [HKQuantitySample], !hrSamples.isEmpty else { return }
+                var minHr: Double = 999.0
+                var totalHr: Double = 0.0
+                for s in hrSamples {
+                    let bpm = s.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+                    if bpm > 0 && bpm < minHr { minHr = bpm }
+                    totalHr += bpm
+                }
+                let avgHr = totalHr / Double(hrSamples.count)
+                Task { @MainActor in
+                    self.minSleepingHr = minHr < 900 ? minHr : nil
+                    self.avgSleepingHr = avgHr > 0 ? avgHr : nil
+                    WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                }
+            }
+            healthStore.execute(hrQuery)
+        }
+
+        // 2. Tụt oxy ban đêm (Nighttime SpO2 & Dips)
+        if hasSpo2Hardware, let spo2Type = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation) {
+            let spo2Query = HKSampleQuery(sampleType: spo2Type, predicate: predicate, limit: 200, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+                guard let self = self, let spo2Samples = samples as? [HKQuantitySample], !spo2Samples.isEmpty else { return }
+                var minSpo2: Double = 100.0
+                var dips = 0
+                for s in spo2Samples {
+                    let pct = s.quantity.doubleValue(for: HKUnit.percent()) * 100.0
+                    if pct > 0 && pct < minSpo2 { minSpo2 = pct }
+                    if pct > 0 && pct < 90.0 { dips += 1 }
+                }
+                Task { @MainActor in
+                    self.minNightSpo2 = minSpo2 <= 100.0 ? minSpo2 : nil
+                    self.nightSpo2DipsCount = dips
+                    WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                }
+            }
+            healthStore.execute(spo2Query)
+        }
+
+        // 3. Khám phá các dòng cao cấp (Apple Watch Series 9/10/Ultra 2 trên watchOS 11+): Rối loạn thở khi ngủ (Breathing Disturbances)
+        let apneaTypeIdentifier = HKQuantityTypeIdentifier(rawValue: "HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances")
+        if let apneaType = HKQuantityType.quantityType(forIdentifier: apneaTypeIdentifier) {
+            let apneaQuery = HKSampleQuery(sampleType: apneaType, predicate: predicate, limit: 10, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, _ in
+                guard let self = self, let apneaSamples = samples as? [HKQuantitySample], !apneaSamples.isEmpty else { return }
+                var isElevated = false
+                for s in apneaSamples {
+                    let val = s.quantity.doubleValue(for: HKUnit.count())
+                    if val >= 5.0 { isElevated = true }
+                }
+                Task { @MainActor in
+                    self.breathingDisturbances = isElevated ? "ELEVATED" : "NORMAL"
+                    WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                }
+            }
+            healthStore.execute(apneaQuery)
+        }
     }
 
     func fetchLatestBloodPressure() {

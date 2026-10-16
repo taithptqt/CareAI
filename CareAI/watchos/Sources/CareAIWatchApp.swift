@@ -722,6 +722,11 @@ struct DailyWellnessView: View {
                             .font(.system(size: 7.5))
                             .foregroundColor(Color(white: 0.4))
                     }
+                    if let deep = sync.deepSleepMinutes {
+                        Text("Sâu: \(deep)p · Nông: \(sync.coreSleepMinutes ?? 0)p\(sync.wakeCount != nil ? " · Thức: \(sync.wakeCount!)lần" : "")")
+                            .font(.system(size: 7.5))
+                            .foregroundColor(Color(red: 0.6, green: 0.7, blue: 0.9))
+                    }
                 }
                 .padding(6)
                 .background(Color(red: 0.08, green: 0.11, blue: 0.18))

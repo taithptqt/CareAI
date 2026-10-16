@@ -677,17 +677,16 @@ public class DevicesController : ControllerBase
             }
         }
 
-        if (request.SleepMinutes.HasValue && request.SleepMinutes.Value > 0)
+        async Task UpsertLastNightMetric(string metricType, double value, string unit)
         {
-            var lastNight = now.AddDays(-1).Date.AddHours(22);
-            var existingSleep = await _db.HealthMeasurements
+            var existing = await _db.HealthMeasurements
                 .FirstOrDefaultAsync(m => m.ElderProfileId == companionDevice.ElderProfileId &&
-                                          m.MetricType == "SLEEP" &&
+                                          m.MetricType == metricType &&
                                           m.Timestamp >= now.Date.AddDays(-1), ct);
-            if (existingSleep != null)
+            if (existing != null)
             {
-                existingSleep.Value = request.SleepMinutes.Value;
-                existingSleep.Timestamp = now;
+                existing.Value = value;
+                existing.Timestamp = now;
             }
             else
             {
@@ -695,36 +694,94 @@ public class DevicesController : ControllerBase
                 {
                     ElderProfileId = companionDevice.ElderProfileId,
                     DeviceId = watchDevice?.Id ?? companionDevice.Id,
-                    PacketId = $"SYNC_SLEEP_{now.Ticks}",
-                    MetricType = "SLEEP",
-                    Value = request.SleepMinutes.Value,
-                    Unit = "minutes",
-                    Timestamp = lastNight,
+                    PacketId = $"SYNC_{metricType}_{now.Ticks}",
+                    MetricType = metricType,
+                    Value = value,
+                    Unit = unit,
+                    Timestamp = now.AddDays(-1).Date.AddHours(22),
                     RecordedAt = now
                 });
             }
         }
 
-        await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}, TodaySteps={TodaySteps}, HR={HR}, SpO2={SpO2}, BP={BP}) cho Cụ {ElderId}",
-            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, request.TodaySteps, request.HeartRate, request.Spo2, request.BpSystolic, companionDevice.ElderProfileId);
-
-        return Ok(new
+        if (request.SleepMinutes.HasValue && request.SleepMinutes.Value > 0)
         {
-            status = "SYNCED",
-            watchModel = request.WatchModel,
-            isConnected,
-            disconnectReason = request.DisconnectReason,
-            isWorn = watchDevice?.IsWatchWorn ?? request.IsWorn,
-            isCharging = watchDevice?.IsWatchCharging ?? request.IsCharging,
-            batteryLevel = watchDevice?.WatchBatteryLevel ?? request.BatteryLevel,
-            todaySteps = request.TodaySteps,
-            heartRate = request.HeartRate,
-            spo2 = request.Spo2,
-            bpSystolic = request.BpSystolic,
-            bpDiastolic = request.BpDiastolic,
-            sleepMinutes = request.SleepMinutes,
-            supportedMetrics = request.SupportedMetrics
-        });
+            await UpsertLastNightMetric("SLEEP", request.SleepMinutes.Value, "minutes");
+        }
+        if (request.DeepSleepMinutes.HasValue && request.DeepSleepMinutes.Value > 0)
+        {
+            await UpsertLastNightMetric("SLEEP_DEEP", request.DeepSleepMinutes.Value, "minutes");
+        }
+        if (request.CoreSleepMinutes.HasValue && request.CoreSleepMinutes.Value > 0)
+        {
+            await UpsertLastNightMetric("SLEEP_CORE", request.CoreSleepMinutes.Value, "minutes");
+        }
+        if (request.RemSleepMinutes.HasValue && request.RemSleepMinutes.Value > 0)
+        {
+            await UpsertLastNightMetric("SLEEP_REM", request.RemSleepMinutes.Value, "minutes");
+        }
+        if (request.AwakeMinutes.HasValue && request.AwakeMinutes.Value >= 0)
+        {
+            await UpsertLastNightMetric("SLEEP_AWAKE", request.AwakeMinutes.Value, "minutes");
+        }
+        if (request.WakeCount.HasValue && request.WakeCount.Value >= 0)
+        {
+            await UpsertLastNightMetric("SLEEP_WAKE_COUNT", request.WakeCount.Value, "count");
+        }
+        if (request.MinSleepingHeartRate.HasValue && request.MinSleepingHeartRate.Value > 0)
+        {
+            await UpsertLastNightMetric("SLEEP_HR_MIN", request.MinSleepingHeartRate.Value, "bpm");
+        }
+        if (request.AvgSleepingHeartRate.HasValue && request.AvgSleepingHeartRate.Value > 0)
+        {
+            await UpsertLastNightMetric("SLEEP_HR_AVG", request.AvgSleepingHeartRate.Value, "bpm");
+        }
+        if (request.MinNightSpo2.HasValue && request.MinNightSpo2.Value > 0)
+        {
+            await UpsertLastNightMetric("SLEEP_SPO2_MIN", request.MinNightSpo2.Value, "%");
+        }
+        if (request.NightSpo2DipsCount.HasValue && request.NightSpo2DipsCount.Value >= 0)
+        {
+            await UpsertLastNightMetric("SLEEP_SPO2_DIPS", request.NightSpo2DipsCount.Value, "count");
+        }
+        if (!string.IsNullOrEmpty(request.BreathingDisturbances))
+        {
+            double val = request.BreathingDisturbances.Equals("ELEVATED", StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0;
+            await UpsertLastNightMetric("SLEEP_APNEA_RISK", val, "status");
+        }
+
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}, TodaySteps={TodaySteps}, HR={HR}, SpO2={SpO2}, BP={BP}, Sleep={Sleep}, Deep={Deep}, Wake={Wake}) cho Cụ {ElderId}",
+            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, request.TodaySteps, request.HeartRate, request.Spo2, request.BpSystolic, request.SleepMinutes, request.DeepSleepMinutes, request.WakeCount, companionDevice.ElderProfileId);
+
+        var responseDict = new Dictionary<string, object?>
+        {
+            ["status"] = "SYNCED",
+            ["watchModel"] = request.WatchModel,
+            ["isConnected"] = isConnected,
+            ["disconnectReason"] = request.DisconnectReason,
+            ["isWorn"] = watchDevice?.IsWatchWorn ?? request.IsWorn,
+            ["isCharging"] = watchDevice?.IsWatchCharging ?? request.IsCharging,
+            ["batteryLevel"] = watchDevice?.WatchBatteryLevel ?? request.BatteryLevel,
+            ["todaySteps"] = request.TodaySteps,
+            ["heartRate"] = request.HeartRate,
+            ["spo2"] = request.Spo2,
+            ["bpSystolic"] = request.BpSystolic,
+            ["bpDiastolic"] = request.BpDiastolic,
+            ["sleepMinutes"] = request.SleepMinutes,
+            ["supportedMetrics"] = request.SupportedMetrics
+        };
+        if (request.DeepSleepMinutes.HasValue) responseDict["deepSleepMinutes"] = request.DeepSleepMinutes;
+        if (request.CoreSleepMinutes.HasValue) responseDict["coreSleepMinutes"] = request.CoreSleepMinutes;
+        if (request.RemSleepMinutes.HasValue) responseDict["remSleepMinutes"] = request.RemSleepMinutes;
+        if (request.AwakeMinutes.HasValue) responseDict["awakeMinutes"] = request.AwakeMinutes;
+        if (request.WakeCount.HasValue) responseDict["wakeCount"] = request.WakeCount;
+        if (request.MinSleepingHeartRate.HasValue) responseDict["minSleepingHeartRate"] = request.MinSleepingHeartRate;
+        if (request.AvgSleepingHeartRate.HasValue) responseDict["avgSleepingHeartRate"] = request.AvgSleepingHeartRate;
+        if (request.MinNightSpo2.HasValue) responseDict["minNightSpo2"] = request.MinNightSpo2;
+        if (request.NightSpo2DipsCount.HasValue) responseDict["nightSpo2DipsCount"] = request.NightSpo2DipsCount;
+        if (!string.IsNullOrEmpty(request.BreathingDisturbances)) responseDict["breathingDisturbances"] = request.BreathingDisturbances;
+
+        return Ok(responseDict);
     }
 }

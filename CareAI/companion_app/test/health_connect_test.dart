@@ -104,7 +104,15 @@ void main() {
         'bpSystolic': 120.0,
         'bpDiastolic': 80.0,
         'sleepMinutes': 450,
-        'supportedMetrics': ['HEART_RATE', 'STEPS', 'SPO2', 'BLOOD_PRESSURE', 'SLEEP'],
+        'deepSleepMinutes': 90,
+        'coreSleepMinutes': 240,
+        'remSleepMinutes': 80,
+        'awakeMinutes': 40,
+        'wakeCount': 2,
+        'minSleepingHr': 54.0,
+        'minNightSpo2': 95.0,
+        'breathingDisturbances': 'NORMAL',
+        'supportedMetrics': ['HEART_RATE', 'STEPS', 'SPO2', 'BLOOD_PRESSURE', 'SLEEP', 'SLEEP_STAGES'],
       });
       expect(multiMetric.isConnected, isTrue);
       expect(multiMetric.watchName, 'Galaxy Watch6');
@@ -114,7 +122,15 @@ void main() {
       expect(multiMetric.bpSystolic, 120.0);
       expect(multiMetric.bpDiastolic, 80.0);
       expect(multiMetric.sleepMinutes, 450);
-      expect(multiMetric.supportedMetrics, containsAll(['HEART_RATE', 'STEPS', 'SPO2', 'BLOOD_PRESSURE', 'SLEEP']));
+      expect(multiMetric.deepSleepMinutes, 90);
+      expect(multiMetric.coreSleepMinutes, 240);
+      expect(multiMetric.remSleepMinutes, 80);
+      expect(multiMetric.awakeMinutes, 40);
+      expect(multiMetric.wakeCount, 2);
+      expect(multiMetric.minSleepingHr, 54.0);
+      expect(multiMetric.minNightSpo2, 95.0);
+      expect(multiMetric.breathingDisturbances, 'NORMAL');
+      expect(multiMetric.supportedMetrics, containsAll(['HEART_RATE', 'STEPS', 'SPO2', 'BLOOD_PRESSURE', 'SLEEP', 'SLEEP_STAGES']));
 
       // Watch không có cảm biến huyết áp / giấc ngủ (null) thì trường tương ứng là null, không gán bừa
       final minimalWatch = WatchStatus.fromMap({

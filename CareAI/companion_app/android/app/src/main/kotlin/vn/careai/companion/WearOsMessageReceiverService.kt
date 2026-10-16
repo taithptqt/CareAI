@@ -63,9 +63,19 @@ class WearOsMessageReceiverService : WearableListenerService() {
                 val bpSystolic = if (json.has("bpSystolic")) json.getDouble("bpSystolic") else null
                 val bpDiastolic = if (json.has("bpDiastolic")) json.getDouble("bpDiastolic") else null
                 val sleepMinutes = if (json.has("sleepMinutes")) json.getInt("sleepMinutes") else null
+                val deepSleepMinutes = if (json.has("deepSleepMinutes")) json.getInt("deepSleepMinutes") else null
+                val coreSleepMinutes = if (json.has("coreSleepMinutes")) json.getInt("coreSleepMinutes") else null
+                val remSleepMinutes = if (json.has("remSleepMinutes")) json.getInt("remSleepMinutes") else null
+                val awakeMinutes = if (json.has("awakeMinutes")) json.getInt("awakeMinutes") else null
+                val wakeCount = if (json.has("wakeCount")) json.getInt("wakeCount") else null
+                val minSleepingHr = if (json.has("minSleepingHr")) json.getDouble("minSleepingHr") else null
+                val avgSleepingHr = if (json.has("avgSleepingHr")) json.getDouble("avgSleepingHr") else null
+                val minNightSpo2 = if (json.has("minNightSpo2")) json.getDouble("minNightSpo2") else null
+                val nightSpo2DipsCount = if (json.has("nightSpo2DipsCount")) json.getInt("nightSpo2DipsCount") else null
+                val breathingDisturbances = if (json.has("breathingDisturbances")) json.getString("breathingDisturbances") else null
                 val watchName = json.optString("watchName", "Galaxy Watch")
 
-                Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%, steps=$todaySteps, hr=$heartRate, spo2=$spo2, bp=$bpSystolic/$bpDiastolic")
+                Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%, steps=$todaySteps, hr=$heartRate, spo2=$spo2, bp=$bpSystolic/$bpDiastolic, sleep=$sleepMinutes, deep=$deepSleepMinutes")
                 val prefs = getSharedPreferences("careai_watch_telemetry", Context.MODE_PRIVATE)
                 prefs.edit().apply {
                     if (isWorn != null) putBoolean("isWorn", isWorn)
@@ -77,6 +87,16 @@ class WearOsMessageReceiverService : WearableListenerService() {
                     if (bpSystolic != null && bpSystolic > 0) putFloat("bpSystolic", bpSystolic.toFloat())
                     if (bpDiastolic != null && bpDiastolic > 0) putFloat("bpDiastolic", bpDiastolic.toFloat())
                     if (sleepMinutes != null && sleepMinutes > 0) putInt("sleepMinutes", sleepMinutes)
+                    if (deepSleepMinutes != null && deepSleepMinutes > 0) putInt("deepSleepMinutes", deepSleepMinutes)
+                    if (coreSleepMinutes != null && coreSleepMinutes > 0) putInt("coreSleepMinutes", coreSleepMinutes)
+                    if (remSleepMinutes != null && remSleepMinutes > 0) putInt("remSleepMinutes", remSleepMinutes)
+                    if (awakeMinutes != null && awakeMinutes > 0) putInt("awakeMinutes", awakeMinutes)
+                    if (wakeCount != null && wakeCount > 0) putInt("wakeCount", wakeCount)
+                    if (minSleepingHr != null && minSleepingHr > 0) putFloat("minSleepingHr", minSleepingHr.toFloat())
+                    if (avgSleepingHr != null && avgSleepingHr > 0) putFloat("avgSleepingHr", avgSleepingHr.toFloat())
+                    if (minNightSpo2 != null && minNightSpo2 > 0) putFloat("minNightSpo2", minNightSpo2.toFloat())
+                    if (nightSpo2DipsCount != null && nightSpo2DipsCount > 0) putInt("nightSpo2DipsCount", nightSpo2DipsCount)
+                    if (!breathingDisturbances.isNullOrEmpty()) putString("breathingDisturbances", breathingDisturbances)
                     putString("watchName", watchName)
                     apply()
                 }
@@ -95,6 +115,16 @@ class WearOsMessageReceiverService : WearableListenerService() {
                     if (bpSystolic != null && bpSystolic > 0) putExtra("bpSystolic", bpSystolic)
                     if (bpDiastolic != null && bpDiastolic > 0) putExtra("bpDiastolic", bpDiastolic)
                     if (sleepMinutes != null && sleepMinutes > 0) putExtra("sleepMinutes", sleepMinutes)
+                    if (deepSleepMinutes != null && deepSleepMinutes > 0) putExtra("deepSleepMinutes", deepSleepMinutes)
+                    if (coreSleepMinutes != null && coreSleepMinutes > 0) putExtra("coreSleepMinutes", coreSleepMinutes)
+                    if (remSleepMinutes != null && remSleepMinutes > 0) putExtra("remSleepMinutes", remSleepMinutes)
+                    if (awakeMinutes != null && awakeMinutes > 0) putExtra("awakeMinutes", awakeMinutes)
+                    if (wakeCount != null && wakeCount > 0) putExtra("wakeCount", wakeCount)
+                    if (minSleepingHr != null && minSleepingHr > 0) putExtra("minSleepingHr", minSleepingHr)
+                    if (avgSleepingHr != null && avgSleepingHr > 0) putExtra("avgSleepingHr", avgSleepingHr)
+                    if (minNightSpo2 != null && minNightSpo2 > 0) putExtra("minNightSpo2", minNightSpo2)
+                    if (nightSpo2DipsCount != null && nightSpo2DipsCount > 0) putExtra("nightSpo2DipsCount", nightSpo2DipsCount)
+                    if (!breathingDisturbances.isNullOrEmpty()) putExtra("breathingDisturbances", breathingDisturbances)
                 })
             } catch (e: Exception) {
                 Log.e("CareAI-WearReceiver", "Lỗi phân tích /careai/watch_telemetry: ${e.message}")

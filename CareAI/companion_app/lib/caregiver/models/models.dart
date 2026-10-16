@@ -463,6 +463,13 @@ class SleepSummaryData {
   final int wakeCount;
   final String sleepQuality;
   final String statusColor;
+  final int? remSleepMinutes;
+  final int? awakeMinutes;
+  final double? minSleepingHeartRate;
+  final double? avgSleepingHeartRate;
+  final double? minNightSpo2;
+  final int? nightSpo2DipsCount;
+  final String? breathingDisturbances;
 
   SleepSummaryData({
     required this.elderProfileId,
@@ -475,6 +482,13 @@ class SleepSummaryData {
     required this.wakeCount,
     required this.sleepQuality,
     required this.statusColor,
+    this.remSleepMinutes,
+    this.awakeMinutes,
+    this.minSleepingHeartRate,
+    this.avgSleepingHeartRate,
+    this.minNightSpo2,
+    this.nightSpo2DipsCount,
+    this.breathingDisturbances,
   });
 
   String get formattedDuration {
@@ -495,6 +509,23 @@ class SleepSummaryData {
     return '${hours}h ${mins}p';
   }
 
+  String get formattedRemSleep {
+    final rem = remSleepMinutes ?? 0;
+    final hours = rem ~/ 60;
+    final mins = rem % 60;
+    return hours > 0 ? '${hours}h ${mins}p' : '${mins}p';
+  }
+
+  String get formattedAwake {
+    final awake = awakeMinutes ?? 0;
+    final hours = awake ~/ 60;
+    final mins = awake % 60;
+    return hours > 0 ? '${hours}h ${mins}p' : '${mins}p';
+  }
+
+  bool get hasAdvancedStages => (remSleepMinutes ?? 0) > 0 || (awakeMinutes ?? 0) > 0;
+  bool get hasApneaWarning => breathingDisturbances == 'ELEVATED' || (minNightSpo2 != null && minNightSpo2! < 88.0);
+
   factory SleepSummaryData.fromJson(Map<String, dynamic> json) {
     return SleepSummaryData(
       elderProfileId: json['elderProfileId'] ?? '',
@@ -507,6 +538,13 @@ class SleepSummaryData {
       wakeCount: json['wakeCount'] ?? 0,
       sleepQuality: json['sleepQuality'] ?? 'Bình thường',
       statusColor: json['statusColor'] ?? 'GREEN',
+      remSleepMinutes: json['remSleepMinutes'] as int?,
+      awakeMinutes: json['awakeMinutes'] as int?,
+      minSleepingHeartRate: (json['minSleepingHeartRate'] as num?)?.toDouble(),
+      avgSleepingHeartRate: (json['avgSleepingHeartRate'] as num?)?.toDouble(),
+      minNightSpo2: (json['minNightSpo2'] as num?)?.toDouble(),
+      nightSpo2DipsCount: json['nightSpo2DipsCount'] as int?,
+      breathingDisturbances: json['breathingDisturbances'] as String?,
     );
   }
 }

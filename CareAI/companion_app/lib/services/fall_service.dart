@@ -272,6 +272,16 @@ class WatchStatus {
   final double? bpSystolic; // Huyết áp tâm thu (mmHg)
   final double? bpDiastolic; // Huyết áp tâm trương (mmHg)
   final int? sleepMinutes; // Thời lượng giấc ngủ đêm qua (phút)
+  final int? deepSleepMinutes; // Thời lượng ngủ sâu (phút)
+  final int? coreSleepMinutes; // Thời lượng ngủ nông / cơ bản (phút)
+  final int? remSleepMinutes; // Thời lượng ngủ REM (phút)
+  final int? awakeMinutes; // Thời lượng thức giấc trong đêm (phút)
+  final int? wakeCount; // Số lần thức giấc trong đêm
+  final double? minSleepingHr; // Nhịp tim thấp nhất khi ngủ
+  final double? avgSleepingHr; // Nhịp tim trung bình khi ngủ
+  final double? minNightSpo2; // SpO2 thấp nhất ban đêm (%)
+  final int? nightSpo2DipsCount; // Số lần tụt SpO2 ban đêm
+  final String? breathingDisturbances; // Rối loạn nhịp thở khi ngủ ("NORMAL" | "ELEVATED")
   final List<String>? supportedMetrics; // Danh sách chỉ số phần cứng hỗ trợ
 
   const WatchStatus({
@@ -293,6 +303,16 @@ class WatchStatus {
     this.bpSystolic,
     this.bpDiastolic,
     this.sleepMinutes,
+    this.deepSleepMinutes,
+    this.coreSleepMinutes,
+    this.remSleepMinutes,
+    this.awakeMinutes,
+    this.wakeCount,
+    this.minSleepingHr,
+    this.avgSleepingHr,
+    this.minNightSpo2,
+    this.nightSpo2DipsCount,
+    this.breathingDisturbances,
     this.supportedMetrics,
   });
 
@@ -317,6 +337,16 @@ class WatchStatus {
       bpSystolic: (map['bpSystolic'] as num?)?.toDouble(),
       bpDiastolic: (map['bpDiastolic'] as num?)?.toDouble(),
       sleepMinutes: map['sleepMinutes'] as int?,
+      deepSleepMinutes: map['deepSleepMinutes'] as int?,
+      coreSleepMinutes: map['coreSleepMinutes'] as int?,
+      remSleepMinutes: map['remSleepMinutes'] as int?,
+      awakeMinutes: map['awakeMinutes'] as int?,
+      wakeCount: map['wakeCount'] as int?,
+      minSleepingHr: (map['minSleepingHr'] as num?)?.toDouble(),
+      avgSleepingHr: (map['avgSleepingHr'] as num?)?.toDouble(),
+      minNightSpo2: (map['minNightSpo2'] as num?)?.toDouble(),
+      nightSpo2DipsCount: map['nightSpo2DipsCount'] as int?,
+      breathingDisturbances: map['breathingDisturbances'] as String?,
       supportedMetrics: (map['supportedMetrics'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
     );
   }

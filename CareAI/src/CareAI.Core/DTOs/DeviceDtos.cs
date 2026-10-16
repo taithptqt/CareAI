@@ -15,7 +15,17 @@ public record SyncWatchRequest(
     double? BpSystolic = null,
     double? BpDiastolic = null,
     int? SleepMinutes = null,
-    List<string>? SupportedMetrics = null
+    List<string>? SupportedMetrics = null,
+    int? DeepSleepMinutes = null,
+    int? CoreSleepMinutes = null,
+    int? RemSleepMinutes = null,
+    int? AwakeMinutes = null,
+    int? WakeCount = null,
+    double? MinSleepingHeartRate = null,
+    double? AvgSleepingHeartRate = null,
+    double? MinNightSpo2 = null,
+    int? NightSpo2DipsCount = null,
+    string? BreathingDisturbances = null
 );
 public record PairDeviceResponse(string DeviceId, string DeviceToken, string ElderProfileId, string FullName);
 public record CreateElderRequest(string FullName, DateTime DateOfBirth, string? MedicalNotes, string? EmergencyContact, string? HomeAddress = null, double? HomeLatitude = null, double? HomeLongitude = null);

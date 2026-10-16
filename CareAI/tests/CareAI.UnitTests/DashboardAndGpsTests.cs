@@ -990,6 +990,159 @@ public class DashboardAndGpsTests : IDisposable
         Assert.Equal(122, dto.LatestBloodPressure!.Value);
     }
 
+    [Fact]
+    public async Task Fact_WatchTelemetry_SleepStagesAndNightVitals_SyncsRealSensorDataAndReturnsDeepSleepSummary()
+    {
+        var elderId = "ELDER_SLEEP_TEST_01";
+        var devId = "DEV_COMPANION_SLEEP_01";
+
+        _db.ElderProfiles.Add(new ElderProfile
+        {
+            Id = elderId,
+            FullName = "Cụ Ngủ Chuẩn",
+            DateOfBirth = new DateTime(1948, 5, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+        _db.ElderCaregivers.Add(new ElderCaregiver
+        {
+            ElderProfileId = elderId,
+            CaregiverId = _authCaregiverId,
+            IsActive = true
+        });
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = devId,
+            ElderProfileId = elderId,
+            DeviceTokenHash = "TOKEN_HASH_SLEEP_01",
+            DeviceType = "SMARTPHONE",
+            DeviceModel = "iPhone 15",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow,
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var devController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devController.HttpContext.Items["ValidatedDeviceId"] = devId;
+
+        var syncReq = new SyncWatchRequest(
+            WatchModel: "Apple Watch Series 10",
+            IsConnected: true,
+            SleepMinutes: 450,
+            DeepSleepMinutes: 95,
+            CoreSleepMinutes: 240,
+            RemSleepMinutes: 75,
+            AwakeMinutes: 40,
+            WakeCount: 3,
+            MinSleepingHeartRate: 54.0,
+            AvgSleepingHeartRate: 62.0,
+            MinNightSpo2: 94.0,
+            NightSpo2DipsCount: 1,
+            BreathingDisturbances: "NORMAL"
+        );
+
+        var syncRes = await devController.SyncWatch(syncReq, CancellationToken.None);
+        var okSync = Assert.IsType<OkObjectResult>(syncRes);
+
+        // 1. Kiểm tra CSDL HealthMeasurements
+        var measurements = await _db.HealthMeasurements
+            .Where(m => m.ElderProfileId == elderId)
+            .ToListAsync();
+
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP" && m.Value == 450);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP_DEEP" && m.Value == 95);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP_CORE" && m.Value == 240);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP_REM" && m.Value == 75);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP_AWAKE" && m.Value == 40);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP_WAKE_COUNT" && m.Value == 3);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP_HR_MIN" && m.Value == 54.0);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP_SPO2_MIN" && m.Value == 94.0);
+
+        // 2. Tra cứu qua API Dashboard Sleep Summary
+        var dashController = CreateController(_authCaregiverId);
+        var sleepRes = await dashController.GetElderSleepSummary(elderId, CancellationToken.None);
+        var okSleep = Assert.IsType<OkObjectResult>(sleepRes);
+        var dto = Assert.IsType<SleepSummaryResponse>(okSleep.Value);
+
+        Assert.Equal(450, dto.TotalSleepMinutes);
+        Assert.Equal(95, dto.DeepSleepMinutes); // Giá trị đo thật 95 phút, KHÔNG PHẢI 450 * 0.28!
+        Assert.Equal(240, dto.LightSleepMinutes);
+        Assert.Equal(75, dto.RemSleepMinutes);
+        Assert.Equal(40, dto.AwakeMinutes);
+        Assert.Equal(3, dto.WakeCount);
+        Assert.Equal(54.0, dto.MinSleepingHeartRate);
+        Assert.Equal(94.0, dto.MinNightSpo2);
+        Assert.Equal("GREEN", dto.StatusColor);
+        Assert.Equal("Tốt (Đạt chuẩn y tế)", dto.SleepQuality);
+    }
+
+    [Fact]
+    public async Task Fact_WatchTelemetry_ElevatedBreathingDisturbances_TriggersSleepApneaWarning()
+    {
+        var elderId = "ELDER_APNEA_TEST_02";
+        var devId = "DEV_COMPANION_APNEA_02";
+
+        _db.ElderProfiles.Add(new ElderProfile
+        {
+            Id = elderId,
+            FullName = "Cụ Nguy Cơ Ngưng Thở",
+            DateOfBirth = new DateTime(1945, 3, 20, 0, 0, 0, DateTimeKind.Utc)
+        });
+        _db.ElderCaregivers.Add(new ElderCaregiver
+        {
+            ElderProfileId = elderId,
+            CaregiverId = _authCaregiverId,
+            IsActive = true
+        });
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = devId,
+            ElderProfileId = elderId,
+            DeviceTokenHash = "TOKEN_HASH_APNEA_02",
+            DeviceType = "SMARTPHONE",
+            DeviceModel = "Galaxy S24",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow,
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var devController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devController.HttpContext.Items["ValidatedDeviceId"] = devId;
+
+        var syncReq = new SyncWatchRequest(
+            WatchModel: "Galaxy Watch 7 Ultra",
+            IsConnected: true,
+            SleepMinutes: 380,
+            DeepSleepMinutes: 40,
+            MinNightSpo2: 82.0, // Tụt oxy sâu < 85%
+            BreathingDisturbances: "ELEVATED" // Cảnh báo ngưng thở khi ngủ
+        );
+
+        await devController.SyncWatch(syncReq, CancellationToken.None);
+
+        var dashController = CreateController(_authCaregiverId);
+        var sleepRes = await dashController.GetElderSleepSummary(elderId, CancellationToken.None);
+        var okSleep = Assert.IsType<OkObjectResult>(sleepRes);
+        var dto = Assert.IsType<SleepSummaryResponse>(okSleep.Value);
+
+        Assert.Equal("RED", dto.StatusColor);
+        Assert.Equal("Nguy cơ ngưng thở / Thiếu oxy ban đêm", dto.SleepQuality);
+        Assert.Equal("ELEVATED", dto.BreathingDisturbances);
+        Assert.Equal(82.0, dto.MinNightSpo2);
+    }
+
     public void Dispose()
     {
         _db.Dispose();

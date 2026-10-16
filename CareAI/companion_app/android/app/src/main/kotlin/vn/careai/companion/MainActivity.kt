@@ -90,6 +90,46 @@ class MainActivity : FlutterActivity() {
                 val sleep = intent.getIntExtra("sleepMinutes", -1)
                 if (sleep > 0) payload["sleepMinutes"] = sleep
             }
+            if (intent.hasExtra("deepSleepMinutes")) {
+                val deep = intent.getIntExtra("deepSleepMinutes", -1)
+                if (deep > 0) payload["deepSleepMinutes"] = deep
+            }
+            if (intent.hasExtra("coreSleepMinutes")) {
+                val core = intent.getIntExtra("coreSleepMinutes", -1)
+                if (core > 0) payload["coreSleepMinutes"] = core
+            }
+            if (intent.hasExtra("remSleepMinutes")) {
+                val rem = intent.getIntExtra("remSleepMinutes", -1)
+                if (rem > 0) payload["remSleepMinutes"] = rem
+            }
+            if (intent.hasExtra("awakeMinutes")) {
+                val awake = intent.getIntExtra("awakeMinutes", -1)
+                if (awake > 0) payload["awakeMinutes"] = awake
+            }
+            if (intent.hasExtra("wakeCount")) {
+                val wake = intent.getIntExtra("wakeCount", -1)
+                if (wake > 0) payload["wakeCount"] = wake
+            }
+            if (intent.hasExtra("minSleepingHr")) {
+                val minHr = intent.getDoubleExtra("minSleepingHr", -1.0)
+                if (minHr > 0) payload["minSleepingHr"] = minHr
+            }
+            if (intent.hasExtra("avgSleepingHr")) {
+                val avgHr = intent.getDoubleExtra("avgSleepingHr", -1.0)
+                if (avgHr > 0) payload["avgSleepingHr"] = avgHr
+            }
+            if (intent.hasExtra("minNightSpo2")) {
+                val minSpo2 = intent.getDoubleExtra("minNightSpo2", -1.0)
+                if (minSpo2 > 0) payload["minNightSpo2"] = minSpo2
+            }
+            if (intent.hasExtra("nightSpo2DipsCount")) {
+                val dips = intent.getIntExtra("nightSpo2DipsCount", -1)
+                if (dips > 0) payload["nightSpo2DipsCount"] = dips
+            }
+            if (intent.hasExtra("breathingDisturbances")) {
+                val apnea = intent.getStringExtra("breathingDisturbances")
+                if (!apnea.isNullOrEmpty()) payload["breathingDisturbances"] = apnea
+            }
 
             Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Nhận sự kiện đồng hồ: isConnected=$isConnected, watch=$watchName, worn=${payload["isWorn"]}, charging=${payload["isCharging"]}, battery=${payload["batteryLevel"]} (0.1s)")
             runOnUiThread {

@@ -2468,7 +2468,17 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                         flex: s.lightSleepMinutes,
                         child: Container(color: const Color(0xFF38BDF8)),
                       ),
-                    if (s.wakeCount > 0)
+                    if ((s.remSleepMinutes ?? 0) > 0)
+                      Expanded(
+                        flex: s.remSleepMinutes!,
+                        child: Container(color: const Color(0xFF818CF8)),
+                      ),
+                    if ((s.awakeMinutes ?? 0) > 0)
+                      Expanded(
+                        flex: s.awakeMinutes!,
+                        child: Container(color: const Color(0xFFF59E0B)),
+                      )
+                    else if (s.wakeCount > 0)
                       Expanded(
                         flex: (s.wakeCount * 10).clamp(5, 50),
                         child: Container(color: const Color(0xFFF59E0B)),
@@ -2479,11 +2489,13 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             ),
             const SizedBox(height: 10),
 
-            // Chú thích
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Chú thích các giai đoạn ngủ
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF4F46E5), shape: BoxShape.circle)),
                     const SizedBox(width: 4),
@@ -2491,21 +2503,88 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   ],
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF38BDF8), shape: BoxShape.circle)),
                     const SizedBox(width: 4),
                     Text('Nông: ${s.formattedLightSleep}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
                   ],
                 ),
+                if ((s.remSleepMinutes ?? 0) > 0)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF818CF8), shape: BoxShape.circle)),
+                      const SizedBox(width: 4),
+                      Text('REM: ${s.formattedRemSleep}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                    ],
+                  ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFF59E0B), shape: BoxShape.circle)),
                     const SizedBox(width: 4),
-                    Text('Thức: ${s.wakeCount} lần', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                    Text('Thức: ${(s.awakeMinutes ?? 0) > 0 ? '${s.formattedAwake} (${s.wakeCount} lần)' : '${s.wakeCount} lần'}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
                   ],
                 ),
               ],
             ),
+
+            // Chỉ số sinh hiệu ban đêm & Cảnh báo ngưng thở khi ngủ từ đồng hồ cao cấp
+            if (s.minSleepingHeartRate != null || s.minNightSpo2 != null || s.breathingDisturbances != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: s.hasApneaWarning ? const Color(0x22EF4444) : const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: s.hasApneaWarning ? const Color(0xFFEF4444) : const Color(0xFF334155),
+                    width: 0.8,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          s.hasApneaWarning ? Icons.warning_amber_rounded : Icons.health_and_safety_outlined,
+                          size: 14,
+                          color: s.hasApneaWarning ? const Color(0xFFEF4444) : const Color(0xFF38BDF8),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          s.hasApneaWarning ? 'CẢNH BÁO: NGUY CƠ RỐI LOẠN THỞ KHI NGỦ' : 'CHỈ SỐ SINH HIỆU TRONG GIẤC NGỦ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: s.hasApneaWarning ? const Color(0xFFEF4444) : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        if (s.minSleepingHeartRate != null)
+                          Text('❤️ Tim ngủ: ${s.minSleepingHeartRate!.toInt()}${s.avgSleepingHeartRate != null ? ' - ${s.avgSleepingHeartRate!.toInt()}' : ''} BPM',
+                              style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                        if (s.minNightSpo2 != null)
+                          Text('🫁 SpO2 ngủ: ${s.minNightSpo2!.toStringAsFixed(0)}%${(s.nightSpo2DipsCount ?? 0) > 0 ? ' (Tụt: ${s.nightSpo2DipsCount})' : ''}',
+                              style: TextStyle(fontSize: 11, color: s.minNightSpo2! < 90 ? const Color(0xFFEF4444) : Colors.white70)),
+                        if (s.breathingDisturbances != null)
+                          Text('Rối loạn thở: ${s.breathingDisturbances == "ELEVATED" ? "Có dấu hiệu tăng cao" : "Bình thường"}',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: s.breathingDisturbances == "ELEVATED" ? const Color(0xFFEF4444) : const Color(0xFF10B981))),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
       ),

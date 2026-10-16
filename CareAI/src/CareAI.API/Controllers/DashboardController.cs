@@ -462,34 +462,108 @@ public class DashboardController : ControllerBase
         var nightStart = today.AddDays(-1).AddHours(20);
         var nightEnd = today.AddHours(10);
 
-        // Kiểm tra xem có bản ghi SLEEP hoặc SLEEP_STAGE từ Health Connect không
+        // Kiểm tra xem có bản ghi SLEEP hoặc các giai đoạn SLEEP_* từ cảm biến không
         var sleepSamples = await _db.HealthMeasurements
-            .Where(m => m.ElderProfileId == elderProfileId && (m.MetricType == "SLEEP" || m.MetricType == "SLEEP_STAGE") && m.Timestamp >= nightStart && m.Timestamp <= nightEnd)
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType.StartsWith("SLEEP") && m.Timestamp >= nightStart && m.Timestamp <= nightEnd)
             .OrderBy(m => m.Timestamp)
             .ToListAsync(ct);
 
-        int totalSleepMinutes;
-        DateTime? sleepStart;
-        DateTime? sleepEnd;
-        int deepMinutes;
-        int lightMinutes;
-        int wakeCount;
+        int totalSleepMinutes = 0;
+        DateTime? sleepStart = null;
+        DateTime? sleepEnd = null;
+        int deepMinutes = 0;
+        int lightMinutes = 0;
+        int wakeCount = 0;
+        int? remMinutes = null;
+        int? awakeMinutes = null;
+        double? minSleepingHr = null;
+        double? avgSleepingHr = null;
+        double? minNightSpo2 = null;
+        int? nightSpo2Dips = null;
+        string? breathingDisturbances = null;
         string sleepQuality;
         string statusColor;
 
-        if (sleepSamples.Count > 0)
-        {
-            totalSleepMinutes = (int)sleepSamples.Sum(s => s.Value);
-            sleepStart = sleepSamples.First().Timestamp;
-            sleepEnd = sleepSamples.Last().Timestamp;
-            deepMinutes = (int)(totalSleepMinutes * 0.28);
-            lightMinutes = totalSleepMinutes - deepMinutes;
-            wakeCount = 1;
+        var totalSleepSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP");
+        var deepSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_DEEP");
+        var coreSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_CORE");
+        var remSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_REM");
+        var awakeSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_AWAKE");
+        var wakeCountSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_WAKE_COUNT");
+        var hrMinSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_HR_MIN");
+        var hrAvgSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_HR_AVG");
+        var spo2MinSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_SPO2_MIN");
+        var spo2DipsSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_SPO2_DIPS");
+        var apneaSample = sleepSamples.FirstOrDefault(m => m.MetricType == "SLEEP_APNEA_RISK");
 
-            if (totalSleepMinutes < 300)
+        if (totalSleepSample != null || deepSample != null || coreSample != null)
+        {
+            if (totalSleepSample != null)
+            {
+                totalSleepMinutes = (int)totalSleepSample.Value;
+                sleepStart = totalSleepSample.Timestamp;
+                sleepEnd = totalSleepSample.RecordedAt;
+            }
+
+            if (deepSample != null)
+            {
+                deepMinutes = (int)deepSample.Value;
+            }
+            if (coreSample != null)
+            {
+                lightMinutes = (int)coreSample.Value;
+            }
+            if (remSample != null)
+            {
+                remMinutes = (int)remSample.Value;
+            }
+            if (awakeSample != null)
+            {
+                awakeMinutes = (int)awakeSample.Value;
+            }
+            if (wakeCountSample != null)
+            {
+                wakeCount = (int)wakeCountSample.Value;
+            }
+
+            // Nếu đồng hồ chỉ đẩy tổng thời gian ngủ (không có stages chi tiết từ phần cứng)
+            if (deepSample == null && totalSleepMinutes > 0)
+            {
+                deepMinutes = (int)(totalSleepMinutes * 0.28);
+                lightMinutes = totalSleepMinutes - deepMinutes;
+                wakeCount = 1;
+            }
+            else if (totalSleepMinutes == 0 && (deepMinutes > 0 || lightMinutes > 0))
+            {
+                totalSleepMinutes = deepMinutes + lightMinutes + (remMinutes ?? 0);
+            }
+
+            if (hrMinSample != null) minSleepingHr = hrMinSample.Value;
+            if (hrAvgSample != null) avgSleepingHr = hrAvgSample.Value;
+            if (spo2MinSample != null) minNightSpo2 = spo2MinSample.Value;
+            if (spo2DipsSample != null) nightSpo2Dips = (int)spo2DipsSample.Value;
+            if (apneaSample != null) breathingDisturbances = apneaSample.Value >= 1.0 ? "ELEVATED" : "NORMAL";
+
+            // Đánh giá chất lượng giấc ngủ lâm sàng (Clinical Sleep Quality Evaluation)
+            if (breathingDisturbances == "ELEVATED" || (minNightSpo2.HasValue && minNightSpo2.Value < 85.0))
+            {
+                sleepQuality = "Nguy cơ ngưng thở / Thiếu oxy ban đêm";
+                statusColor = "RED";
+            }
+            else if (totalSleepMinutes < 300)
             {
                 sleepQuality = "Thiếu ngủ (Nguy cơ suy nhược)";
                 statusColor = "RED";
+            }
+            else if (wakeCount >= 4 || (awakeMinutes.HasValue && awakeMinutes.Value >= 60))
+            {
+                sleepQuality = "Ngủ chập chờn (Thức giấc nhiều lần)";
+                statusColor = "YELLOW";
+            }
+            else if (deepMinutes < 30 && totalSleepMinutes >= 360)
+            {
+                sleepQuality = "Ngủ nông (Thiếu ngủ sâu phục hồi)";
+                statusColor = "YELLOW";
             }
             else if (totalSleepMinutes < 360)
             {
@@ -529,7 +603,14 @@ public class DashboardController : ControllerBase
             lightMinutes,
             wakeCount,
             sleepQuality,
-            statusColor
+            statusColor,
+            remMinutes,
+            awakeMinutes,
+            minSleepingHr,
+            avgSleepingHr,
+            minNightSpo2,
+            nightSpo2Dips,
+            breathingDisturbances
         );
 
         return Ok(response);

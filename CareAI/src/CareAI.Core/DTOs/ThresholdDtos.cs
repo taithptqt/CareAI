@@ -45,5 +45,12 @@ public record SleepSummaryResponse(
     int LightSleepMinutes,
     int WakeCount,
     string SleepQuality,
-    string StatusColor
+    string StatusColor,
+    int? RemSleepMinutes = null,
+    int? AwakeMinutes = null,
+    double? MinSleepingHeartRate = null,
+    double? AvgSleepingHeartRate = null,
+    double? MinNightSpo2 = null,
+    int? NightSpo2DipsCount = null,
+    string? BreathingDisturbances = null
 );

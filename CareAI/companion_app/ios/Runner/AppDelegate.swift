@@ -634,6 +634,36 @@ import workmanager_apple
     if let sleep = UserDefaults.standard.object(forKey: "careai_watch_sleep_minutes") as? Int, sleep > 0 {
       payload["sleepMinutes"] = sleep
     }
+    if let deep = UserDefaults.standard.object(forKey: "careai_watch_deep_sleep_minutes") as? Int, deep > 0 {
+      payload["deepSleepMinutes"] = deep
+    }
+    if let core = UserDefaults.standard.object(forKey: "careai_watch_core_sleep_minutes") as? Int, core > 0 {
+      payload["coreSleepMinutes"] = core
+    }
+    if let rem = UserDefaults.standard.object(forKey: "careai_watch_rem_sleep_minutes") as? Int, rem > 0 {
+      payload["remSleepMinutes"] = rem
+    }
+    if let awake = UserDefaults.standard.object(forKey: "careai_watch_awake_minutes") as? Int, awake > 0 {
+      payload["awakeMinutes"] = awake
+    }
+    if let wake = UserDefaults.standard.object(forKey: "careai_watch_wake_count") as? Int, wake > 0 {
+      payload["wakeCount"] = wake
+    }
+    if let minHr = UserDefaults.standard.object(forKey: "careai_watch_min_sleeping_hr") as? Double, minHr > 0 {
+      payload["minSleepingHr"] = minHr
+    }
+    if let avgHr = UserDefaults.standard.object(forKey: "careai_watch_avg_sleeping_hr") as? Double, avgHr > 0 {
+      payload["avgSleepingHr"] = avgHr
+    }
+    if let minSpo2 = UserDefaults.standard.object(forKey: "careai_watch_min_night_spo2") as? Double, minSpo2 > 0 {
+      payload["minNightSpo2"] = minSpo2
+    }
+    if let dips = UserDefaults.standard.object(forKey: "careai_watch_night_spo2_dips") as? Int, dips > 0 {
+      payload["nightSpo2DipsCount"] = dips
+    }
+    if let apnea = UserDefaults.standard.string(forKey: "careai_watch_breathing_disturbances"), !apnea.isEmpty {
+      payload["breathingDisturbances"] = apnea
+    }
     if let supported = UserDefaults.standard.object(forKey: "careai_watch_supported_metrics") as? [String] {
       payload["supportedMetrics"] = supported
     }
@@ -696,6 +726,16 @@ import workmanager_apple
       let bpSystolic = payload["bpSystolic"] as? Double
       let bpDiastolic = payload["bpDiastolic"] as? Double
       let sleepMinutes = payload["sleepMinutes"] as? Int
+      let deepSleepMinutes = payload["deepSleepMinutes"] as? Int
+      let coreSleepMinutes = payload["coreSleepMinutes"] as? Int
+      let remSleepMinutes = payload["remSleepMinutes"] as? Int
+      let awakeMinutes = payload["awakeMinutes"] as? Int
+      let wakeCount = payload["wakeCount"] as? Int
+      let minSleepingHr = payload["minSleepingHr"] as? Double
+      let avgSleepingHr = payload["avgSleepingHr"] as? Double
+      let minNightSpo2 = payload["minNightSpo2"] as? Double
+      let nightSpo2DipsCount = payload["nightSpo2DipsCount"] as? Int
+      let breathingDisturbances = payload["breathingDisturbances"] as? String
       let supportedMetrics = payload["supportedMetrics"] as? [String]
 
       let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
@@ -706,10 +746,11 @@ import workmanager_apple
       if watchModel != "Apple Watch" {
         UserDefaults.standard.set(watchModel, forKey: "careai_apple_watch_name")
       }
-      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: model=%@, worn=%@, charging=%@, battery=%@, steps=%@, hr=%@, spo2=%@, bp=%@/%@",
+      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: model=%@, worn=%@, charging=%@, battery=%@, steps=%@, hr=%@, spo2=%@, bp=%@/%@, sleep=%@, deep=%@, apnea=%@",
             watchModel, String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel),
             String(describing: todaySteps), String(describing: heartRate), String(describing: spo2),
-            String(describing: bpSystolic), String(describing: bpDiastolic))
+            String(describing: bpSystolic), String(describing: bpDiastolic), String(describing: sleepMinutes),
+            String(describing: deepSleepMinutes), String(describing: breathingDisturbances))
 
       if let isWorn = isWorn { UserDefaults.standard.set(isWorn, forKey: "careai_watch_is_worn") }
       if let isCharging = isCharging { UserDefaults.standard.set(isCharging, forKey: "careai_watch_is_charging") }
@@ -720,6 +761,16 @@ import workmanager_apple
       if let bpSystolic = bpSystolic, bpSystolic > 0 { UserDefaults.standard.set(bpSystolic, forKey: "careai_watch_bp_systolic") }
       if let bpDiastolic = bpDiastolic, bpDiastolic > 0 { UserDefaults.standard.set(bpDiastolic, forKey: "careai_watch_bp_diastolic") }
       if let sleepMinutes = sleepMinutes, sleepMinutes > 0 { UserDefaults.standard.set(sleepMinutes, forKey: "careai_watch_sleep_minutes") }
+      if let deepSleepMinutes = deepSleepMinutes, deepSleepMinutes > 0 { UserDefaults.standard.set(deepSleepMinutes, forKey: "careai_watch_deep_sleep_minutes") }
+      if let coreSleepMinutes = coreSleepMinutes, coreSleepMinutes > 0 { UserDefaults.standard.set(coreSleepMinutes, forKey: "careai_watch_core_sleep_minutes") }
+      if let remSleepMinutes = remSleepMinutes, remSleepMinutes > 0 { UserDefaults.standard.set(remSleepMinutes, forKey: "careai_watch_rem_sleep_minutes") }
+      if let awakeMinutes = awakeMinutes, awakeMinutes > 0 { UserDefaults.standard.set(awakeMinutes, forKey: "careai_watch_awake_minutes") }
+      if let wakeCount = wakeCount, wakeCount > 0 { UserDefaults.standard.set(wakeCount, forKey: "careai_watch_wake_count") }
+      if let minSleepingHr = minSleepingHr, minSleepingHr > 0 { UserDefaults.standard.set(minSleepingHr, forKey: "careai_watch_min_sleeping_hr") }
+      if let avgSleepingHr = avgSleepingHr, avgSleepingHr > 0 { UserDefaults.standard.set(avgSleepingHr, forKey: "careai_watch_avg_sleeping_hr") }
+      if let minNightSpo2 = minNightSpo2, minNightSpo2 > 0 { UserDefaults.standard.set(minNightSpo2, forKey: "careai_watch_min_night_spo2") }
+      if let nightSpo2DipsCount = nightSpo2DipsCount, nightSpo2DipsCount > 0 { UserDefaults.standard.set(nightSpo2DipsCount, forKey: "careai_watch_night_spo2_dips") }
+      if let breathingDisturbances = breathingDisturbances, !breathingDisturbances.isEmpty { UserDefaults.standard.set(breathingDisturbances, forKey: "careai_watch_breathing_disturbances") }
       if let supportedMetrics = supportedMetrics { UserDefaults.standard.set(supportedMetrics, forKey: "careai_watch_supported_metrics") }
 
       DispatchQueue.main.async { [weak self] in
@@ -742,6 +793,16 @@ import workmanager_apple
         if let bpSystolic = bpSystolic, bpSystolic > 0 { map["bpSystolic"] = bpSystolic }
         if let bpDiastolic = bpDiastolic, bpDiastolic > 0 { map["bpDiastolic"] = bpDiastolic }
         if let sleepMinutes = sleepMinutes, sleepMinutes > 0 { map["sleepMinutes"] = sleepMinutes }
+        if let deepSleepMinutes = deepSleepMinutes, deepSleepMinutes > 0 { map["deepSleepMinutes"] = deepSleepMinutes }
+        if let coreSleepMinutes = coreSleepMinutes, coreSleepMinutes > 0 { map["coreSleepMinutes"] = coreSleepMinutes }
+        if let remSleepMinutes = remSleepMinutes, remSleepMinutes > 0 { map["remSleepMinutes"] = remSleepMinutes }
+        if let awakeMinutes = awakeMinutes, awakeMinutes > 0 { map["awakeMinutes"] = awakeMinutes }
+        if let wakeCount = wakeCount, wakeCount > 0 { map["wakeCount"] = wakeCount }
+        if let minSleepingHr = minSleepingHr, minSleepingHr > 0 { map["minSleepingHr"] = minSleepingHr }
+        if let avgSleepingHr = avgSleepingHr, avgSleepingHr > 0 { map["avgSleepingHr"] = avgSleepingHr }
+        if let minNightSpo2 = minNightSpo2, minNightSpo2 > 0 { map["minNightSpo2"] = minNightSpo2 }
+        if let nightSpo2DipsCount = nightSpo2DipsCount, nightSpo2DipsCount > 0 { map["nightSpo2DipsCount"] = nightSpo2DipsCount }
+        if let breathingDisturbances = breathingDisturbances, !breathingDisturbances.isEmpty { map["breathingDisturbances"] = breathingDisturbances }
         if let supportedMetrics = supportedMetrics { map["supportedMetrics"] = supportedMetrics }
         self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: map)
       }
@@ -759,6 +820,16 @@ import workmanager_apple
       UserDefaults.standard.removeObject(forKey: "careai_watch_bp_systolic")
       UserDefaults.standard.removeObject(forKey: "careai_watch_bp_diastolic")
       UserDefaults.standard.removeObject(forKey: "careai_watch_sleep_minutes")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_deep_sleep_minutes")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_core_sleep_minutes")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_rem_sleep_minutes")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_awake_minutes")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_wake_count")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_min_sleeping_hr")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_avg_sleeping_hr")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_min_night_spo2")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_night_spo2_dips")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_breathing_disturbances")
       UserDefaults.standard.removeObject(forKey: "careai_watch_supported_metrics")
       NSLog("[CareAI-iOS] Nhận thông báo WATCH_UNPAIRED từ Apple Watch. Đã xóa trạng thái ghép nối đồng hồ.")
       notifyWatchConnectionStatus()
