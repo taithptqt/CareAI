@@ -47,6 +47,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   WatchStatus _watchStatus = const WatchStatus(isConnected: false);
   String? _lastPairedWatchName;
+  String? _customWatchAlias;
   Timer? _watchStatusTimer;
   Timer? _watchDisconnectDebounceTimer;
   bool _isDebouncingDisconnect = false;
@@ -169,12 +170,41 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   Future<void> _initLastPairedWatchName() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedAlias = prefs.getString('custom_watch_alias');
     final saved = prefs.getString('last_paired_watch_name');
-    if (mounted && saved != null && saved.isNotEmpty) {
+    if (mounted) {
       setState(() {
-        _lastPairedWatchName = saved;
+        if (savedAlias != null && savedAlias.isNotEmpty) {
+          _customWatchAlias = savedAlias;
+        }
+        if (saved != null && saved.isNotEmpty) {
+          _lastPairedWatchName = saved;
+        }
       });
     }
+  }
+
+  String get _effectiveWatchDisplayName {
+    if (_customWatchAlias != null && _customWatchAlias!.trim().isNotEmpty) {
+      return _customWatchAlias!.trim();
+    }
+    final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
+    final isStatusGeneric = _watchStatus.watchName == null ||
+        _watchStatus.watchName!.trim().isEmpty ||
+        _watchStatus.watchName == 'Apple Watch' ||
+        _watchStatus.watchName == 'Galaxy Watch';
+    final isSavedSpecific = _lastPairedWatchName != null &&
+        _lastPairedWatchName!.trim().isNotEmpty &&
+        _lastPairedWatchName != 'Apple Watch' &&
+        _lastPairedWatchName != 'Galaxy Watch';
+
+    if (!isStatusGeneric && _watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) {
+      return _watchStatus.watchName!;
+    }
+    if (isSavedSpecific) {
+      return _lastPairedWatchName!;
+    }
+    return _watchStatus.watchName ?? _lastPairedWatchName ?? platformName;
   }
 
   @override
@@ -252,11 +282,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         final isStatusGeneric = status.watchName == null || status.watchName!.trim().isEmpty || status.watchName == 'Apple Watch' || status.watchName == 'Galaxy Watch';
         final isSavedSpecific = savedWatchName != null && savedWatchName.trim().isNotEmpty && savedWatchName != 'Apple Watch' && savedWatchName != 'Galaxy Watch';
 
-        final effectiveName = !isStatusGeneric
-            ? status.watchName!
-            : (isSavedSpecific ? savedWatchName! : (status.watchName ?? platformName));
-        _lastPairedWatchName = effectiveName;
-        await prefs.setString('last_paired_watch_name', effectiveName);
+        if (!isStatusGeneric) {
+          _lastPairedWatchName = status.watchName;
+          await prefs.setString('last_paired_watch_name', status.watchName!);
+        } else if (isSavedSpecific) {
+          _lastPairedWatchName = savedWatchName;
+        }
+
+        final effectiveName = _effectiveWatchDisplayName;
 
         unawaited(ApiService.instance.syncConnectedWatch(
           effectiveName,
@@ -336,7 +369,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       if (showFeedback && mounted) {
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
         final channelDesc = defaultTargetPlatform == TargetPlatform.iOS ? 'Bluetooth / Apple Watch App' : 'Bluetooth / Galaxy Wearable';
-        final effectiveWatchName = status.watchName ?? _lastPairedWatchName ?? (status.isPaired ? platformName : null);
+        final effectiveWatchName = _effectiveWatchDisplayName;
         String feedbackMsg;
         if (status.isConnected) {
           feedbackMsg = '🟢 Đã kết nối: ${effectiveWatchName ?? platformName} (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})';
@@ -407,12 +440,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
     // Nếu đồng hồ đang kết nối, đồng bộ trạng thái đồng hồ lên đám mây
     if (_watchStatus.isConnected) {
-      final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
-      final isStatusGeneric = _watchStatus.watchName == null || _watchStatus.watchName!.trim().isEmpty || _watchStatus.watchName == 'Apple Watch' || _watchStatus.watchName == 'Galaxy Watch';
-      final isSavedSpecific = _lastPairedWatchName != null && _lastPairedWatchName!.trim().isNotEmpty && _lastPairedWatchName != 'Apple Watch' && _lastPairedWatchName != 'Galaxy Watch';
-      final watchName = !isStatusGeneric
-          ? _watchStatus.watchName!
-          : (isSavedSpecific ? _lastPairedWatchName! : (_watchStatus.watchName ?? platformName));
+      final watchName = _effectiveWatchDisplayName;
 
       unawaited(ApiService.instance.syncConnectedWatch(
         watchName,
@@ -948,17 +976,130 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     await _showSettingsDialog();
   }
 
+  /// Đổi tên thân thuộc cho đồng hồ (biệt danh) để người thân dễ nhận biết
+  Future<void> _showEditWatchNameDialog(String currentName) async {
+    final isGeneric = currentName == 'Apple Watch' ||
+        currentName == 'Galaxy Watch' ||
+        currentName == 'Apple Watch (watchOS)' ||
+        currentName == 'Galaxy Watch (Wear OS)' ||
+        currentName == 'Chưa kết nối đồng hồ' ||
+        currentName == 'Chưa ghép nối đồng hồ';
+    final controller = TextEditingController(text: isGeneric ? '' : currentName);
+    final formKey = GlobalKey<FormState>();
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF334155)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: Color(0xFF38BDF8), size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Tên Gọi Đồng Hồ',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Đặt tên gợi nhớ để người thân dễ nhận diện trong gia đình (ví dụ: Apple Watch của Bedouh):',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: controller,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: 'Nhập tên đồng hồ...',
+                  hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                  filled: true,
+                  fillColor: const Color(0xFF0F172A),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
+                  ),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Vui lòng nhập tên cho đồng hồ';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('HỦY BỎ', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(ctx, controller.text.trim());
+              }
+            },
+            child: const Text('LƯU TÊN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('custom_watch_alias', newName);
+      setState(() {
+        _customWatchAlias = newName;
+      });
+      unawaited(ApiService.instance.syncConnectedWatch(
+        newName,
+        isConnected: _watchStatus.isConnected,
+        isWorn: _watchStatus.isWorn,
+        isCharging: _watchStatus.isCharging,
+        batteryLevel: _watchStatus.batteryLevel,
+      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã cập nhật tên đồng hồ: $newName'),
+            backgroundColor: const Color(0xFF0284C7),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   /// Mở hộp thoại Cài Đặt Thiết Bị (Thanh lịch, không gây hoang mang, tách bạch chức năng)
   Future<void> _showSettingsDialog() async {
     final isConnected = _watchStatus.isConnected;
     final hasKnownWatch = (_watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) ||
         (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) ||
+        _customWatchAlias != null ||
         _watchStatus.isPaired;
-    final isGenericStatus = _watchStatus.watchName == null || _watchStatus.watchName!.trim().isEmpty || _watchStatus.watchName == 'Apple Watch' || _watchStatus.watchName == 'Galaxy Watch';
-    final hasSpecificLast = _lastPairedWatchName != null && _lastPairedWatchName!.trim().isNotEmpty && _lastPairedWatchName != 'Apple Watch' && _lastPairedWatchName != 'Galaxy Watch';
-    final watchDisplayName = (!isGenericStatus && _watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty)
-        ? _watchStatus.watchName
-        : (hasSpecificLast ? _lastPairedWatchName : (_watchStatus.watchName ?? _lastPairedWatchName ?? (isConnected ? _platformWatchTitle : null)));
+    final watchDisplayName = _effectiveWatchDisplayName;
 
     await showDialog<void>(
       context: context,
@@ -1047,15 +1188,35 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            watchDisplayName ?? 'Chưa kết nối đồng hồ',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  watchDisplayName,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (hasKnownWatch || isConnected) ...[
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    _showEditWatchNameDialog(watchDisplayName);
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2),
+                                    child: Icon(Icons.edit_outlined, size: 14, color: Color(0xFF38BDF8)),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 1),
                           Text(
@@ -1215,9 +1376,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       await FallService.instance.unpairWatch();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('last_paired_watch_name');
+      await prefs.remove('custom_watch_alias');
       if (mounted) {
         setState(() {
           _lastPairedWatchName = null;
+          _customWatchAlias = null;
           _watchStatus = const WatchStatus(isConnected: false);
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1281,10 +1444,12 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       await FallService.instance.unpairWatch();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('last_paired_watch_name');
+      await prefs.remove('custom_watch_alias');
       await ApiService.instance.unpair();
       if (mounted) {
         setState(() {
           _lastPairedWatchName = null;
+          _customWatchAlias = null;
           _watchStatus = const WatchStatus(isConnected: false);
         });
         Navigator.of(context).pushReplacement(
@@ -1504,17 +1669,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 final isConnected = _watchStatus.isConnected;
                 final hasKnownWatch = (_watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) ||
                     (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) ||
+                    _customWatchAlias != null ||
                     _watchStatus.isPaired;
                 final isBtOff = !isConnected && _watchStatus.reason == 'BLUETOOTH_OFF';
                 final isDisconnected = !isConnected && hasKnownWatch;
-                final isGenericStatus = _watchStatus.watchName == null || _watchStatus.watchName!.trim().isEmpty || _watchStatus.watchName == 'Apple Watch' || _watchStatus.watchName == 'Galaxy Watch';
-                final hasSpecificLast = _lastPairedWatchName != null && _lastPairedWatchName!.trim().isNotEmpty && _lastPairedWatchName != 'Apple Watch' && _lastPairedWatchName != 'Galaxy Watch';
-                final effectiveModel = (!isGenericStatus && _watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty)
-                    ? _watchStatus.watchName!
-                    : (hasSpecificLast ? _lastPairedWatchName! : (_watchStatus.watchName ?? _lastPairedWatchName ?? _platformWatchTitle));
                 final watchTitle = isConnected
-                    ? effectiveModel
-                    : (isDisconnected ? effectiveModel : 'Chưa ghép nối đồng hồ');
+                    ? _effectiveWatchDisplayName
+                    : (isDisconnected ? _effectiveWatchDisplayName : 'Chưa ghép nối đồng hồ');
 
                 final String statusSubtext;
                 final Color borderColor;
@@ -1653,15 +1814,32 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    watchTitle,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          watchTitle,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isConnected || hasKnownWatch) ...[
+                                        const SizedBox(width: 6),
+                                        GestureDetector(
+                                          onTap: () => _showEditWatchNameDialog(watchTitle),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(2),
+                                            child: Icon(Icons.edit_outlined, size: 14, color: Color(0xFF38BDF8)),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
