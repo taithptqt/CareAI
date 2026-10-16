@@ -360,7 +360,7 @@ public class DashboardAndGpsTests : IDisposable
         var response = Assert.IsType<HourlySteps24hResponse>(okResult.Value);
         Assert.Equal(24, response.HourlySteps.Count);
         Assert.True(response.TotalStepsToday >= 500);
-        Assert.Equal(DateTime.UtcNow.Hour, response.PeakHour);
+        Assert.Equal(DateTime.UtcNow.AddHours(7).Hour, response.PeakHour);
         Assert.Equal(500, response.PeakSteps);
     }
 

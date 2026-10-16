@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -12,6 +11,7 @@ import 'incident_detail_screen.dart';
 import 'incident_history_screen.dart';
 import 'health_corner_screen.dart';
 import '../services/map_sovereignty_helper.dart';
+import '../services/vietnam_time_helper.dart';
 
 class ElderDashboardScreen extends StatefulWidget {
   final String elderProfileId;
@@ -349,7 +349,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               if (d.lastSyncedAt != null)
                 Center(
                   child: Text(
-                    'Đồng bộ dữ liệu lúc: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(d.lastSyncedAt!.toLocal())}',
+                    'Đồng bộ dữ liệu lúc: ${VietnamTimeHelper.formatFull(d.lastSyncedAt)} (Giờ VN)',
                     style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                   ),
                 ),
@@ -833,11 +833,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               style: TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.bold)),
           if (heartRate != null)
             Text('Nhịp tim tăng: ${heartRate.value.toStringAsFixed(0)} bpm · '
-                '${DateFormat('HH:mm:ss').format(heartRate.timestamp.toLocal())}',
+                '${VietnamTimeHelper.formatHms(heartRate.timestamp)} (Giờ VN)',
                 style: const TextStyle(color: Colors.white)),
           if (spo2 != null)
             Text('SpO₂ giảm: ${spo2.value.toStringAsFixed(0)}% · '
-                '${DateFormat('HH:mm:ss').format(spo2.timestamp.toLocal())}',
+                '${VietnamTimeHelper.formatHms(spo2.timestamp)} (Giờ VN)',
                 style: const TextStyle(color: Colors.white)),
           const Text('Chỉ dùng để thử luồng đồng bộ. Không phải số đo lâm sàng từ thiết bị.',
               style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12)),
@@ -1028,7 +1028,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               ),
               if (timestamp != null)
                 Text(
-                  DateFormat('HH:mm').format(timestamp.toLocal()),
+                  VietnamTimeHelper.formatHm(timestamp),
                   style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
                 ),
             ],
@@ -1041,6 +1041,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   // --- KHU VỰC PHÂN TÍCH BIỂU ĐỒ SINH HIỆU CHUYÊN SÂU (GÓI A: 4 BIỂU ĐỒ) ---
   Widget _buildVitalsAnalyticsCard() {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(20),
@@ -1057,7 +1058,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Bộ chuyển đổi 4 Tab biểu đồ
+          // 1. Bộ chuyển đổi 4 Tab biểu đồ (phân bố đều 100% không tràn viền, không cuộn che khuất)
           _buildChartTabBar(),
           const SizedBox(height: 16),
 
@@ -1083,52 +1084,55 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       (index: 3, label: 'Vận động', icon: Icons.directions_walk_rounded, color: const Color(0xFF10B981)),
     ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: tabs.map((t) {
-          final isSelected = _selectedChartTab == t.index;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+    return Row(
+      children: tabs.map((t) {
+        final isSelected = _selectedChartTab == t.index;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: t.index < 3 ? 6 : 0),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => setState(() => _selectedChartTab = t.index),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected ? t.color.withValues(alpha: 0.2) : const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isSelected ? t.color : const Color(0xFF334155),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       t.icon,
-                      size: 15,
+                      size: 14,
                       color: isSelected ? t.color : const Color(0xFF94A3B8),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      t.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        t.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -1146,12 +1150,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
     List<FlSpot> spots = [];
     if (points.isNotEmpty) {
-      final now = DateTime.now();
-      final windowStart = now.subtract(const Duration(hours: 24));
-      for (int i = 0; i < points.length; i++) {
-        final diffHours = points[i].timestamp.difference(windowStart).inMinutes / 60.0;
-        final clampedX = diffHours.clamp(0.0, 24.0);
-        spots.add(FlSpot(clampedX, points[i].value));
+      final todayPoints = points.where((p) => VietnamTimeHelper.isTodayInVietnam(p.timestamp)).toList();
+      final activePoints = todayPoints.isNotEmpty ? todayPoints : points;
+
+      for (int i = 0; i < activePoints.length; i++) {
+        final x = VietnamTimeHelper.getHourOfDay(activePoints[i].timestamp);
+        spots.add(FlSpot(x, activePoints[i].value));
       }
       spots.sort((a, b) => a.x.compareTo(b.x));
     }
@@ -1190,7 +1194,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFF334155)),
               ),
-              child: const Text('24 giờ qua', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+              child: const Text('Theo giờ VN', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
             ),
           ],
         ),
@@ -1224,8 +1228,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
+                      final h = spot.x.floor();
+                      final m = ((spot.x - h) * 60).round();
+                      final timeStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
                       return LineTooltipItem(
-                        '${spot.y.toInt()} bpm\n${spot.x.toInt()}h',
+                        '${spot.y.toInt()} bpm\n$timeStr (Giờ VN)',
                         const TextStyle(
                           color: Color(0xFFEF4444),
                           fontWeight: FontWeight.bold,
@@ -1433,8 +1440,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
                       final isSys = spot.barIndex == 0;
+                      final idx = spot.x.toInt();
+                      final dateStr = (idx >= 0 && idx < points.length)
+                          ? '\n${VietnamTimeHelper.formatDm(points[idx].timestamp)} (Giờ VN)'
+                          : '';
                       return LineTooltipItem(
-                        '${isSys ? "Tâm thu" : "Tâm trương"}: ${spot.y.toInt()} mmHg',
+                        '${isSys ? "Tâm thu" : "Tâm trương"}: ${spot.y.toInt()} mmHg$dateStr',
                         TextStyle(
                           color: isSys ? const Color(0xFFEF4444) : const Color(0xFF06B6D4),
                           fontWeight: FontWeight.bold,
@@ -1486,7 +1497,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            DateFormat('dd/MM').format(points[idx].timestamp.toLocal()),
+                            VietnamTimeHelper.formatDm(points[idx].timestamp),
                             style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
                           ),
                         );
@@ -1603,11 +1614,14 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
     List<FlSpot> spots = [];
     if (points.isNotEmpty) {
-      final windowStart = DateTime.now().subtract(const Duration(hours: 24));
-      for (int i = 0; i < points.length; i++) {
-        final hoursDiff = points[i].timestamp.toLocal().difference(windowStart).inMinutes / 60.0;
-        spots.add(FlSpot(hoursDiff.clamp(0.0, 24.0), points[i].value));
+      final todayPoints = points.where((p) => VietnamTimeHelper.isTodayInVietnam(p.timestamp)).toList();
+      final activePoints = todayPoints.isNotEmpty ? todayPoints : points;
+
+      for (int i = 0; i < activePoints.length; i++) {
+        final x = VietnamTimeHelper.getHourOfDay(activePoints[i].timestamp);
+        spots.add(FlSpot(x, activePoints[i].value));
       }
+      spots.sort((a, b) => a.x.compareTo(b.x));
     }
 
     final double minVal = spo2?.minSpo2 ?? 96.0;
@@ -1646,7 +1660,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 ),
               ),
               child: Text(
-                dipsCount > 0 ? 'Có $dipsCount cơn tụt oxy' : 'Oxy bão hòa tốt',
+                dipsCount > 0 ? 'Có $dipsCount cơn tụt oxy' : 'Bão hòa tốt · Giờ VN',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -1686,8 +1700,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
+                      final h = spot.x.floor();
+                      final m = ((spot.x - h) * 60).round();
+                      final timeStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
                       return LineTooltipItem(
-                        'SpO₂: ${spot.y.toInt()}%\n${spot.x.toInt()}h',
+                        'SpO₂: ${spot.y.toStringAsFixed(1)}%\n$timeStr (Giờ VN)',
                         const TextStyle(
                           color: Color(0xFF0EA5E9),
                           fontWeight: FontWeight.bold,
@@ -1874,7 +1891,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFF334155)),
               ),
-              child: const Text('Theo từng giờ', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+              child: const Text('Theo giờ VN', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
             ),
           ],
         ),
@@ -1907,7 +1924,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     return BarTooltipItem(
-                      '${group.x}h: ${rod.toY.toInt()} bước',
+                      '${group.x}h00 - ${group.x}h59 (Giờ VN)\n${rod.toY.toInt()} bước',
                       const TextStyle(
                         color: Color(0xFF38BDF8),
                         fontWeight: FontWeight.bold,
@@ -2756,12 +2773,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text('Chống báo động giả', style: TextStyle(fontSize: 10, color: Color(0xFFA5B4FC), fontWeight: FontWeight.w600)),
+                      child: const Text('Chuẩn đêm', style: TextStyle(fontSize: 10, color: Color(0xFFA5B4FC), fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -2793,7 +2810,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           if (hasUpdated) ...[
             const SizedBox(height: 8),
             Text(
-              'Tối ưu lần cuối: ${DateFormat('dd/MM/yyyy HH:mm').format(_thresholdData!.updatedAt!.toLocal())}',
+              'Tối ưu lần cuối: ${VietnamTimeHelper.formatDateTimeHm(_thresholdData!.updatedAt)} (Giờ VN)',
               style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
             ),
           ],
@@ -3264,7 +3281,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Hết hạn lúc: ${DateFormat('HH:mm:ss').format(_pinExpiresAt ?? DateTime.now())}',
+                    'Hết hạn lúc: ${VietnamTimeHelper.formatHms(_pinExpiresAt)} (Giờ VN)',
                     style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                   ),
                 ],
@@ -3430,7 +3447,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           ),
           const SizedBox(height: 8),
           Text(
-            'Thời gian: ${DateFormat('HH:mm:ss dd/MM').format(inc.triggeredAt.toLocal())}',
+            'Thời gian: ${VietnamTimeHelper.formatAlertTime(inc.triggeredAt)} (Giờ VN)',
             style: TextStyle(fontSize: 12, color: timeColor),
           ),
           const SizedBox(height: 10),

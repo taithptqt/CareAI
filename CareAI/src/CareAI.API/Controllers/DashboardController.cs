@@ -144,10 +144,11 @@ public class DashboardController : ControllerBase
             .OrderByDescending(m => m.Timestamp)
             .FirstOrDefaultAsync(ct);
 
-        // Số bước chân hôm nay
-        var todayStart = DateTime.UtcNow.Date;
+        // Số bước chân hôm nay theo Giờ Việt Nam (UTC+7)
+        var vnNow = DateTime.UtcNow.AddHours(7);
+        var vnStartOfDayUtc = vnNow.Date.AddHours(-7);
         var todaySteps = (int)await _db.HealthMeasurements
-            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "STEPS" && m.Timestamp >= todayStart)
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "STEPS" && m.Timestamp >= vnStartOfDayUtc)
             .SumAsync(m => m.Value, ct);
 
         // Sự cố đang mở
@@ -255,12 +256,23 @@ public class DashboardController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền xem thông tin người cao tuổi này." });
         }
 
-        var since = DateTime.UtcNow.AddHours(-24);
+        var vnNow = DateTime.UtcNow.AddHours(7);
+        var vnStartOfDayUtc = vnNow.Date.AddHours(-7);
         var samples = await _db.HealthMeasurements
-            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "HEART_RATE" && m.Timestamp >= since)
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "HEART_RATE" && m.Timestamp >= vnStartOfDayUtc)
             .OrderBy(m => m.Timestamp)
-            .Select(m => new HeartRatePointDto(m.Timestamp, m.Value))
+            .Select(m => new HeartRatePointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
             .ToListAsync(ct);
+
+        if (samples.Count == 0)
+        {
+            var since = DateTime.UtcNow.AddHours(-24);
+            samples = await _db.HealthMeasurements
+                .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "HEART_RATE" && m.Timestamp >= since)
+                .OrderBy(m => m.Timestamp)
+                .Select(m => new HeartRatePointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
+                .ToListAsync(ct);
+        }
 
         if (samples.Count == 0)
         {
@@ -313,7 +325,7 @@ public class DashboardController : ControllerBase
         {
             var matchedDia = diaList.FirstOrDefault(d => Math.Abs((d.Timestamp - sys.Timestamp).TotalMinutes) <= 5);
             var diaValue = matchedDia?.Value ?? 80.0;
-            points.Add(new BloodPressurePointDto(sys.Timestamp, sys.Value, diaValue));
+            points.Add(new BloodPressurePointDto(DateTime.SpecifyKind(sys.Timestamp, DateTimeKind.Utc), sys.Value, diaValue));
         }
 
         if (points.Count == 0)
@@ -365,12 +377,23 @@ public class DashboardController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền xem thông tin người cao tuổi này." });
         }
 
-        var since = DateTime.UtcNow.AddHours(-24);
+        var vnNow = DateTime.UtcNow.AddHours(7);
+        var vnStartOfDayUtc = vnNow.Date.AddHours(-7);
         var samples = await _db.HealthMeasurements
-            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "SPO2" && m.Timestamp >= since)
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "SPO2" && m.Timestamp >= vnStartOfDayUtc)
             .OrderBy(m => m.Timestamp)
-            .Select(m => new Spo2PointDto(m.Timestamp, m.Value))
+            .Select(m => new Spo2PointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
             .ToListAsync(ct);
+
+        if (samples.Count == 0)
+        {
+            var since = DateTime.UtcNow.AddHours(-24);
+            samples = await _db.HealthMeasurements
+                .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "SPO2" && m.Timestamp >= since)
+                .OrderBy(m => m.Timestamp)
+                .Select(m => new Spo2PointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
+                .ToListAsync(ct);
+        }
 
         if (samples.Count == 0)
         {
@@ -408,9 +431,10 @@ public class DashboardController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền xem thông tin người cao tuổi này." });
         }
 
-        var startOfDay = DateTime.UtcNow.Date;
+        var vnNow = DateTime.UtcNow.AddHours(7);
+        var vnStartOfDayUtc = vnNow.Date.AddHours(-7);
         var stepSamples = await _db.HealthMeasurements
-            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "STEPS" && m.Timestamp >= startOfDay)
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "STEPS" && m.Timestamp >= vnStartOfDayUtc)
             .OrderBy(m => m.Timestamp)
             .ToListAsync(ct);
 
@@ -419,8 +443,8 @@ public class DashboardController : ControllerBase
 
         foreach (var sample in stepSamples)
         {
-            var h = sample.Timestamp.Hour;
-            hourlyMap[h] += (int)sample.Value;
+            var vnH = sample.Timestamp.AddHours(7).Hour;
+            hourlyMap[vnH] += (int)sample.Value;
         }
 
         var totalSteps = hourlyMap.Values.Sum();
@@ -457,10 +481,10 @@ public class DashboardController : ControllerBase
             return NotFound(new { error = "Không tìm thấy hồ sơ người cao tuổi." });
         }
 
-        // Lấy thời điểm bắt đầu đêm qua (từ 20:00 tối hôm trước đến 10:00 sáng hôm nay)
-        var today = DateTime.UtcNow.Date;
-        var nightStart = today.AddDays(-1).AddHours(20);
-        var nightEnd = today.AddHours(10);
+        // Lấy thời điểm bắt đầu đêm qua theo Giờ Việt Nam (từ 20:00 tối hôm trước đến 10:00 sáng hôm nay)
+        var vnToday = DateTime.UtcNow.AddHours(7).Date;
+        var nightStart = vnToday.AddDays(-1).AddHours(20).AddHours(-7);
+        var nightEnd = vnToday.AddHours(10).AddHours(-7);
 
         // Kiểm tra xem có bản ghi SLEEP hoặc các giai đoạn SLEEP_* từ cảm biến không
         var sleepSamples = await _db.HealthMeasurements
@@ -595,7 +619,7 @@ public class DashboardController : ControllerBase
 
         var response = new SleepSummaryResponse(
             elderProfileId,
-            today,
+            vnToday,
             totalSleepMinutes,
             sleepStart,
             sleepEnd,
