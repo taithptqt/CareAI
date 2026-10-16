@@ -11,6 +11,7 @@ import '../services/caregiver_api_service.dart';
 import 'incident_detail_screen.dart';
 import 'incident_history_screen.dart';
 import 'health_corner_screen.dart';
+import '../services/map_sovereignty_helper.dart';
 
 class ElderDashboardScreen extends StatefulWidget {
   final String elderProfileId;
@@ -2151,17 +2152,23 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     options: MapOptions(
                       initialCenter: coord,
                       initialZoom: 15.5,
+                      minZoom: 4.5,
+                      maxZoom: 19.0,
                       interactionOptions: const InteractionOptions(
                         flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                       ),
                     ),
                     children: [
-                      TileLayer(
-                        urlTemplate: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
-                        subdomains: const ['a', 'b', 'c'],
-                        userAgentPackageName: 'vn.careai.companion',
-                        maxZoom: 19,
-                      ),
+                      // Lớp 1: Bản đồ Vietmap (nếu có key) hoặc Bản đồ OSM France CDN
+                      MapSovereigntyHelper.buildTileLayer(),
+
+                      // Lớp 2: Khẳng định chủ quyền 2 quần đảo Hoàng Sa và Trường Sa của Việt Nam khi dùng bản đồ quốc tế
+                      if (!MapSovereigntyHelper.hasVietmapKey)
+                        MarkerLayer(
+                          markers: MapSovereigntyHelper.buildSovereigntyMarkers(),
+                        ),
+
+                      // Marker định vị người cao tuổi
                       MarkerLayer(
                         markers: [
                           Marker(
@@ -2206,6 +2213,28 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                         ],
                       ),
                     ],
+                  ),
+
+                  // Huy hiệu nguồn bản đồ & chủ quyền biển đảo
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF334155), width: 0.8),
+                      ),
+                      child: Text(
+                        MapSovereigntyHelper.mapProviderBadge,
+                        style: const TextStyle(
+                          color: Color(0xFFF1F5F9),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
 
                   // Thanh nổi thông tin tọa độ & sao chép link Google Maps

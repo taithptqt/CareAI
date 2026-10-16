@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../services/place_search_service.dart';
+import '../services/map_sovereignty_helper.dart';
 
 class HomeLocationMapScreen extends StatefulWidget {
   const HomeLocationMapScreen({super.key, this.initialPlace});
@@ -17,7 +17,6 @@ class HomeLocationMapScreen extends StatefulWidget {
 }
 
 class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
-  static const _vietmapKey = String.fromEnvironment('CAREAI_VIETMAP_API_KEY');
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
@@ -105,30 +104,6 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_vietmapKey.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Chọn vị trí nhà trên bản đồ')),
-        body: Center(child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Cần VIETMAP Tilemap API key để hiển thị bản đồ Việt Nam. '
-                'Khóa này chưa được cấu hình cho bản app hiện tại.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: () => launchUrl(Uri.parse(
-                  'https://maps.vietmap.vn/console-v2/register')),
-                child: const Text('Xem trang đăng ký VIETMAP'),
-              ),
-            ],
-          ),
-        )),
-      );
-    }
     final initial = _selected;
     final center = initial?.latitude != null && initial?.longitude != null
         ? LatLng(initial!.latitude!, initial.longitude!)
@@ -146,10 +121,7 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
               onTap: (_, point) => _placePin(point),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://maps.vietmap.vn/maps/tiles/st/{z}/{x}/{y}.png?apikey=$_vietmapKey',
-                userAgentPackageName: 'vn.careai.companion',
-              ),
+              MapSovereigntyHelper.buildTileLayer(),
               if (_selected?.latitude != null && _selected?.longitude != null)
                 MarkerLayer(markers: [Marker(
                   point: LatLng(_selected!.latitude!, _selected!.longitude!),
@@ -158,8 +130,10 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
                   alignment: Alignment.bottomCenter,
                   child: const Icon(Icons.location_pin, size: 48, color: Colors.red),
                 )]),
-              const SimpleAttributionWidget(
-                source: Text('VIETMAP'),
+              if (!MapSovereigntyHelper.hasVietmapKey)
+                MarkerLayer(markers: MapSovereigntyHelper.buildSovereigntyMarkers()),
+              SimpleAttributionWidget(
+                source: Text(MapSovereigntyHelper.mapProviderBadge),
               ),
             ],
           ),
