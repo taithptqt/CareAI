@@ -1286,6 +1286,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _showBatteryOnboardingDialog() async {
     final manufacturer = await PowerOptimizationService.instance.getManufacturer();
+    final lower = manufacturer.toLowerCase();
+    final isSamsung = lower.contains('samsung');
+    final isChineseOem = lower.contains('xiaomi') ||
+        lower.contains('redmi') ||
+        lower.contains('poco') ||
+        lower.contains('oppo') ||
+        lower.contains('realme') ||
+        lower.contains('vivo') ||
+        lower.contains('huawei') ||
+        lower.contains('honor');
     if (!mounted) return;
 
     await showDialog(
@@ -1349,24 +1359,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       'Hệ điều hành Android sẽ không đóng băng app khi máy ngủ sâu (tiêu thụ pin < 0.1%/ngày).',
                       style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.rocket_launch_rounded, color: Color(0xFF10B981), size: 18),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '2. Bật "Tự khởi chạy" ($manufacturer)',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                    if (isSamsung) ...[
+                      const SizedBox(height: 10),
+                      const Row(
+                        children: [
+                          Icon(Icons.shield_moon_rounded, color: Color(0xFF10B981), size: 18),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '2. Không đưa vào danh sách ngủ (Samsung)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Cho phép hệ thống tự đánh thức chuông báo cấp cứu khi bạn vuốt tắt app.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Đảm bảo CareAI nằm trong danh sách "Ứng dụng không bao giờ ở chế độ ngủ".',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                    ] else if (isChineseOem) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(Icons.rocket_launch_rounded, color: Color(0xFF10B981), size: 18),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '2. Bật "Tự khởi chạy" ($manufacturer)',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Cho phép hệ thống tự đánh thức chuông báo cấp cứu khi bạn vuốt tắt app.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1393,8 +1424,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
               await PowerOptimizationService.instance.dismissOnboarding();
               if (ctx.mounted) Navigator.pop(ctx);
-              final lower = manufacturer.toLowerCase();
-              if (lower.contains('xiaomi') || lower.contains('redmi') || lower.contains('oppo') || lower.contains('vivo') || lower.contains('huawei') || lower.contains('samsung')) {
+              if (isChineseOem || isSamsung) {
                 await PowerOptimizationService.instance.openAutostartSettings();
               }
             },
