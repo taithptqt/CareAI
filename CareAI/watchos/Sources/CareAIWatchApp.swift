@@ -792,9 +792,6 @@ struct DailyWellnessView: View {
                                 .font(.system(size: 10.5, weight: .bold))
                                 .foregroundColor(Color(white: 0.6))
                             Spacer()
-                            Text("Apple Health")
-                                .font(.system(size: 7))
-                                .foregroundColor(Color(white: 0.4))
                         }
                     }
                 }

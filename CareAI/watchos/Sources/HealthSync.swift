@@ -599,14 +599,14 @@ final class HealthSync: ObservableObject {
                 self?.isNetworkSatisfied = (path.status == .satisfied)
             }
             guard path.status == .satisfied else { return }
-            Task { @MainActor [weak self] in self?.flush(force: true) }
+            Task { @MainActor [weak self] in self?.flush(force: false) }
         }
         pathMonitor.start(queue: DispatchQueue(label: "careai.watch.network"))
-        // Chu kỳ gửi ngầm định kỳ (Background Cyclic Sync): Đẩy telemetry sang iPhone và backend đều đặn
-        retryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        // Chu kỳ đồng bộ nền gom lô sinh hiệu định kỳ (1-2 tiếng một lần theo chuẩn watchOS để tiết kiệm pin)
+        retryTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateHealthAlert()
-                self?.flush(force: true)
+                self?.flush(force: false)
                 WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
             }
         }
@@ -1518,14 +1518,12 @@ final class HealthSync: ObservableObject {
                         self.latestHeartRateAt = sample.endDate
                         UserDefaults.standard.set(value, forKey: "latest.heartRate")
                         UserDefaults.standard.set(sample.endDate, forKey: "latest.heartRateAt")
-                        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                     } else if identifier == .oxygenSaturation,
                               sample.endDate > (self.latestSpo2At ?? .distantPast) {
                         self.latestSpo2 = value
                         self.latestSpo2At = sample.endDate
                         UserDefaults.standard.set(value, forKey: "latest.spo2")
                         UserDefaults.standard.set(sample.endDate, forKey: "latest.spo2At")
-                        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                     } else if identifier == .bloodPressureSystolic,
                               sample.endDate > (self.latestBpAt ?? .distantPast) {
                         self.latestBpSystolic = value
@@ -1560,7 +1558,7 @@ final class HealthSync: ObservableObject {
                     UserDefaults.standard.set(data, forKey: key)
                 }
                 self.status = "Watching HealthKit · queued \(self.queue.count)"
-                if sendAfter { self.flush(force: true) }
+                if sendAfter { self.flush(force: false) }
             }
         }
         healthStore.execute(query)
