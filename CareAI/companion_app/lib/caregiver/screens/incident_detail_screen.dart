@@ -582,6 +582,30 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                       _row('Thời điểm tiếp nhận', DateFormat('HH:mm:ss dd/MM/yyyy').format(_incident.acknowledgedAt!.toLocal())),
                       if (_incident.acknowledgedByCaregiverId != null)
                         _row('Mã người thân tiếp nhận', _incident.acknowledgedByCaregiverId),
+                      if (!isResolved) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, color: Color(0xFF16A34A), size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Ưu tiên hỗ trợ, chăm sóc cụ trước. Bạn không bắt buộc phải đóng sự cố ngay lúc này. Khi cụ đã an toàn và ổn định, hãy bấm "Giải quyết sự cố" bên dưới.',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF15803D), height: 1.3),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

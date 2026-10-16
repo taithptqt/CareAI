@@ -1309,8 +1309,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
 
+        if (!mounted) return;
+        final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+
+        // 3. Popup list hướng dẫn các quyền còn lại (CHỈ HIỂN THỊ VÀO LẦN ĐẦU CÀI APP)
+        if (_hasItemsToShow(status, isFirst: true) && mounted) {
+          await _showPermissionGuideDialog(status, isFirstLaunch: true);
+        }
+
         // Ghi nhận đã qua lần khởi động đầu tiên
         await PowerOptimizationService.instance.dismissOnboarding();
+      } else {
+        // Các lần mở app sau: TUYỆT ĐỐI KHÔNG hiện popup list!
+        // Chỉ nhắc lại nếu quyền tiết kiệm pin bị tắt (bị thu hồi)
+        final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+        if (!status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+        }
       }
 
       if (!mounted) return;
@@ -1320,48 +1335,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _permissionStatus = status;
         _hasUserCompletedOrDismissedOnboarding = hasDismissed;
       });
-
-      // 3. Sau khi 2 popup đầu xong, LUÔN hiển thị popup list nếu có quyền chưa cấp hoặc có mục hãng
-      if (_hasItemsToShow(status) && mounted) {
-        await _showPermissionGuideDialog(status);
-      }
     } finally {
       _isRequestingPermissions = false;
     }
   }
 
-  bool _hasItemsToShow(CriticalPermissionsStatus status) {
-    final mfg = status.manufacturer.toLowerCase();
-    final isSamsung = mfg.contains('samsung');
-    final isChineseOem = mfg.contains('xiaomi') ||
-        mfg.contains('redmi') ||
-        mfg.contains('poco') ||
-        mfg.contains('oppo') ||
-        mfg.contains('realme') ||
-        mfg.contains('vivo') ||
-        mfg.contains('huawei') ||
-        mfg.contains('honor');
+  bool _hasItemsToShow(CriticalPermissionsStatus status, {bool isFirst = false}) {
+    if (isFirst) {
+      final mfg = status.manufacturer.toLowerCase();
+      final isSamsung = mfg.contains('samsung');
+      final isChineseOem = mfg.contains('xiaomi') ||
+          mfg.contains('redmi') ||
+          mfg.contains('poco') ||
+          mfg.contains('oppo') ||
+          mfg.contains('realme') ||
+          mfg.contains('vivo') ||
+          mfg.contains('huawei') ||
+          mfg.contains('honor');
 
+      return !status.notificationsEnabled ||
+          !status.batteryOptimizationIgnored ||
+          status.backgroundDataRestricted ||
+          (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ||
+          isSamsung ||
+          isChineseOem;
+    }
+
+    // Các lần sau (nếu gọi thủ công từ banner): chỉ hiện nếu có quyền thiết yếu bị thiếu
     return !status.notificationsEnabled ||
         !status.batteryOptimizationIgnored ||
-        status.backgroundDataRestricted ||
-        isSamsung ||
-        isChineseOem;
+        status.backgroundDataRestricted;
   }
 
   Future<void> _showBatteryOptimizationGuide() async {
     final status = _permissionStatus ?? await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
-    await _showPermissionGuideDialog(status);
+    await _showPermissionGuideDialog(status, isFirstLaunch: false);
   }
 
-  Future<void> _showPermissionGuideDialog(CriticalPermissionsStatus status) async {
-    if (_isPermissionDialogShowing || !mounted || !_hasItemsToShow(status)) return;
+  Future<void> _showPermissionGuideDialog(CriticalPermissionsStatus status, {bool isFirstLaunch = false}) async {
+    if (_isPermissionDialogShowing || !mounted || !_hasItemsToShow(status, isFirst: isFirstLaunch)) return;
     _isPermissionDialogShowing = true;
     try {
       await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => _SimplePermissionGuideDialog(initialStatus: status),
+        builder: (ctx) => _SimplePermissionGuideDialog(
+          initialStatus: status,
+          isFirstLaunch: isFirstLaunch,
+        ),
       );
     } finally {
       _isPermissionDialogShowing = false;
@@ -1529,9 +1550,11 @@ class _ShakeWidgetState extends State<_ShakeWidget> with SingleTickerProviderSta
 
 class _SimplePermissionGuideDialog extends StatefulWidget {
   final CriticalPermissionsStatus initialStatus;
+  final bool isFirstLaunch;
 
   const _SimplePermissionGuideDialog({
     required this.initialStatus,
+    this.isFirstLaunch = false,
   });
 
   @override
@@ -1609,22 +1632,26 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
 
     final items = <Widget>[];
 
-    // 1. Quyền dữ liệu nền (Quét được - Bắt buộc nếu bị chặn)
-    if (_status.backgroundDataRestricted) {
+    // 1. Quyền dữ liệu nền & Tiết kiệm pin
+    // Hiển thị nếu:
+    // a) Đang bị Android hạn chế dữ liệu nền (status.backgroundDataRestricted == true)
+    // b) HOẶC là lần đầu cài đặt (widget.isFirstLaunch == true) trên Android để hướng dẫn bật phòng ngừa
+    if (_status.backgroundDataRestricted || (widget.isFirstLaunch && !kIsWeb && defaultTargetPlatform == TargetPlatform.android)) {
       items.add(
         _ShakeWidget(
           controller: _backgroundDataShakeCtrl,
           child: _buildItem(
-            title: 'Quyền dữ liệu nền',
-            badgeText: 'Bắt buộc',
-            badgeColor: const Color(0xFFDC2626),
-            description: 'Bật dữ liệu nền không giới hạn cho CareAI trong Tiết kiệm dữ liệu để nhận tín hiệu cấp cứu.',
+            title: 'Quyền dữ liệu nền & Tiết kiệm pin',
+            badgeText: _status.backgroundDataRestricted ? 'Bắt buộc' : 'Khuyến nghị',
+            badgeColor: _status.backgroundDataRestricted ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+            description: 'Bật "Cho phép dùng dữ liệu nền" và "Cho phép dùng dữ liệu khi bật Tiết kiệm dữ liệu / Tiết kiệm pin" để nhận tín hiệu cấp cứu.',
             buttonText: 'Mở cài đặt',
             onPressed: () => PowerOptimizationService.instance.openBackgroundDataSettings(),
           ),
         ),
       );
     }
+
 
     // 2. Quyền thông báo (Quét được - Bắt buộc nếu chưa cấp)
     if (!_status.notificationsEnabled) {
