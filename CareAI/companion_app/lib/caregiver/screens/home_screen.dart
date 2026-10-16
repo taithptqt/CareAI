@@ -62,8 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       CaregiverPushService.instance.registerCurrentToken();
       CaregiverPushService.instance.openPendingIncident();
-      await _checkBatteryOptimizationOnboarding();
-      await _checkCriticalPermissionsRealtime(showPopupIfMissing: false);
+      await _checkAndRequestPermissionsSequentially();
     });
   }
 
@@ -1277,34 +1276,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _checkBatteryOptimizationOnboarding() async {
+  Future<void> _checkAndRequestPermissionsSequentially() async {
     if (!mounted) return;
-    final shouldShow = await PowerOptimizationService.instance.shouldShowOnboarding();
-    if (shouldShow && mounted) {
-      final status = _permissionStatus ?? await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
-      await _showPermissionChecklistDialog(status: status, isFirstLaunch: true);
+    final isFirst = await PowerOptimizationService.instance.isFirstLaunch();
+
+    if (isFirst) {
+      // 1. Popup mặc định của điện thoại: Quyền thông báo
+      final notifsEnabled = await PowerOptimizationService.instance.areNotificationsEnabled();
+      if (!notifsEnabled) {
+        final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
+        if (canDirect) {
+          await PowerOptimizationService.instance.requestNotificationPermission();
+        }
+      }
+
+      // 2. Popup mặc định 1-chạm của điện thoại: Bỏ tối ưu pin
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        final batteryIgnored = await PowerOptimizationService.instance.isIgnoringBatteryOptimizations();
+        if (!batteryIgnored) {
+          await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+        }
+      }
+
+      // Ghi nhận đã qua lần khởi động đầu tiên
+      await PowerOptimizationService.instance.dismissOnboarding();
     }
+
+    if (!mounted) return;
+    final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+    final hasDismissed = await PowerOptimizationService.instance.hasUserDismissedOnboarding();
+    setState(() {
+      _permissionStatus = status;
+      _hasUserCompletedOrDismissedOnboarding = hasDismissed;
+    });
+
+    // 3. Chỉ hiện danh sách hướng dẫn nếu còn quyền KHÔNG CÓ POPUP MẶC ĐỊNH hoặc bị chặn
+    if (_needsManualSettingGuide(status) && mounted) {
+      await _showPermissionGuideDialog(status);
+    }
+  }
+
+  bool _needsManualSettingGuide(CriticalPermissionsStatus status) {
+    if (!status.hasMissingCriticalPermissions) {
+      return false;
+    }
+    // Nếu chỉ thiếu pin và có thể bấm popup 1-chạm: không cần hiện list
+    if (status.onlyBatteryOptimizationMissing) {
+      return false;
+    }
+    // Nếu chỉ thiếu thông báo và có thể hiện popup trực tiếp của hệ thống: không cần hiện list
+    if (status.onlyNotificationsMissing) {
+      return false;
+    }
+    return true;
   }
 
   Future<void> _showBatteryOptimizationGuide() async {
     final status = _permissionStatus ?? await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
-    await _showPermissionChecklistDialog(status: status, isFirstLaunch: false);
+    await _showPermissionGuideDialog(status);
   }
 
-  Future<void> _showPermissionChecklistDialog({
-    required CriticalPermissionsStatus status,
-    bool isFirstLaunch = false,
-  }) async {
+  Future<void> _showPermissionGuideDialog(CriticalPermissionsStatus status) async {
     if (_isPermissionDialogShowing || !mounted) return;
     _isPermissionDialogShowing = true;
     try {
       await showDialog<bool>(
         context: context,
-        barrierDismissible: false,
-        builder: (ctx) => _CriticalPermissionChecklistDialog(
-          initialStatus: status,
-          isFirstLaunch: isFirstLaunch,
-        ),
+        barrierDismissible: true,
+        builder: (ctx) => _SimplePermissionGuideDialog(initialStatus: status),
       );
     } finally {
       _isPermissionDialogShowing = false;
@@ -1323,12 +1362,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
 
     if (status.hasMissingCriticalPermissions && showPopupIfMissing && !_isPermissionDialogShowing) {
-      // 1. Nếu chỉ bị tắt duy nhất quyền pin: bung trực tiếp popup 1-chạm của hệ điều hành Android
       if (status.onlyBatteryOptimizationMissing) {
         await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
         return;
       }
-      // 2. Nếu chỉ bị tắt duy nhất quyền thông báo và có thể xin trực tiếp: bung trực tiếp popup hệ thống
       if (status.onlyNotificationsMissing) {
         final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
         if (canDirect) {
@@ -1336,19 +1373,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
       }
-      // 3. Các trường hợp khác (nhiều quyền bị tắt, hoặc bị chặn trong Settings, hoặc OEM autostart): bung list checklist
-      await _showPermissionChecklistDialog(status: status, isFirstLaunch: false);
+      if (_needsManualSettingGuide(status)) {
+        await _showPermissionGuideDialog(status);
+      }
     }
   }
 
   Future<void> _handleFixPermission(CriticalPermissionsStatus status) async {
-    // 1. Bật popup trực tiếp của hệ điều hành nếu chỉ bị tắt tối ưu pin
+    // 1. Nếu chỉ thiếu pin: bung popup 1-chạm mặc định của Android
     if (status.onlyBatteryOptimizationMissing) {
       await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
       await _checkCriticalPermissionsRealtime();
       return;
     }
-    // 2. Bật popup trực tiếp của hệ điều hành nếu chỉ bị tắt thông báo và có thể xin trực tiếp
+    // 2. Nếu chỉ thiếu thông báo: bung popup mặc định của điện thoại
     if (status.onlyNotificationsMissing) {
       final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
       if (canDirect) {
@@ -1357,8 +1395,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return;
       }
     }
-    // 3. Bung list hướng dẫn chi tiết từng quyền nếu không thể bật trực tiếp hoặc có nhiều quyền bị tắt
-    await _showPermissionChecklistDialog(status: status, isFirstLaunch: false);
+    // 3. Nếu cần mở Cài đặt (Samsung, Xiaomi, Thông báo bị chặn): mở hướng dẫn đơn giản
+    await _showPermissionGuideDialog(status);
   }
 
   bool get _shouldShowStickyPermissionBanner {
@@ -1366,7 +1404,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (status == null || !status.hasMissingCriticalPermissions) {
       return false;
     }
-    // Ẩn banner đỏ ở lần đầu mở app cho đến khi người dùng đã xem qua hoặc bỏ qua checklist
     if (!_hasUserCompletedOrDismissedOnboarding) {
       return false;
     }
@@ -1378,104 +1415,60 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return const SizedBox.shrink();
     }
     final status = _permissionStatus!;
-    final message = status.primaryWarningMessage ?? 'Quyền bảo vệ còi hú cấp cứu đang bị vô hiệu hóa!';
 
     return Container(
       width: double.infinity,
       color: const Color(0xFFFEF2F2),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.gpp_bad_rounded, color: Color(0xFFEF4444), size: 26),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'CÒI HÚ CẤP CỨU ĐANG TẮT!',
-                    style: TextStyle(
-                      color: Color(0xFFDC2626),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    message,
-                    style: const TextStyle(
-                      color: Color(0xFF1E293B),
-                      fontSize: 12,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFDC2626), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              status.primaryWarningMessage ?? 'Quyền chạy ngầm đang bị tắt.',
+              style: const TextStyle(
+                color: Color(0xFF991B1B),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                elevation: 0,
-              ),
-              onPressed: () => _handleFixPermission(status),
-              child: const Text('BẬT LẠI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFDC2626),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             ),
-          ],
-        ),
+            onPressed: () => _handleFixPermission(status),
+            child: const Text('CÀI ĐẶT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _CriticalPermissionChecklistDialog extends StatefulWidget {
+class _SimplePermissionGuideDialog extends StatefulWidget {
   final CriticalPermissionsStatus initialStatus;
-  final bool isFirstLaunch;
 
-  const _CriticalPermissionChecklistDialog({
+  const _SimplePermissionGuideDialog({
     required this.initialStatus,
-    this.isFirstLaunch = false,
   });
 
   @override
-  State<_CriticalPermissionChecklistDialog> createState() =>
-      _CriticalPermissionChecklistDialogState();
+  State<_SimplePermissionGuideDialog> createState() => _SimplePermissionGuideDialogState();
 }
 
-class _CriticalPermissionChecklistDialogState
-    extends State<_CriticalPermissionChecklistDialog>
+class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDialog>
     with WidgetsBindingObserver {
   late CriticalPermissionsStatus _status;
-  bool _isAutoDismissing = false;
-  bool _isActionInProgress = false;
 
   @override
   void initState() {
     super.initState();
     _status = widget.initialStatus;
     WidgetsBinding.instance.addObserver(this);
-    if (!_status.hasMissingCriticalPermissions) {
-      _triggerAutoDismiss();
-    }
   }
 
   @override
@@ -1492,122 +1485,14 @@ class _CriticalPermissionChecklistDialogState
   }
 
   Future<void> _refresh() async {
-    if (!mounted || _isAutoDismissing) return;
-    final updated =
-        await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
     if (!mounted) return;
-    setState(() {
-      _status = updated;
-    });
+    final updated = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+    if (!mounted) return;
+    setState(() => _status = updated);
 
-    if (!_status.hasMissingCriticalPermissions && !_isAutoDismissing) {
-      _triggerAutoDismiss();
+    if (!_status.hasMissingCriticalPermissions) {
+      Navigator.of(context).pop(true);
     }
-  }
-
-  void _triggerAutoDismiss() {
-    _isAutoDismissing = true;
-    if (mounted) setState(() {});
-    Future.delayed(const Duration(milliseconds: 650), () {
-      if (mounted) {
-        Navigator.of(context).pop(true);
-      }
-    });
-  }
-
-  Widget _buildChecklistCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required bool isGranted,
-    required String actionButtonLabel,
-    required VoidCallback onAction,
-    String? instructionHint,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isGranted ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isGranted ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
-          width: 1.2,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color: isGranted ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isGranted ? const Color(0xFF14532D) : const Color(0xFF7F1D1D),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isGranted ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  isGranted ? '✓ ĐÃ BẬT' : '! BỊ TẮT',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isGranted ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            description,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF475569), height: 1.3),
-          ),
-          if (instructionHint != null && !isGranted) ...[
-            const SizedBox(height: 4),
-            Text(
-              instructionHint,
-              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
-            ),
-          ],
-          if (!isGranted) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
-                ),
-                onPressed: _isActionInProgress ? null : onAction,
-                child: Text(
-                  actionButtonLabel,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 
   @override
@@ -1622,187 +1507,101 @@ class _CriticalPermissionChecklistDialogState
         mfg.contains('vivo') ||
         mfg.contains('huawei') ||
         mfg.contains('honor');
-    final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+    final items = <Widget>[];
+
+    if (!_status.notificationsEnabled) {
+      items.add(
+        _buildItem(
+          title: 'Quyền thông báo',
+          description: 'Cần để đổ chuông báo động khi có sự cố.',
+          buttonText: 'Mở cài đặt',
+          onPressed: () => PowerOptimizationService.instance.openNotificationSettings(),
+        ),
+      );
+    }
+
+    if (!_status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      items.add(
+        _buildItem(
+          title: 'Quyền chạy ngầm (Pin)',
+          description: 'Chọn "Không hạn chế" để ứng dụng không bị đóng băng khi tắt màn hình.',
+          buttonText: 'Cho phép',
+          onPressed: () => PowerOptimizationService.instance.requestIgnoreBatteryOptimizations(),
+        ),
+      );
+    }
+
+    if (isSamsung) {
+      items.add(
+        _buildItem(
+          title: 'Quyền chạy ngầm (Samsung)',
+          description: 'Cài đặt > Pin > Ứng dụng không bao giờ ngủ > Thêm CareAI.',
+          buttonText: 'Mở cài đặt',
+          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+        ),
+      );
+    } else if (isChineseOem) {
+      items.add(
+        _buildItem(
+          title: 'Quyền tự khởi chạy (${_status.manufacturer})',
+          description: 'Cài đặt > Quản lý ứng dụng > Tự khởi chạy > Bật CareAI.',
+          buttonText: 'Mở cài đặt',
+          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+        ),
+      );
+    }
+
+    if (_status.backgroundDataRestricted) {
+      items.add(
+        _buildItem(
+          title: 'Quyền dữ liệu nền',
+          description: 'Bật dữ liệu nền không giới hạn cho CareAI trong Tiết kiệm dữ liệu.',
+          buttonText: 'Mở cài đặt',
+          onPressed: () => PowerOptimizationService.instance.openBackgroundDataSettings(),
+        ),
+      );
+    }
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.security_rounded, color: Color(0xFFEF4444), size: 24),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              widget.isFirstLaunch ? 'Kích Hoạt Còi Hú Cấp Cứu' : 'Khắc Phục Quyền Còi Hú',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-            ),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_isAutoDismissing || !_status.hasMissingCriticalPermissions)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF22C55E)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 24),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Tất cả quyền bảo vệ đã sẵn sàng hoạt động 24/7! Đang đóng popup...',
-                          style: TextStyle(
-                            color: Color(0xFF14532D),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'Để còi báo động luôn hú to đánh thức bạn lúc nửa đêm khi người già té ngã hoặc nguy kịch (kể cả khi điện thoại tắt màn hình hoặc đang khóa):',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
-                  ),
-                ),
-
-              // Mục 1: Thông báo
-              _buildChecklistCard(
-                icon: Icons.notifications_active_rounded,
-                title: '1. Quyền Thông Báo Cấp Cứu',
-                description: 'Cần thiết để điện thoại phát còi hú và hiển thị cảnh báo khi xảy ra sự cố.',
-                instructionHint: 'Nếu bị chặn: Chọn "Mở cài đặt" > Bật tất cả thông báo CareAI.',
-                isGranted: _status.notificationsEnabled,
-                actionButtonLabel: 'BẬT THÔNG BÁO',
-                onAction: () async {
-                  setState(() => _isActionInProgress = true);
-                  final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
-                  if (canDirect) {
-                    await PowerOptimizationService.instance.requestNotificationPermission();
-                  } else {
-                    await PowerOptimizationService.instance.openNotificationSettings();
-                  }
-                  await _refresh();
-                  if (mounted) setState(() => _isActionInProgress = false);
-                },
-              ),
-
-              // Mục 2: Bỏ tối ưu pin (Android)
-              if (isAndroid)
-                _buildChecklistCard(
-                  icon: Icons.battery_charging_full_rounded,
-                  title: '2. Bỏ Tối Ưu Hóa Pin (Chạy Ngầm)',
-                  description: 'Chọn "Không hạn chế" (Unrestricted) để Android không đóng băng app lúc màn hình tắt.',
-                  instructionHint: 'Bấm nút dưới để mở popup 1-chạm của hệ điều hành Android.',
-                  isGranted: _status.batteryOptimizationIgnored,
-                  actionButtonLabel: 'BỎ TỐI ƯU PIN (1 CHẠM)',
-                  onAction: () async {
-                    setState(() => _isActionInProgress = true);
-                    await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
-                    await _refresh();
-                    if (mounted) setState(() => _isActionInProgress = false);
-                  },
-                ),
-
-              // Mục 3: Chống ngủ sâu / Autostart của hãng (Samsung / Xiaomi / Oppo / Vivo...)
-              if (isSamsung)
-                _buildChecklistCard(
-                  icon: Icons.shield_moon_rounded,
-                  title: '3. Không Đưa Vào Danh Sách Ngủ (Samsung)',
-                  description: 'Đảm bảo CareAI nằm trong danh sách "Ứng dụng không bao giờ ở chế độ ngủ".',
-                  instructionHint: 'Hướng dẫn: Pin > Giới hạn sử dụng dưới nền > Ứng dụng không bao giờ ngủ > Thêm CareAI.',
-                  isGranted: _status.batteryOptimizationIgnored,
-                  actionButtonLabel: 'MỞ CÀI ĐẶT PIN SAMSUNG',
-                  onAction: () async {
-                    setState(() => _isActionInProgress = true);
-                    await PowerOptimizationService.instance.openAutostartSettings();
-                    await _refresh();
-                    if (mounted) setState(() => _isActionInProgress = false);
-                  },
-                )
-              else if (isChineseOem)
-                _buildChecklistCard(
-                  icon: Icons.rocket_launch_rounded,
-                  title: '3. Bật "Tự Khởi Chạy" (${_status.manufacturer})',
-                  description: 'Cho phép hệ thống tự đánh thức chuông báo cấp cứu khi bạn vuốt tắt app.',
-                  instructionHint: 'Hướng dẫn: Quản lý ứng dụng > Tự khởi chạy (Autostart) > Bật CareAI.',
-                  isGranted: _status.batteryOptimizationIgnored,
-                  actionButtonLabel: 'MỞ CÀI ĐẶT TỰ KHỞI CHẠY',
-                  onAction: () async {
-                    setState(() => _isActionInProgress = true);
-                    await PowerOptimizationService.instance.openAutostartSettings();
-                    await _refresh();
-                    if (mounted) setState(() => _isActionInProgress = false);
-                  },
-                ),
-
-              // Mục 4: Cho phép dữ liệu nền (khi Tiết kiệm dữ liệu bật)
-              if (_status.backgroundDataRestricted)
-                _buildChecklistCard(
-                  icon: Icons.wifi_protected_setup_rounded,
-                  title: '4. Cho Phép Dữ Liệu Nền',
-                  description: 'Chế độ Tiết kiệm dữ liệu/pin đang chặn kết nối mạng của CareAI khi tắt màn hình.',
-                  instructionHint: 'Bật "Cho phép sử dụng dữ liệu nền" cho CareAI.',
-                  isGranted: !_status.backgroundDataRestricted,
-                  actionButtonLabel: 'BẬT MẠNG NỀN',
-                  onAction: () async {
-                    setState(() => _isActionInProgress = true);
-                    await PowerOptimizationService.instance.openBackgroundDataSettings();
-                    await _refresh();
-                    if (mounted) setState(() => _isActionInProgress = false);
-                  },
-                ),
-            ],
-          ),
+      title: const Text('Cần cấp quyền', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: items,
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () async {
-            await PowerOptimizationService.instance.dismissOnboarding();
-            if (context.mounted) Navigator.pop(context, false);
-          },
-          child: Text(
-            widget.isFirstLaunch ? 'ĐỂ SAU' : 'ĐỂ SAU (RỦI RO)',
-            style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
-          ),
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Để sau'),
         ),
-        if (!_status.hasMissingCriticalPermissions)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF16A34A),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('HOÀN TẤT', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
       ],
     );
   }
-}
 
+  Widget _buildItem({
+    required String title,
+    required String description,
+    required String buttonText,
+    required VoidCallback onPressed,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 2),
+          Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+          const SizedBox(height: 6),
+          OutlinedButton(
+            onPressed: onPressed,
+            child: Text(buttonText),
+          ),
+        ],
+      ),
+    );
+  }
+}
