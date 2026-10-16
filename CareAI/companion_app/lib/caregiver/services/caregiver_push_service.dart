@@ -48,6 +48,10 @@ Future<void> dispatchNativeCaregiverAlert(RemoteMessage message,
     await sendNative(arguments);
     return;
   }
+  await dispatchDirectCaregiverAlert(arguments);
+}
+
+Future<void> dispatchDirectCaregiverAlert(Map<String, dynamic> arguments) async {
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     await AndroidIntent(
       action: 'vn.careai.companion.ACTION_CAREGIVER_ALERT',
@@ -82,6 +86,63 @@ class CaregiverPushService {
   bool _ready = false;
   String? _pendingIncidentId;
   String? visibleIncidentId;
+  Timer? _fallbackPollingTimer;
+  final Set<String> _alertedIncidentCycles = {};
+
+  void _startFallbackPolling() {
+    _fallbackPollingTimer?.cancel();
+    _fallbackPollingTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      await _checkActiveIncidentsFallback();
+    });
+    unawaited(_checkActiveIncidentsFallback());
+  }
+
+  Future<void> _checkActiveIncidentsFallback() async {
+    if (!await _isCaregiver()) return;
+    try {
+      final list = await CaregiverApiService.instance.getActiveIncidents();
+      final currentOpenIds = <String>{};
+
+      for (final inc in list) {
+        if (!inc.isOpen) continue;
+        final isCritical = inc.severity == 'Critical' || inc.emergencyType == 'FALL';
+        if (!isCritical) continue;
+
+        currentOpenIds.add(inc.id);
+        final cycle = inc.alertState?.cycleNumber ?? 1;
+        final key = '${inc.id}_$cycle';
+
+        if (!_alertedIncidentCycles.contains(key)) {
+          _alertedIncidentCycles.add(key);
+          debugPrint('[CareAI-Push] Fallback Polling: Phát hiện sự cố khẩn cấp ${inc.id} ($key). Kích hoạt báo động...');
+
+          await dispatchDirectCaregiverAlert({
+            'incidentId': inc.id,
+            'alertCycleNumber': cycle,
+            'eventType': inc.emergencyType,
+            'title': 'CẢNH BÁO CẤP CỨU',
+            'body': 'Người cao tuổi cần trợ giúp ngay (${inc.emergencyType}).',
+            'emergencyType': inc.emergencyType,
+            'priority': 'CRITICAL',
+            'siren': true,
+          });
+
+          // Vũ trang AlarmManager cho native Android để chạy độc lập khi app background/tắt
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+            const MethodChannel('vn.careai.companion/fall_bridge')
+                .invokeMethod('armCaregiverBackgroundWatchdog')
+                .catchError((_) => null);
+          }
+        }
+      }
+
+      // Xóa các sự cố không còn mở khỏi danh sách đã cảnh báo
+      _alertedIncidentCycles.removeWhere((k) {
+        final id = k.split('_').first;
+        return !currentOpenIds.contains(id);
+      });
+    } catch (_) {}
+  }
 
   Future<void> initialize() async {
     if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
@@ -102,10 +163,14 @@ class CaregiverPushService {
         }
       } catch (_) {}
     }
+
+    // Khởi động Fallback Polling liên tục song song để bảo đảm nhận cảnh báo ngay cả khi Firebase chưa cấu hình hoặc bị chặn
+    _startFallbackPolling();
+
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS) ||
         _apiKey.isEmpty || _appId.isEmpty || _senderId.isEmpty || _projectId.isEmpty) {
-      debugPrint('[CareAI-Push] Firebase chưa được cấu hình.');
+      debugPrint('[CareAI-Push] Firebase chưa được cấu hình. Đang chạy cơ chế giám sát sự cố nền độc lập.');
       return;
     }
     try {

@@ -50,6 +50,11 @@ class FallService {
     if (_isPhoneFallDetectorEnabled) return;
     _isPhoneFallDetectorEnabled = true;
 
+    // Kích hoạt Foreground Service trên Android để cảm biến gia tốc chạy ngầm ngay cả khi tắt màn hình
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      _fallChannel.invokeMethod('startPhoneFallService').catchError((_) => null);
+    }
+
     _sensorSubscription = accelerometerEventStream().listen((event) {
       _processAccelerometerSample(event.x, event.y, event.z);
     });
@@ -57,6 +62,9 @@ class FallService {
 
   /// Tắt cảm biến dự phòng
   void stopPhoneAccelerometerDetector() {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      _fallChannel.invokeMethod('stopPhoneFallService').catchError((_) => null);
+    }
     _sensorSubscription?.cancel();
     _sensorSubscription = null;
     _isPhoneFallDetectorEnabled = false;

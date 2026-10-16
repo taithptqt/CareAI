@@ -437,6 +437,63 @@ private final class FallDetectionCoordinator: NSObject, CMFallDetectionDelegate 
     }
 }
 
+/// Helper điều phối phiên nền WKExtendedRuntimeSession liên tục giữ cảm biến chuyển động hoạt động khi màn hình tắt / hạ cổ tay
+private final class FallSessionCoordinator: NSObject, WKExtendedRuntimeSessionDelegate {
+    private weak var sync: HealthSync?
+    private var session: WKExtendedRuntimeSession?
+    private var isRunning = false
+
+    init(sync: HealthSync) {
+        self.sync = sync
+        super.init()
+    }
+
+    func start() {
+        guard !isRunning else { return }
+        let s = WKExtendedRuntimeSession()
+        s.delegate = self
+        session = s
+        s.start()
+        isRunning = true
+        NSLog("[CareAI-Watch] Đã kích hoạt WKExtendedRuntimeSession duy trì cảm biến ngầm khi màn hình tắt.")
+    }
+
+    func stop() {
+        guard isRunning else { return }
+        session?.invalidate()
+        session = nil
+        isRunning = false
+        NSLog("[CareAI-Watch] Đã dừng WKExtendedRuntimeSession.")
+    }
+
+    func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        NSLog("[CareAI-Watch] WKExtendedRuntimeSession nền đã kích hoạt thành công.")
+    }
+
+    func extendedRuntimeSessionWillExpire(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        NSLog("[CareAI-Watch] WKExtendedRuntimeSession sắp hết hạn. Tự động tái vũ trang ngay...")
+        Task { @MainActor [weak self] in
+            guard let self = self, let sync = self.sync else { return }
+            if sync.autoFallDetectionEnabled && sync.isWorn && !sync.isCharging {
+                self.stop()
+                self.start()
+            }
+        }
+    }
+
+    func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
+        NSLog("[CareAI-Watch] WKExtendedRuntimeSession invalidate (mã: %ld). Tự phục hồi sau 1s nếu đang đeo...", reason.rawValue)
+        isRunning = false
+        Task { @MainActor [weak self] in
+            guard let self = self, let sync = self.sync else { return }
+            if sync.autoFallDetectionEnabled && sync.isWorn && !sync.isCharging {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                self.start()
+            }
+        }
+    }
+}
+
 @MainActor
 final class HealthSync: ObservableObject {
     nonisolated static func resolveWatchModelName(machineCode: String, fallbackName: String) -> String {
@@ -570,6 +627,7 @@ final class HealthSync: ObservableObject {
     private var isBurstSampling = false
     private var burstResetWorkItem: DispatchWorkItem?
     private var activeEmergencySession: WKExtendedRuntimeSession?
+    private var fallSessionCoordinator: FallSessionCoordinator?
 
     init() {
         HealthSync.shared = self
@@ -583,6 +641,7 @@ final class HealthSync: ObservableObject {
         dev.isBatteryMonitoringEnabled = true
         self.isCharging = (dev.batteryState == .charging || dev.batteryState == .full)
         self.isWorn = !self.isCharging
+        self.fallSessionCoordinator = FallSessionCoordinator(sync: self)
 
         WatchConnectivityCoordinator.shared.activate()
         WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
@@ -999,6 +1058,7 @@ final class HealthSync: ObservableObject {
     // 5. Nút test Tháo cổ tay (Off-body)
     func simulateUnworn() {
         isWorn = false
+        fallSessionCoordinator?.stop()
         status = "🟡 ĐÃ THÁO CỔ TAY"
         diagnosticLog = "⚡ Mô phỏng: Đã tháo thiết bị khỏi cổ tay"
         let raw = WKInterfaceDevice.current().batteryLevel
@@ -1009,6 +1069,9 @@ final class HealthSync: ObservableObject {
     // 6. Nút test Đeo vào cổ tay
     func simulateWorn() {
         isWorn = true
+        if autoFallDetectionEnabled && !isCharging {
+            fallSessionCoordinator?.start()
+        }
         status = "🟢 Đang Giám Sát Cổ Tay"
         diagnosticLog = "⚡ Mô phỏng: Đã đeo thiết bị vào cổ tay"
         let raw = WKInterfaceDevice.current().batteryLevel
@@ -1020,6 +1083,11 @@ final class HealthSync: ObservableObject {
     func simulateCharging(charging: Bool) {
         isCharging = charging
         isWorn = !charging
+        if charging {
+            fallSessionCoordinator?.stop()
+        } else if autoFallDetectionEnabled {
+            fallSessionCoordinator?.start()
+        }
         status = charging ? "⚡ Đang Cắm Sạc" : "🟢 Đang Giám Sát Cổ Tay"
         diagnosticLog = charging ? "⚡ Mô phỏng: Đang cắm sạc" : "⚡ Mô phỏng: Đã rút sạc"
         let raw = WKInterfaceDevice.current().batteryLevel
@@ -1269,9 +1337,14 @@ final class HealthSync: ObservableObject {
     /// -----------------------------------------------------------------------------------------
     func setupFallDetection() {
         guard autoFallDetectionEnabled else {
+            fallSessionCoordinator?.stop()
             motionManager.stopAccelerometerUpdates()
             diagnosticLog = "⚡ Đã tắt tự động phát hiện té ngã"
             return
+        }
+
+        if isWorn && !isCharging {
+            fallSessionCoordinator?.start()
         }
 
         var isAppleFallSupported = false
@@ -1299,6 +1372,9 @@ final class HealthSync: ObservableObject {
 
     private func startMotionFallDetectionFallback() {
         guard motionManager.isAccelerometerAvailable else { return }
+        if isWorn && !isCharging {
+            fallSessionCoordinator?.start()
+        }
         motionManager.accelerometerUpdateInterval = baselineInterval
         // Sử dụng OperationQueue nền chuyên dụng để không chiếm luồng UI chính, cho phép CPU ngủ giữa các lần lấy mẫu
         motionManager.startAccelerometerUpdates(to: motionQueue) { [weak self] data, error in

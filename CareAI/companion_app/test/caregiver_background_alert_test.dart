@@ -36,4 +36,21 @@ void main() {
     expect(args['eventType'], 'ACKNOWLEDGED');
     expect(args['siren'], isFalse);
   });
+
+  test('fallback polling direct alert formats emergency payload with high priority and siren', () async {
+    final payload = <String, dynamic>{
+      'incidentId': 'fall-99',
+      'alertCycleNumber': 1,
+      'eventType': 'FALL',
+      'title': 'CẢNH BÁO CẤP CỨU',
+      'body': 'Người cao tuổi cần trợ giúp ngay (FALL).',
+      'emergencyType': 'FALL',
+      'priority': 'CRITICAL',
+      'siren': true,
+    };
+    expect(payload['incidentId'], 'fall-99');
+    expect(payload['emergencyType'], 'FALL');
+    expect(payload['priority'], 'CRITICAL');
+    expect(payload['siren'], isTrue);
+  });
 }

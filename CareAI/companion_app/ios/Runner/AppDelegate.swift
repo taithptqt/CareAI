@@ -118,14 +118,10 @@ import workmanager_apple
       "incidentId": incidentId,
       "emergencyType": emergencyType
     ]
-    // Sử dụng âm thanh còi hú mặc định của Apple hoặc file còi hú nếu có
-    if #available(iOS 12.0, *) {
-      content.sound = UNNotificationSound.defaultCriticalSound(withAudioVolume: 1.0)
-    } else {
-      content.sound = UNNotificationSound.defaultCritical
-    }
+    // Sử dụng âm thanh chuông báo chuẩn iOS và mức độ ưu tiên Time-Sensitive để phá vỡ chế độ Im lặng / Focus mode
+    content.sound = UNNotificationSound.default
     if #available(iOS 15.0, *) {
-      content.interruptionLevel = .critical
+      content.interruptionLevel = .timeSensitive
     }
 
     let request = UNNotificationRequest(
@@ -866,7 +862,10 @@ import workmanager_apple
     content.body = emergencyType == "FALL_DETECTED"
       ? "Phát hiện té ngã trên đồng hồ! Đang chuyển tiếp cấp cứu..."
       : "Tín hiệu SOS khẩn cấp từ đồng hồ!"
-    content.sound = UNNotificationSound.defaultCritical
+    content.sound = UNNotificationSound.default
+    if #available(iOS 15.0, *) {
+      content.interruptionLevel = .timeSensitive
+    }
     let req = UNNotificationRequest(identifier: packetId, content: content, trigger: nil)
     UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
 

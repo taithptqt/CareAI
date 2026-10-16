@@ -729,6 +729,38 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                 }
+                "startPhoneFallService" -> {
+                    try {
+                        val serviceIntent = Intent(this, ElderFallSensorService::class.java).apply {
+                            action = ElderFallSensorService.ACTION_START
+                        }
+                        ContextCompat.startForegroundService(this, serviceIntent)
+                        Log.i("CareAI-MainActivity", "Đã khởi động ElderFallSensorService chạy ngầm bảo vệ khi tắt màn hình.")
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e("CareAI-MainActivity", "Không thể khởi động ElderFallSensorService: ${e.message}")
+                        result.success(false)
+                    }
+                }
+                "stopPhoneFallService" -> {
+                    try {
+                        val serviceIntent = Intent(this, ElderFallSensorService::class.java).apply {
+                            action = ElderFallSensorService.ACTION_STOP
+                        }
+                        startService(serviceIntent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "armCaregiverBackgroundWatchdog" -> {
+                    try {
+                        CaregiverBackgroundWatchdogReceiver.armNextPoll(this)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
