@@ -191,39 +191,100 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
   }
 
   Future<void> _resolve() async {
-    _notes.clear();
+    final caregiverName = await CaregiverApiService.instance.getCaregiverName();
+    final defaultNote = (caregiverName != null && caregiverName.trim().isNotEmpty)
+        ? '$caregiverName đã tiếp nhận và hỗ trợ an toàn.'
+        : 'Người thân đã tiếp nhận và hỗ trợ an toàn.';
+    _notes.text = defaultNote;
+
+    final quickChips = [
+      'Cụ đã an toàn',
+      'Báo động nhầm / Cụ ổn',
+      'Đang có mặt hỗ trợ',
+      'Đã liên hệ 115',
+    ];
+
     final notes = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Giải quyết sự cố'),
-        content: TextField(
-          controller: _notes,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Ghi chú lâm sàng bắt buộc *',
-            hintText: 'VD: Người cao tuổi đã an toàn, huyết áp đo lại bình thường...',
-            border: OutlineInputBorder(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Giải quyết sự cố'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Chọn nhanh lý do hoặc bấm xác nhận để đóng sự cố:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: quickChips.map((chip) {
+                    final isSelected = _notes.text == chip;
+                    return ActionChip(
+                      backgroundColor: isSelected ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                      side: BorderSide(
+                        color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                      ),
+                      label: Text(
+                        chip,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? const Color(0xFF15803D) : const Color(0xFF334155),
+                        ),
+                      ),
+                      onPressed: () {
+                        setDialogState(() {
+                          _notes.text = chip;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _notes,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Nội dung xử lý (đã điền sẵn)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy', style: TextStyle(color: Color(0xFF64748B))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                final trimmed = _notes.text.trim();
+                Navigator.pop(dialogContext, trimmed.isEmpty ? defaultNote : trimmed);
+              },
+              child: const Text('Xác nhận Giải Quyết'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, _notes.text.trim()),
-            child: const Text('Xác nhận Giải Quyết'),
-          ),
-        ],
       ),
     );
     if (notes == null || !mounted) return;
-    if (notes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập ghi chú lâm sàng để đóng sự cố.')),
-      );
-      return;
-    }
+    final finalNotes = notes.trim().isEmpty ? defaultNote : notes.trim();
+
     setState(() => _busy = true);
     try {
-      await CaregiverApiService.instance.resolveIncident(_incident, notes);
+      await CaregiverApiService.instance.resolveIncident(_incident, finalNotes);
       await _stopAlarm();
       await _refresh();
       if (mounted) {
@@ -385,6 +446,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
           ),
         ],
       ),
+      bottomNavigationBar: _buildStickyBottomActionBar(),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(
@@ -703,45 +765,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                     : 'Chưa có số liên hệ của người cao tuổi',
               ),
             ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFDC2626),
-                side: const BorderSide(color: Color(0xFFDC2626)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () => _dial('115'),
-              icon: const Icon(Icons.emergency, color: Color(0xFFDC2626)),
-              label: const Text('Gọi cấp cứu 115', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
-            ),
-            if (_incident.isOpen) ...[
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFD97706),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: _busy ? null : _acknowledge,
-                icon: const Icon(Icons.check_circle),
-                label: const Text('Tiếp nhận sự cố (Acknowledge)', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
-            if (_incident.isAcknowledged) ...[
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: _busy ? null : _resolve,
-                icon: const Icon(Icons.task_alt),
-                label: const Text('Giải quyết sự cố (Resolve)', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // 9. Dòng thời gian chi tiết (Timeline Events)
             Card(
@@ -772,6 +796,81 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
             ),
             const SizedBox(height: 28),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildStickyBottomActionBar() {
+    if (_incident.isResolved) return null;
+
+    final isAck = _incident.isAcknowledged;
+    final primaryBgColor = isAck ? const Color(0xFF16A34A) : const Color(0xFFD97706);
+    final primaryIcon = isAck ? Icons.task_alt : Icons.check_circle;
+    final primaryLabel = isAck ? 'Giải quyết sự cố' : 'Tiếp nhận sự cố';
+    final primaryAction = isAck ? _resolve : _acknowledge;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            offset: const Offset(0, -3),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                    side: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _dial('115'),
+                  icon: const Icon(Icons.emergency, color: Color(0xFFDC2626), size: 18),
+                  label: const Text(
+                    'Gọi cấp cứu 115',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFDC2626)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 3,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: primaryBgColor,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _busy ? null : primaryAction,
+                  icon: _busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(primaryIcon, size: 18),
+                  label: Text(
+                    primaryLabel,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

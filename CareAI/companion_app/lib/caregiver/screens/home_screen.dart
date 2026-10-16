@@ -707,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       if (changed == true) unawaited(_loadActiveIncidents());
                     },
                     icon: const Icon(Icons.open_in_new, size: 18),
-                    label: const Text('TIẾP NHẬN',
+                    label: const Text('XEM & TIẾP NHẬN',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       overflow: TextOverflow.ellipsis),
                   ),
