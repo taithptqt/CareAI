@@ -896,6 +896,10 @@ struct SettingsSheetView: View {
     @Binding var showTestLab: Bool
     @Environment(\.dismiss) private var dismiss
 
+    @State private var isSending = false
+    @State private var sendFeedbackMessage: String?
+    @State private var showUnpairConfirmation = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
@@ -949,15 +953,44 @@ struct SettingsSheetView: View {
                     ))
                     .font(.system(size: 10))
 
-                    Toggle("Đang đeo trên cổ tay", isOn: Binding(
+                    Toggle("Mô phỏng Đang đeo cổ tay", isOn: Binding(
                         get: { sync.isWorn },
                         set: { if $0 { sync.simulateWorn() } else { sync.simulateUnworn() } }
                     ))
                     .font(.system(size: 10))
 
-                    Button("Gửi dữ liệu ngay") { Task { await sync.sendNow() } }
-                        .font(.system(size: 10))
-                        .disabled(sync.simulatedOffline)
+                    Button(action: {
+                        guard !isSending else { return }
+                        isSending = true
+                        sendFeedbackMessage = nil
+                        Task {
+                            await sync.sendNow()
+                            WKInterfaceDevice.current().play(.success)
+                            await MainActor.run {
+                                isSending = false
+                                sendFeedbackMessage = "✓ Đã gửi xong"
+                            }
+                            try? await Task.sleep(nanoseconds: 2_500_000_000)
+                            await MainActor.run {
+                                sendFeedbackMessage = nil
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            if isSending {
+                                ProgressView()
+                                    .scaleEffect(0.65)
+                                Text("Đang đồng bộ...")
+                            } else if let msg = sendFeedbackMessage {
+                                Text(msg)
+                                    .foregroundColor(.green)
+                            } else {
+                                Text("Gửi dữ liệu ngay")
+                            }
+                        }
+                    }
+                    .font(.system(size: 10))
+                    .disabled(sync.simulatedOffline || isSending)
 
                     Button("🛠️ Phòng Thử Nghiệm & Mô Phỏng") {
                         dismiss()
@@ -973,10 +1006,22 @@ struct SettingsSheetView: View {
                         .foregroundColor(.gray)
 
                     Button("Hủy ghép nối", role: .destructive) {
-                        sync.unpair()
-                        dismiss()
+                        showUnpairConfirmation = true
                     }
                     .font(.system(size: 10))
+                    .confirmationDialog(
+                        "Xác nhận hủy ghép nối?",
+                        isPresented: $showUnpairConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Hủy ghép nối thiết bị", role: .destructive) {
+                            sync.unpair()
+                            dismiss()
+                        }
+                        Button("Không, giữ lại", role: .cancel) {}
+                    } message: {
+                        Text("Toàn bộ tính năng bảo vệ và gửi tín hiệu SOS của đồng hồ sẽ dừng hoạt động.")
+                    }
                 }
 
                 Button("Đóng") {
