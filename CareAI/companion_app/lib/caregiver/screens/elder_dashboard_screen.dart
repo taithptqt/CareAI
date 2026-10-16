@@ -1210,10 +1210,32 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         // Khung vẽ biểu đồ
         SizedBox(
           height: 190,
-          child: ClipRect(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
+          child: LineChart(
+            LineChartData(
+              lineTouchData: LineTouchData(
+                handleBuiltInTouches: true,
+                touchTooltipData: LineTouchTooltipData(
+                  fitInsideHorizontally: true,
+                  fitInsideVertically: true,
+                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  tooltipBorderRadius: BorderRadius.circular(8),
+                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
+                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  getTooltipItems: (touchedSpots) {
+                    return touchedSpots.map((spot) {
+                      return LineTooltipItem(
+                        '${spot.y.toInt()} bpm\n${spot.x.toInt()}h',
+                        const TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
+              ),
+              gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: yInterval,
@@ -1286,7 +1308,6 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 ],
               ),
             ),
-          ),
         ),
         const SizedBox(height: 10),
         const Row(
@@ -1397,10 +1418,33 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         // Khung vẽ biểu đồ 2 đường
         SizedBox(
           height: 190,
-          child: ClipRect(
-            child: LineChart(
-              LineChartData(
-                extraLinesData: ExtraLinesData(
+          child: LineChart(
+            LineChartData(
+              lineTouchData: LineTouchData(
+                handleBuiltInTouches: true,
+                touchTooltipData: LineTouchTooltipData(
+                  fitInsideHorizontally: true,
+                  fitInsideVertically: true,
+                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  tooltipBorderRadius: BorderRadius.circular(8),
+                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
+                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  getTooltipItems: (touchedSpots) {
+                    return touchedSpots.map((spot) {
+                      final isSys = spot.barIndex == 0;
+                      return LineTooltipItem(
+                        '${isSys ? "Tâm thu" : "Tâm trương"}: ${spot.y.toInt()} mmHg',
+                        TextStyle(
+                          color: isSys ? const Color(0xFFEF4444) : const Color(0xFF06B6D4),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
+              ),
+              extraLinesData: ExtraLinesData(
                 horizontalLines: [
                   HorizontalLine(
                     y: 120,
@@ -1514,7 +1558,6 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               ],
             ),
           ),
-        ),
       ),
       const SizedBox(height: 10),
 
@@ -1629,9 +1672,31 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         // Khung vẽ biểu đồ SpO2
         SizedBox(
           height: 190,
-          child: ClipRect(
-            child: LineChart(
-              LineChartData(
+          child: LineChart(
+            LineChartData(
+              lineTouchData: LineTouchData(
+                handleBuiltInTouches: true,
+                touchTooltipData: LineTouchTooltipData(
+                  fitInsideHorizontally: true,
+                  fitInsideVertically: true,
+                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  tooltipBorderRadius: BorderRadius.circular(8),
+                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
+                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  getTooltipItems: (touchedSpots) {
+                    return touchedSpots.map((spot) {
+                      return LineTooltipItem(
+                        'SpO₂: ${spot.y.toInt()}%\n${spot.x.toInt()}h',
+                        const TextStyle(
+                          color: Color(0xFF0EA5E9),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
+              ),
               extraLinesData: ExtraLinesData(
                 horizontalLines: [
                   HorizontalLine(
@@ -1721,7 +1786,6 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               ],
             ),
           ),
-        ),
       ),
       const SizedBox(height: 10),
 
@@ -1832,6 +1896,26 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           height: 190,
           child: BarChart(
             BarChartData(
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  fitInsideHorizontally: true,
+                  fitInsideVertically: true,
+                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  tooltipBorderRadius: BorderRadius.circular(8),
+                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
+                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    return BarTooltipItem(
+                      '${group.x}h: ${rod.toY.toInt()} bước',
+                      const TextStyle(
+                        color: Color(0xFF38BDF8),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    );
+                  },
+                ),
+              ),
               gridData: FlGridData(
                 show: true,
                 drawVerticalLine: false,
@@ -2055,10 +2139,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           ),
           const SizedBox(height: 12),
 
-          // Khung Bản đồ (OpenStreetMap Chuẩn Quốc Tế, Không Sử Dụng Bản Đồ Trung Quốc)
+          // Khung Bản đồ (OpenStreetMap Chuẩn Quốc Tế qua CARTO Voyager CDN & OSM Mirror)
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
+            child: Container(
+              color: const Color(0xFF0F172A),
               height: 220,
               child: Stack(
                 children: [
@@ -2072,8 +2157,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+                        subdomains: const ['a', 'b', 'c'],
                         userAgentPackageName: 'vn.careai.companion',
+                        maxZoom: 19,
                       ),
                       MarkerLayer(
                         markers: [
