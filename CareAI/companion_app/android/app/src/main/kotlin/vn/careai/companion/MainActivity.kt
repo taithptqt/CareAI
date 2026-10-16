@@ -36,6 +36,8 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val FALL_BRIDGE_CHANNEL = "vn.careai.companion/fall_bridge"
     private var fallMethodChannel: MethodChannel? = null
+    private var pendingNotificationResult: MethodChannel.Result? = null
+    private var pendingBatteryResult: MethodChannel.Result? = null
 
     // Event-Driven Watchdog: Lắng nghe sự kiện kết nối/ngắt kết nối đồng hồ Wear OS thời gian thực (0.1 giây)
     private val watchConnectionReceiver = object : BroadcastReceiver() {
@@ -408,6 +410,52 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {}
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1003) {
+            val isGranted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingNotificationResult?.success(isGranted)
+            pendingNotificationResult = null
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1004) {
+            val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                pm?.isIgnoringBatteryOptimizations(packageName) ?: false
+            } else {
+                true
+            }
+            pendingBatteryResult?.success(isIgnoring)
+            pendingBatteryResult = null
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (pendingNotificationResult != null) {
+            val isGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+            pendingNotificationResult?.success(isGranted)
+            pendingNotificationResult = null
+        }
+        if (pendingBatteryResult != null) {
+            val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                pm?.isIgnoringBatteryOptimizations(packageName) ?: false
+            } else {
+                true
+            }
+            pendingBatteryResult?.success(isIgnoring)
+            pendingBatteryResult = null
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -437,15 +485,16 @@ class MainActivity : FlutterActivity() {
                                 val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                                     data = Uri.parse("package:$packageName")
                                 }
-                                startActivity(intent)
-                                result.success(true)
+                                pendingBatteryResult?.success(false)
+                                pendingBatteryResult = result
+                                startActivityForResult(intent, 1004)
                                 return@setMethodCallHandler
                             }
                         } catch (e: Exception) {
                             Log.w("CareAI-MainActivity", "Không thể gọi ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS: ${e.message}")
                         }
                     }
-                    result.success(false)
+                    result.success(true)
                 }
                 "openAutostartSettings" -> {
                     val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
@@ -518,12 +567,13 @@ class MainActivity : FlutterActivity() {
                         if (!isGranted) {
                             val prefs = getSharedPreferences("careai_permission_state", Context.MODE_PRIVATE)
                             prefs.edit().putBoolean("post_notifications_prompted", true).apply()
+                            pendingNotificationResult?.success(false)
+                            pendingNotificationResult = result
                             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1003)
-                            result.success(true)
                             return@setMethodCallHandler
                         }
                     }
-                    result.success(false)
+                    result.success(true)
                 }
                 "openNotificationSettings" -> {
                     val intent = Intent().apply {

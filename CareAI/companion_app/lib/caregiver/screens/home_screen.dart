@@ -49,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _refreshingIncidents = false;
   CriticalPermissionsStatus? _permissionStatus;
   bool _isPermissionDialogShowing = false;
+  bool _isRequestingPermissions = false;
   bool _hasUserCompletedOrDismissedOnboarding = false;
 
   @override
@@ -77,7 +78,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_loadActiveIncidents());
-      unawaited(_checkCriticalPermissionsRealtime(showPopupIfMissing: true));
+      // Cập nhật ngầm trạng thái quyền, tuyệt đối không tự ý bung popup đè lên khi app resume
+      if (!_isRequestingPermissions && !_isPermissionDialogShowing) {
+        unawaited(_checkCriticalPermissionsRealtime(showPopupIfMissing: false));
+      }
     }
   }
 
@@ -1277,42 +1281,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkAndRequestPermissionsSequentially() async {
-    if (!mounted) return;
-    final isFirst = await PowerOptimizationService.instance.isFirstLaunch();
+    if (!mounted || _isRequestingPermissions) return;
+    _isRequestingPermissions = true;
+    try {
+      final isFirst = await PowerOptimizationService.instance.isFirstLaunch();
 
-    if (isFirst) {
-      // 1. Popup mặc định của điện thoại: Quyền thông báo
-      final notifsEnabled = await PowerOptimizationService.instance.areNotificationsEnabled();
-      if (!notifsEnabled) {
-        final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
-        if (canDirect) {
-          await PowerOptimizationService.instance.requestNotificationPermission();
+      if (isFirst) {
+        // 1. Popup mặc định của điện thoại: Quyền thông báo
+        final notifsEnabled = await PowerOptimizationService.instance.areNotificationsEnabled();
+        if (!notifsEnabled) {
+          final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
+          if (canDirect) {
+            // Chờ người dùng phản hồi xong trên popup thông báo của hệ điều hành
+            await PowerOptimizationService.instance.requestNotificationPermission();
+            await Future.delayed(const Duration(milliseconds: 300));
+          }
         }
+
+        // 2. Popup mặc định 1-chạm của điện thoại: Bỏ tối ưu pin
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          final batteryIgnored = await PowerOptimizationService.instance.isIgnoringBatteryOptimizations();
+          if (!batteryIgnored) {
+            // Chờ người dùng phản hồi xong trên popup pin của hệ điều hành
+            await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+            await Future.delayed(const Duration(milliseconds: 300));
+          }
+        }
+
+        // Ghi nhận đã qua lần khởi động đầu tiên
+        await PowerOptimizationService.instance.dismissOnboarding();
       }
 
-      // 2. Popup mặc định 1-chạm của điện thoại: Bỏ tối ưu pin
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        final batteryIgnored = await PowerOptimizationService.instance.isIgnoringBatteryOptimizations();
-        if (!batteryIgnored) {
-          await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
-        }
+      if (!mounted) return;
+      final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+      final hasDismissed = await PowerOptimizationService.instance.hasUserDismissedOnboarding();
+      setState(() {
+        _permissionStatus = status;
+        _hasUserCompletedOrDismissedOnboarding = hasDismissed;
+      });
+
+      // 3. Chỉ hiện danh sách hướng dẫn nếu còn quyền KHÔNG THỂ BẬT TRỰC TIẾP và thực sự thiếu quyền
+      if (_needsManualSettingGuide(status) && mounted) {
+        await _showPermissionGuideDialog(status);
       }
-
-      // Ghi nhận đã qua lần khởi động đầu tiên
-      await PowerOptimizationService.instance.dismissOnboarding();
-    }
-
-    if (!mounted) return;
-    final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
-    final hasDismissed = await PowerOptimizationService.instance.hasUserDismissedOnboarding();
-    setState(() {
-      _permissionStatus = status;
-      _hasUserCompletedOrDismissedOnboarding = hasDismissed;
-    });
-
-    // 3. Chỉ hiện danh sách hướng dẫn nếu còn quyền KHÔNG CÓ POPUP MẶC ĐỊNH hoặc bị chặn
-    if (_needsManualSettingGuide(status) && mounted) {
-      await _showPermissionGuideDialog(status);
+    } finally {
+      _isRequestingPermissions = false;
     }
   }
 
@@ -1324,7 +1337,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (status.onlyBatteryOptimizationMissing) {
       return false;
     }
-    // Nếu chỉ thiếu thông báo và có thể hiện popup trực tiếp của hệ thống: không cần hiện list
+    // Nếu chỉ thiếu thông báo: không cần hiện list
     if (status.onlyNotificationsMissing) {
       return false;
     }
@@ -1337,7 +1350,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _showPermissionGuideDialog(CriticalPermissionsStatus status) async {
-    if (_isPermissionDialogShowing || !mounted) return;
+    if (_isPermissionDialogShowing || !mounted || !status.hasMissingCriticalPermissions) return;
     _isPermissionDialogShowing = true;
     try {
       await showDialog<bool>(
@@ -1361,7 +1374,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _hasUserCompletedOrDismissedOnboarding = hasDismissed;
     });
 
-    if (status.hasMissingCriticalPermissions && showPopupIfMissing && !_isPermissionDialogShowing) {
+    if (status.hasMissingCriticalPermissions && showPopupIfMissing && !_isPermissionDialogShowing && !_isRequestingPermissions) {
       if (status.onlyBatteryOptimizationMissing) {
         await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
         return;
@@ -1383,15 +1396,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // 1. Nếu chỉ thiếu pin: bung popup 1-chạm mặc định của Android
     if (status.onlyBatteryOptimizationMissing) {
       await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
-      await _checkCriticalPermissionsRealtime();
+      await _checkCriticalPermissionsRealtime(showPopupIfMissing: false);
       return;
     }
-    // 2. Nếu chỉ thiếu thông báo: bung popup mặc định của điện thoại
+    // 2. Nếu chỉ thiếu thông báo: bung popup mặc định của điện thoại nếu có thể
     if (status.onlyNotificationsMissing) {
       final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
       if (canDirect) {
         await PowerOptimizationService.instance.requestNotificationPermission();
-        await _checkCriticalPermissionsRealtime();
+        await _checkCriticalPermissionsRealtime(showPopupIfMissing: false);
         return;
       }
     }
@@ -1522,34 +1535,34 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
     }
 
     if (!_status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      items.add(
-        _buildItem(
-          title: 'Quyền chạy ngầm (Pin)',
-          description: 'Chọn "Không hạn chế" để ứng dụng không bị đóng băng khi tắt màn hình.',
-          buttonText: 'Cho phép',
-          onPressed: () => PowerOptimizationService.instance.requestIgnoreBatteryOptimizations(),
-        ),
-      );
-    }
-
-    if (isSamsung) {
-      items.add(
-        _buildItem(
-          title: 'Quyền chạy ngầm (Samsung)',
-          description: 'Cài đặt > Pin > Ứng dụng không bao giờ ngủ > Thêm CareAI.',
-          buttonText: 'Mở cài đặt',
-          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
-        ),
-      );
-    } else if (isChineseOem) {
-      items.add(
-        _buildItem(
-          title: 'Quyền tự khởi chạy (${_status.manufacturer})',
-          description: 'Cài đặt > Quản lý ứng dụng > Tự khởi chạy > Bật CareAI.',
-          buttonText: 'Mở cài đặt',
-          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
-        ),
-      );
+      if (isSamsung) {
+        items.add(
+          _buildItem(
+            title: 'Quyền chạy ngầm (Samsung)',
+            description: 'Cài đặt > Pin > Ứng dụng không bao giờ ngủ > Thêm CareAI.',
+            buttonText: 'Mở cài đặt',
+            onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+          ),
+        );
+      } else if (isChineseOem) {
+        items.add(
+          _buildItem(
+            title: 'Quyền tự khởi chạy (${_status.manufacturer})',
+            description: 'Cài đặt > Quản lý ứng dụng > Tự khởi chạy > Bật CareAI.',
+            buttonText: 'Mở cài đặt',
+            onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+          ),
+        );
+      } else {
+        items.add(
+          _buildItem(
+            title: 'Quyền chạy ngầm (Pin)',
+            description: 'Chọn "Không hạn chế" để ứng dụng không bị đóng băng khi tắt màn hình.',
+            buttonText: 'Cho phép',
+            onPressed: () => PowerOptimizationService.instance.requestIgnoreBatteryOptimizations(),
+          ),
+        );
+      }
     }
 
     if (_status.backgroundDataRestricted) {
