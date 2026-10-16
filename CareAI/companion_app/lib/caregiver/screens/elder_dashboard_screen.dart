@@ -2750,12 +2750,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       'Ban Đêm ($sleepStart - $sleepEnd)',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF818CF8)),
                     ),
-                    const SizedBox(width: 6),
+                    const Spacer(),
                     InkWell(
                       onTap: () => _showSleepWindowDialog(sleepStart, sleepEnd, dayMinBpm, dayMaxBpm, nightMinBpm, nightMaxBpm),
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: const Color(0xFF818CF8).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
@@ -2764,21 +2764,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.edit_calendar_rounded, color: Color(0xFF818CF8), size: 11),
-                            SizedBox(width: 3),
-                            Text('Đổi giờ', style: TextStyle(color: Color(0xFF818CF8), fontSize: 10, fontWeight: FontWeight.bold)),
+                            Icon(Icons.edit_calendar_rounded, color: Color(0xFF818CF8), size: 12),
+                            SizedBox(width: 4),
+                            Text('Đổi giờ', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text('Chuẩn đêm', style: TextStyle(fontSize: 10, color: Color(0xFFA5B4FC), fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -2993,6 +2984,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 Navigator.pop(dlgCtx);
                 final startStr = formatTime(startTime);
                 final endStr = formatTime(endTime);
+                final messenger = ScaffoldMessenger.of(context);
                 try {
                   final updated = await CaregiverApiService.instance.updateElderThresholds(
                     widget.elderProfileId,
@@ -3007,7 +2999,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     setState(() {
                       _thresholdData = updated;
                     });
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Đã cập nhật khung giờ ngủ: $startStr - $endStr!'),
                         backgroundColor: const Color(0xFF10B981),
@@ -3017,7 +3009,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Không thể cập nhật khung giờ ngủ: $e'),
                         backgroundColor: const Color(0xFFEF4444),
