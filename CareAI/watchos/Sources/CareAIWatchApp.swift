@@ -332,8 +332,6 @@ struct PrimaryEmergencyView: View {
             return Color(red: 0.22, green: 0.74, blue: 0.97) // Blue
         } else if !sync.isWorn {
             return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
-        } else if !sync.isPhoneReachable {
-            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber for Offline Buffer
         } else {
             return Color(red: 0.06, green: 0.73, blue: 0.51) // Green
         }
@@ -353,7 +351,7 @@ struct PrimaryEmergencyView: View {
             case "NORMAL":
                 if sync.isCharging { return "⚡ Đang Cắm Sạc" }
                 if !sync.isWorn { return "🟡 Đã Tháo Cổ Tay" }
-                return sync.isPhoneReachable ? "🟢 Giám Sát Cổ Tay" : "🟡 Lưu Đệm Cục Bộ"
+                return "🟢 Giám Sát Cổ Tay"
             default: break
             }
         }
@@ -373,9 +371,6 @@ struct PrimaryEmergencyView: View {
         }
         if !sync.isWorn {
             return "🟡 Đã Tháo Cổ Tay"
-        }
-        if !sync.isPhoneReachable {
-            return "🟡 Lưu Đệm Cục Bộ"
         }
         return "🟢 Giám Sát Cổ Tay"
     }
@@ -460,12 +455,17 @@ struct PrimaryEmergencyView: View {
                     WKInterfaceDevice.current().play(.click)
                     showStatusDetail = true
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Text(statusTitle)
                             .font(.system(size: 10, weight: .bold))
                             .foregroundColor(statusColor)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
+                        if !sync.isPhoneReachable && sync.isWorn && !sync.isCharging {
+                            Text("· Đệm")
+                                .font(.system(size: 7.5, weight: .semibold))
+                                .foregroundColor(Color.orange)
+                        }
                         Image(systemName: "chevron.right.circle.fill")
                             .font(.system(size: 8))
                             .foregroundColor(statusColor.opacity(0.8))
