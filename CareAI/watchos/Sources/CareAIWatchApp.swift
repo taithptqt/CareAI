@@ -461,8 +461,8 @@ struct PrimaryEmergencyView: View {
                             .foregroundColor(statusColor)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
-                        if !sync.isPhoneReachable && sync.isWorn && !sync.isCharging {
-                            Text("· Đệm")
+                        if sync.pendingCount > 0 && sync.isWorn && !sync.isCharging {
+                            Text("· Đệm (\(sync.pendingCount))")
                                 .font(.system(size: 7.5, weight: .semibold))
                                 .foregroundColor(Color.orange)
                         }
@@ -832,9 +832,15 @@ struct DailyWellnessView: View {
                         Text(sync.isWorn ? "Đang đeo" : "Đã tháo")
                             .font(.system(size: 7.5))
                             .foregroundColor(sync.isWorn ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
-                        Text(sync.isPhoneReachable ? "🟢 iPhone" : "🟡 Ngoại tuyến")
-                            .font(.system(size: 7.5))
-                            .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
+                        if sync.pendingCount > 0 {
+                            Text("🟡 Đệm (\(sync.pendingCount))")
+                                .font(.system(size: 7.5))
+                                .foregroundColor(Color.orange)
+                        } else {
+                            Text(sync.isPhoneReachable ? "🟢 iPhone (Trực tiếp)" : "🟢 iPhone (Nền)")
+                                .font(.system(size: 7.5))
+                                .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                        }
                     }
                 }
                 .padding(6)
@@ -1089,9 +1095,19 @@ struct StatusDetailSheetView: View {
                     Text("KẾT NỐI IPHONE")
                         .font(.system(size: 8, weight: .bold))
                         .foregroundColor(.gray)
-                    Text(sync.isPhoneReachable ? "🟢 Trực tiếp (0ms qua Bluetooth)" : "🟡 Lưu đệm cục bộ (Chờ kết nối)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
+                    if sync.pendingCount > 0 {
+                        Text("🟡 Đang lưu đệm \(sync.pendingCount) gói tin (Chờ gửi)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color(red: 0.96, green: 0.62, blue: 0.04))
+                    } else if sync.isPhoneReachable {
+                        Text("🟢 Trực tiếp (0ms qua Bluetooth)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                    } else {
+                        Text("🟢 Nền tự động (Đồng bộ qua iOS)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                    }
                 }
                 .padding(5)
                 .frame(maxWidth: .infinity, alignment: .leading)
