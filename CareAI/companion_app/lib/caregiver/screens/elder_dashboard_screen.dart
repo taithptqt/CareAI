@@ -453,13 +453,16 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   ],
                 ),
                 const SizedBox(height: 4),
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     Text(
                       '${d.age} tuổi',
                       style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                     ),
-                    const Text(' • ', style: TextStyle(color: Color(0xFF64748B))),
+                    const Text('•', style: TextStyle(color: Color(0xFF64748B))),
                     _buildWatchStatusBadge(d),
                   ],
                 ),
