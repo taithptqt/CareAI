@@ -129,6 +129,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         }
     }
 
+    @MainActor
     func relayWatchTelemetry(isWorn: Bool, isCharging: Bool, batteryLevel: Int) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
@@ -584,7 +585,7 @@ final class HealthSync: ObservableObject {
         if isPhoneReachable { return true }
         if WCSession.isSupported() {
             let session = WCSession.default
-            if session.activationState == .activated && (session.isPaired || isPaired) {
+            if session.activationState == .activated && isPaired {
                 return true
             }
         }

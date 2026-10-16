@@ -31,11 +31,15 @@ import workmanager_apple
     }
 
     UNUserNotificationCenter.current().delegate = self
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+    var authOptions: UNAuthorizationOptions = [.alert, .sound, .badge]
+    if #available(iOS 15.0, *) {
+      authOptions.insert(.timeSensitive)
+    }
+    UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, error in
       if let error = error {
         NSLog("[CareAI-iOS] Lỗi xin quyền thông báo: %@", error.localizedDescription)
       } else {
-        NSLog("[CareAI-iOS] Quyền thông báo đã cấp: %d", granted)
+        NSLog("[CareAI-iOS] Quyền thông báo đã cấp: %d (timeSensitive included)", granted)
       }
     }
 
@@ -553,7 +557,11 @@ import workmanager_apple
           }
         }
       case "requestNotificationPermission":
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+        var authOptions: UNAuthorizationOptions = [.alert, .sound, .badge]
+        if #available(iOS 15.0, *) {
+          authOptions.insert(.timeSensitive)
+        }
+        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, _ in
           DispatchQueue.main.async {
             result(granted)
           }
