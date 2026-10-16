@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1320,8 +1321,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _hasUserCompletedOrDismissedOnboarding = hasDismissed;
       });
 
-      // 3. Chỉ hiện danh sách hướng dẫn nếu còn quyền KHÔNG THỂ BẬT TRỰC TIẾP và thực sự thiếu quyền
-      if (_needsManualSettingGuide(status) && mounted) {
+      // 3. Sau khi 2 popup đầu xong, LUÔN hiển thị popup list nếu có quyền chưa cấp hoặc có mục hãng
+      if (_hasItemsToShow(status) && mounted) {
         await _showPermissionGuideDialog(status);
       }
     } finally {
@@ -1329,19 +1330,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  bool _needsManualSettingGuide(CriticalPermissionsStatus status) {
-    if (!status.hasMissingCriticalPermissions) {
-      return false;
-    }
-    // Nếu chỉ thiếu pin và có thể bấm popup 1-chạm: không cần hiện list
-    if (status.onlyBatteryOptimizationMissing) {
-      return false;
-    }
-    // Nếu chỉ thiếu thông báo: không cần hiện list
-    if (status.onlyNotificationsMissing) {
-      return false;
-    }
-    return true;
+  bool _hasItemsToShow(CriticalPermissionsStatus status) {
+    final mfg = status.manufacturer.toLowerCase();
+    final isSamsung = mfg.contains('samsung');
+    final isChineseOem = mfg.contains('xiaomi') ||
+        mfg.contains('redmi') ||
+        mfg.contains('poco') ||
+        mfg.contains('oppo') ||
+        mfg.contains('realme') ||
+        mfg.contains('vivo') ||
+        mfg.contains('huawei') ||
+        mfg.contains('honor');
+
+    return !status.notificationsEnabled ||
+        !status.batteryOptimizationIgnored ||
+        status.backgroundDataRestricted ||
+        isSamsung ||
+        isChineseOem;
   }
 
   Future<void> _showBatteryOptimizationGuide() async {
@@ -1350,12 +1355,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _showPermissionGuideDialog(CriticalPermissionsStatus status) async {
-    if (_isPermissionDialogShowing || !mounted || !status.hasMissingCriticalPermissions) return;
+    if (_isPermissionDialogShowing || !mounted || !_hasItemsToShow(status)) return;
     _isPermissionDialogShowing = true;
     try {
       await showDialog<bool>(
         context: context,
-        barrierDismissible: true,
+        barrierDismissible: false,
         builder: (ctx) => _SimplePermissionGuideDialog(initialStatus: status),
       );
     } finally {
@@ -1386,7 +1391,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
       }
-      if (_needsManualSettingGuide(status)) {
+      if (_hasItemsToShow(status)) {
         await _showPermissionGuideDialog(status);
       }
     }
@@ -1462,6 +1467,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
+class _ShakeController {
+  void Function()? _shakeAction;
+  void shake() => _shakeAction?.call();
+}
+
+class _ShakeWidget extends StatefulWidget {
+  final Widget child;
+  final _ShakeController controller;
+
+  const _ShakeWidget({
+    required this.child,
+    required this.controller,
+  });
+
+  @override
+  State<_ShakeWidget> createState() => _ShakeWidgetState();
+}
+
+class _ShakeWidgetState extends State<_ShakeWidget> with SingleTickerProviderStateMixin {
+  late final AnimationController _animCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    widget.controller._shakeAction = _shake;
+  }
+
+  void _shake() {
+    if (mounted) {
+      _animCtrl.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animCtrl,
+      builder: (context, child) {
+        final progress = _animCtrl.value;
+        final offset = sin(progress * pi * 6) * (8.0 * (1.0 - progress));
+        return Transform.translate(
+          offset: Offset(offset, 0),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
 class _SimplePermissionGuideDialog extends StatefulWidget {
   final CriticalPermissionsStatus initialStatus;
 
@@ -1476,6 +1541,9 @@ class _SimplePermissionGuideDialog extends StatefulWidget {
 class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDialog>
     with WidgetsBindingObserver {
   late CriticalPermissionsStatus _status;
+  final _backgroundDataShakeCtrl = _ShakeController();
+  final _notificationShakeCtrl = _ShakeController();
+  final _batteryShakeCtrl = _ShakeController();
 
   @override
   void initState() {
@@ -1502,8 +1570,26 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
     final updated = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
     if (!mounted) return;
     setState(() => _status = updated);
+    // Giữ nguyên dialog, người dùng chủ động bấm Đóng
+  }
 
-    if (!_status.hasMissingCriticalPermissions) {
+  void _handleClose() {
+    bool canClose = true;
+
+    if (_status.backgroundDataRestricted) {
+      _backgroundDataShakeCtrl.shake();
+      canClose = false;
+    }
+    if (!_status.notificationsEnabled) {
+      _notificationShakeCtrl.shake();
+      canClose = false;
+    }
+    if (!_status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      _batteryShakeCtrl.shake();
+      canClose = false;
+    }
+
+    if (canClose) {
       Navigator.of(context).pop(true);
     }
   }
@@ -1523,61 +1609,86 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
 
     final items = <Widget>[];
 
-    if (!_status.notificationsEnabled) {
+    // 1. Quyền dữ liệu nền (Quét được - Bắt buộc nếu bị chặn)
+    if (_status.backgroundDataRestricted) {
       items.add(
-        _buildItem(
-          title: 'Quyền thông báo',
-          description: 'Cần để đổ chuông báo động khi có sự cố.',
-          buttonText: 'Mở cài đặt',
-          onPressed: () => PowerOptimizationService.instance.openNotificationSettings(),
+        _ShakeWidget(
+          controller: _backgroundDataShakeCtrl,
+          child: _buildItem(
+            title: 'Quyền dữ liệu nền',
+            badgeText: 'Bắt buộc',
+            badgeColor: const Color(0xFFDC2626),
+            description: 'Bật dữ liệu nền không giới hạn cho CareAI trong Tiết kiệm dữ liệu để nhận tín hiệu cấp cứu.',
+            buttonText: 'Mở cài đặt',
+            onPressed: () => PowerOptimizationService.instance.openBackgroundDataSettings(),
+          ),
         ),
       );
     }
 
+    // 2. Quyền thông báo (Quét được - Bắt buộc nếu chưa cấp)
+    if (!_status.notificationsEnabled) {
+      items.add(
+        _ShakeWidget(
+          controller: _notificationShakeCtrl,
+          child: _buildItem(
+            title: 'Quyền thông báo',
+            badgeText: 'Bắt buộc',
+            badgeColor: const Color(0xFFDC2626),
+            description: 'Cần bật thông báo để chuông cấp cứu kêu khi có sự cố.',
+            buttonText: 'Mở cài đặt',
+            onPressed: () => PowerOptimizationService.instance.openNotificationSettings(),
+          ),
+        ),
+      );
+    }
+
+    // 3. Quyền chạy ngầm pin chuẩn (Quét được - Bắt buộc nếu chưa cấp)
     if (!_status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      if (isSamsung) {
-        items.add(
-          _buildItem(
-            title: 'Quyền chạy ngầm (Samsung)',
-            description: 'Cài đặt > Pin > Ứng dụng không bao giờ ngủ > Thêm CareAI.',
-            buttonText: 'Mở cài đặt',
-            onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
-          ),
-        );
-      } else if (isChineseOem) {
-        items.add(
-          _buildItem(
-            title: 'Quyền tự khởi chạy (${_status.manufacturer})',
-            description: 'Cài đặt > Quản lý ứng dụng > Tự khởi chạy > Bật CareAI.',
-            buttonText: 'Mở cài đặt',
-            onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
-          ),
-        );
-      } else {
-        items.add(
-          _buildItem(
+      items.add(
+        _ShakeWidget(
+          controller: _batteryShakeCtrl,
+          child: _buildItem(
             title: 'Quyền chạy ngầm (Pin)',
+            badgeText: 'Bắt buộc',
+            badgeColor: const Color(0xFFDC2626),
             description: 'Chọn "Không hạn chế" để ứng dụng không bị đóng băng khi tắt màn hình.',
             buttonText: 'Cho phép',
             onPressed: () => PowerOptimizationService.instance.requestIgnoreBatteryOptimizations(),
           ),
-        );
-      }
+        ),
+      );
     }
 
-    if (_status.backgroundDataRestricted) {
+    // 4. Quyền của hãng: Ứng dụng không bao giờ ngủ (Samsung) / Tự khởi chạy (Xiaomi...) - TÙY CHỌN
+    if (isSamsung) {
       items.add(
         _buildItem(
-          title: 'Quyền dữ liệu nền',
-          description: 'Bật dữ liệu nền không giới hạn cho CareAI trong Tiết kiệm dữ liệu.',
+          title: 'Ứng dụng không bao giờ ngủ (Samsung)',
+          badgeText: 'Tùy chọn',
+          badgeColor: const Color(0xFF0284C7),
+          description: 'Cài đặt > Pin > Giới hạn sử dụng dưới nền > Ứng dụng không bao giờ ngủ > Thêm CareAI.',
+          reason: 'Lý do: Giúp chuông báo cấp cứu không bị hãng điện thoại tự động tắt khi không mở ứng dụng trong nhiều ngày.',
           buttonText: 'Mở cài đặt',
-          onPressed: () => PowerOptimizationService.instance.openBackgroundDataSettings(),
+          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+        ),
+      );
+    } else if (isChineseOem) {
+      items.add(
+        _buildItem(
+          title: 'Tự khởi chạy (${_status.manufacturer})',
+          badgeText: 'Tùy chọn',
+          badgeColor: const Color(0xFF0284C7),
+          description: 'Cài đặt > Quản lý ứng dụng > Tự khởi chạy > Bật CareAI.',
+          reason: 'Lý do: Giúp hệ thống duy trì kết nối cứu hộ và không tắt chuông báo động khi bạn vuốt dọn dẹp app.',
+          buttonText: 'Mở cài đặt',
+          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
         ),
       );
     }
 
     return AlertDialog(
-      title: const Text('Cần cấp quyền', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+      title: const Text('Cài đặt quyền ứng dụng', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1586,9 +1697,18 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Để sau'),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: _handleClose,
+            child: const Text('Đóng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
         ),
       ],
     );
@@ -1596,7 +1716,10 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
 
   Widget _buildItem({
     required String title,
+    required String badgeText,
+    required Color badgeColor,
     required String description,
+    String? reason,
     required String buttonText,
     required VoidCallback onPressed,
   }) {
@@ -1605,10 +1728,38 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          const SizedBox(height: 2),
-          Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
-          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: badgeColor.withValues(alpha: 0.4), width: 0.8),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+          if (reason != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              reason,
+              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
+            ),
+          ],
+          const SizedBox(height: 8),
           OutlinedButton(
             onPressed: onPressed,
             child: Text(buttonText),
