@@ -1308,48 +1308,41 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final bp = _bloodPressureHistory;
     final points = bp?.points ?? [];
 
-    List<FlSpot> sysSpots = [];
-    List<FlSpot> diaSpots = [];
-
-    if (points.isNotEmpty) {
-      for (int i = 0; i < points.length; i++) {
-        sysSpots.add(FlSpot(i.toDouble(), points[i].systolic));
-        diaSpots.add(FlSpot(i.toDouble(), points[i].diastolic));
-      }
-    } else {
-      sysSpots = const [
-        FlSpot(0, 118),
-        FlSpot(1, 122),
-        FlSpot(2, 125),
-        FlSpot(3, 120),
-        FlSpot(4, 128),
-        FlSpot(5, 122),
-        FlSpot(6, 120),
-      ];
-      diaSpots = const [
-        FlSpot(0, 76),
-        FlSpot(1, 78),
-        FlSpot(2, 80),
-        FlSpot(3, 78),
-        FlSpot(4, 82),
-        FlSpot(5, 80),
-        FlSpot(6, 80),
-      ];
+    if (points.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 36),
+        child: Center(
+          child: Text(
+            'Chưa có dữ liệu đo huyết áp',
+            style: TextStyle(color: Color(0xFF94A3B8)),
+          ),
+        ),
+      );
     }
 
-    final double latestSys = bp?.latestSystolic ?? 120.0;
-    final double latestDia = bp?.latestDiastolic ?? 80.0;
-    final String classification = bp?.classification ?? 'Bình thường';
-    final String statusColor = bp?.statusColor ?? 'GREEN';
+    final List<FlSpot> sysSpots = [];
+    final List<FlSpot> diaSpots = [];
+
+    for (int i = 0; i < points.length; i++) {
+      sysSpots.add(FlSpot(i.toDouble(), points[i].systolic));
+      diaSpots.add(FlSpot(i.toDouble(), points[i].diastolic));
+    }
+
+    final double latestSys = bp?.latestSystolic ?? 0.0;
+    final double latestDia = bp?.latestDiastolic ?? 0.0;
+    final String classification = bp?.classification ?? 'Chưa có dữ liệu';
+    final String statusColor = bp?.statusColor ?? 'GRAY';
 
     Color badgeColor = const Color(0xFF10B981);
     if (statusColor == 'RED') {
       badgeColor = const Color(0xFFEF4444);
     } else if (statusColor == 'YELLOW') {
       badgeColor = const Color(0xFFF59E0B);
+    } else if (statusColor == 'GRAY') {
+      badgeColor = const Color(0xFF64748B);
     }
 
-    final double maxX = (points.isNotEmpty ? points.length - 1 : 6).toDouble().clamp(1.0, 30.0);
+    final double maxX = (points.length - 1).toDouble().clamp(1.0, 30.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1394,9 +1387,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           children: [
             _buildStatPill('Mới nhất', '${latestSys.toInt()}/${latestDia.toInt()} mmHg', const Color(0xFFA855F7)),
             const SizedBox(width: 8),
-            _buildStatPill('Tâm thu Max', '${points.isNotEmpty ? points.map((p) => p.systolic).reduce((a, b) => a > b ? a : b).toInt() : 128} mmHg', const Color(0xFFEF4444)),
+            _buildStatPill('Tâm thu Max', '${points.map((p) => p.systolic).reduce((a, b) => a > b ? a : b).toInt()} mmHg', const Color(0xFFEF4444)),
             const SizedBox(width: 8),
-            _buildStatPill('Tâm trương Max', '${points.isNotEmpty ? points.map((p) => p.diastolic).reduce((a, b) => a > b ? a : b).toInt() : 82} mmHg', const Color(0xFF06B6D4)),
+            _buildStatPill('Tâm trương Max', '${points.map((p) => p.diastolic).reduce((a, b) => a > b ? a : b).toInt()} mmHg', const Color(0xFF06B6D4)),
           ],
         ),
         const SizedBox(height: 18),
@@ -1758,48 +1751,40 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final stepsData = _hourlySteps24h;
     final list = stepsData?.hourlySteps ?? [];
     final int totalSteps = stepsData?.totalStepsToday ?? 0;
-    final int peakHour = stepsData?.peakHour ?? 7;
+    final int peakHour = stepsData?.peakHour ?? 0;
     final int peakSteps = stepsData?.peakSteps ?? 0;
 
-    List<BarChartGroupData> barGroups = [];
-    if (list.isNotEmpty) {
-      for (final item in list) {
-        final isPeak = item.hour == peakHour && item.steps > 0;
-        barGroups.add(
-          BarChartGroupData(
-            x: item.hour,
-            barRods: [
-              BarChartRodData(
-                toY: item.steps.toDouble(),
-                color: isPeak ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
-                width: 7,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-              ),
-            ],
+    if (list.isEmpty || totalSteps == 0) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 36),
+        child: Center(
+          child: Text(
+            'Chưa có dữ liệu bước chân trong ngày',
+            style: TextStyle(color: Color(0xFF94A3B8)),
           ),
-        );
-      }
-    } else {
-      final sampleHours = {6: 450, 7: 620, 8: 380, 11: 210, 16: 520, 17: 410};
-      for (int h = 0; h < 24; h++) {
-        final val = (sampleHours[h] ?? 0).toDouble();
-        barGroups.add(
-          BarChartGroupData(
-            x: h,
-            barRods: [
-              BarChartRodData(
-                toY: val,
-                color: h == 7 ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
-                width: 7,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-              ),
-            ],
-          ),
-        );
-      }
+        ),
+      );
     }
 
-    final double maxY = ((peakSteps > 0 ? peakSteps : 620) * 1.25).clamp(300.0, 10000.0);
+    final List<BarChartGroupData> barGroups = [];
+    for (final item in list) {
+      final isPeak = item.hour == peakHour && item.steps > 0;
+      barGroups.add(
+        BarChartGroupData(
+          x: item.hour,
+          barRods: [
+            BarChartRodData(
+              toY: item.steps.toDouble(),
+              color: isPeak ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
+              width: 7,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final double maxY = ((peakSteps > 0 ? peakSteps : 100) * 1.25).clamp(100.0, 10000.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
