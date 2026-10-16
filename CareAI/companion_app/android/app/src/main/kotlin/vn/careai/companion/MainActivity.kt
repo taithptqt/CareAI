@@ -493,6 +493,38 @@ class MainActivity : FlutterActivity() {
                     val enabled = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
                     result.success(enabled)
                 }
+                "canRequestDirectNotificationPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val isGranted = checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                        if (isGranted) {
+                            result.success(false)
+                        } else {
+                            val prefs = getSharedPreferences("careai_permission_state", Context.MODE_PRIVATE)
+                            val alreadyPrompted = prefs.getBoolean("post_notifications_prompted", false)
+                            val canDirect = if (!alreadyPrompted) {
+                                true
+                            } else {
+                                shouldShowRequestPermissionRationale(android.Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            result.success(canDirect)
+                        }
+                    } else {
+                        result.success(false)
+                    }
+                }
+                "requestNotificationPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val isGranted = checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                        if (!isGranted) {
+                            val prefs = getSharedPreferences("careai_permission_state", Context.MODE_PRIVATE)
+                            prefs.edit().putBoolean("post_notifications_prompted", true).apply()
+                            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1003)
+                            result.success(true)
+                            return@setMethodCallHandler
+                        }
+                    }
+                    result.success(false)
+                }
                 "openNotificationSettings" -> {
                     val intent = Intent().apply {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

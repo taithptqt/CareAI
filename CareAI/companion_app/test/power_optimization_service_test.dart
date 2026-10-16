@@ -27,6 +27,10 @@ void main() {
             return 'Xiaomi';
           case 'areNotificationsEnabled':
             return false;
+          case 'canRequestDirectNotificationPermission':
+            return true;
+          case 'requestNotificationPermission':
+            return true;
           case 'openNotificationSettings':
             return true;
           case 'isBackgroundDataRestricted':
@@ -56,6 +60,26 @@ void main() {
       final enabled = await PowerOptimizationService.instance.areNotificationsEnabled();
       expect(enabled, isFalse);
       expect(log.any((c) => c.method == 'areNotificationsEnabled'), isTrue);
+    });
+
+    test('canRequestDirectNotificationPermission and requestNotificationPermission invoke native channel', () async {
+      final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
+      expect(canDirect, isTrue);
+      expect(log.any((c) => c.method == 'canRequestDirectNotificationPermission'), isTrue);
+
+      final requested = await PowerOptimizationService.instance.requestNotificationPermission();
+      expect(requested, isTrue);
+      expect(log.any((c) => c.method == 'requestNotificationPermission'), isTrue);
+    });
+
+    test('isFirstLaunch returns true before dismissal and false after', () async {
+      SharedPreferences.setMockInitialValues({});
+      expect(await PowerOptimizationService.instance.isFirstLaunch(), isTrue);
+      expect(await PowerOptimizationService.instance.hasUserDismissedOnboarding(), isFalse);
+
+      await PowerOptimizationService.instance.dismissOnboarding();
+      expect(await PowerOptimizationService.instance.isFirstLaunch(), isFalse);
+      expect(await PowerOptimizationService.instance.hasUserDismissedOnboarding(), isTrue);
     });
 
     test('openNotificationSettings invokes native channel', () async {

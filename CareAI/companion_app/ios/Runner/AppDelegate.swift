@@ -546,6 +546,18 @@ import workmanager_apple
             result(enabled)
           }
         }
+      case "canRequestDirectNotificationPermission":
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+          DispatchQueue.main.async {
+            result(settings.authorizationStatus == .notDetermined)
+          }
+        }
+      case "requestNotificationPermission":
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+          DispatchQueue.main.async {
+            result(granted)
+          }
+        }
       case "openNotificationSettings":
         DispatchQueue.main.async {
           if let url = URL(string: UIApplication.openSettingsURLString) {

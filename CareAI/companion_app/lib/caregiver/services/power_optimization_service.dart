@@ -18,6 +18,20 @@ class CriticalPermissionsStatus {
   bool get hasMissingCriticalPermissions =>
       !notificationsEnabled || !batteryOptimizationIgnored || backgroundDataRestricted;
 
+  int get missingPermissionsCount {
+    int count = 0;
+    if (!notificationsEnabled) count++;
+    if (!batteryOptimizationIgnored) count++;
+    if (backgroundDataRestricted) count++;
+    return count;
+  }
+
+  bool get onlyBatteryOptimizationMissing =>
+      !batteryOptimizationIgnored && notificationsEnabled && !backgroundDataRestricted;
+
+  bool get onlyNotificationsMissing =>
+      !notificationsEnabled && batteryOptimizationIgnored && !backgroundDataRestricted;
+
   String? get primaryWarningMessage {
     if (!notificationsEnabled) {
       return 'Thông báo bị tắt! Còi hú cấp cứu không thể kêu khi người thân gặp nạn.';
@@ -46,6 +60,26 @@ class PowerOptimizationService {
       return res ?? true;
     } catch (_) {
       return true;
+    }
+  }
+
+  Future<bool> canRequestDirectNotificationPermission() async {
+    if (kIsWeb) return false;
+    try {
+      final res = await _channel.invokeMethod<bool>('canRequestDirectNotificationPermission');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> requestNotificationPermission() async {
+    if (kIsWeb) return true;
+    try {
+      final res = await _channel.invokeMethod<bool>('requestNotificationPermission');
+      return res ?? false;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -155,5 +189,15 @@ class PowerOptimizationService {
   Future<void> dismissOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefDismissed, true);
+  }
+
+  Future<bool> isFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_prefDismissed) == null;
+  }
+
+  Future<bool> hasUserDismissedOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_prefDismissed) ?? false;
   }
 }

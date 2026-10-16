@@ -256,23 +256,12 @@ public class DashboardController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền xem thông tin người cao tuổi này." });
         }
 
-        var vnNow = DateTime.UtcNow.AddHours(7);
-        var vnStartOfDayUtc = vnNow.Date.AddHours(-7);
+        var since = DateTime.UtcNow.AddHours(-24);
         var samples = await _db.HealthMeasurements
-            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "HEART_RATE" && m.Timestamp >= vnStartOfDayUtc)
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "HEART_RATE" && m.Timestamp >= since)
             .OrderBy(m => m.Timestamp)
             .Select(m => new HeartRatePointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
             .ToListAsync(ct);
-
-        if (samples.Count == 0)
-        {
-            var since = DateTime.UtcNow.AddHours(-24);
-            samples = await _db.HealthMeasurements
-                .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "HEART_RATE" && m.Timestamp >= since)
-                .OrderBy(m => m.Timestamp)
-                .Select(m => new HeartRatePointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
-                .ToListAsync(ct);
-        }
 
         if (samples.Count == 0)
         {
@@ -377,23 +366,12 @@ public class DashboardController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền xem thông tin người cao tuổi này." });
         }
 
-        var vnNow = DateTime.UtcNow.AddHours(7);
-        var vnStartOfDayUtc = vnNow.Date.AddHours(-7);
+        var since = DateTime.UtcNow.AddHours(-24);
         var samples = await _db.HealthMeasurements
-            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "SPO2" && m.Timestamp >= vnStartOfDayUtc)
+            .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "SPO2" && m.Timestamp >= since)
             .OrderBy(m => m.Timestamp)
             .Select(m => new Spo2PointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
             .ToListAsync(ct);
-
-        if (samples.Count == 0)
-        {
-            var since = DateTime.UtcNow.AddHours(-24);
-            samples = await _db.HealthMeasurements
-                .Where(m => m.ElderProfileId == elderProfileId && m.MetricType == "SPO2" && m.Timestamp >= since)
-                .OrderBy(m => m.Timestamp)
-                .Select(m => new Spo2PointDto(DateTime.SpecifyKind(m.Timestamp, DateTimeKind.Utc), m.Value))
-                .ToListAsync(ct);
-        }
 
         if (samples.Count == 0)
         {
