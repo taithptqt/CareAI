@@ -1308,14 +1308,14 @@ final class HealthSync: ObservableObject {
     }
 
     private var baselineInterval: TimeInterval {
-        batterySaverEnabled ? 0.1 : 0.05 // 10Hz khi bật Tiết kiệm pin, 20Hz khi bình thường
+        batterySaverEnabled ? 0.2 : 0.1 // 5Hz khi bật Tiết kiệm pin thích ứng (giảm 50% CPU wakes), 10Hz khi bình thường
     }
 
     func applyBatteryPolicy() {
         if autoFallDetectionEnabled {
             setupFallDetection()
         }
-        diagnosticLog = batterySaverEnabled ? "🔋 Đã bật Tiết Kiệm Pin Thích Ứng (10Hz)" : "⚡ Đã bật Giám Sát Hiệu Năng Cao (20Hz)"
+        diagnosticLog = batterySaverEnabled ? "🔋 Đã bật Tiết Kiệm Pin Thích Ứng (5Hz/40Hz Burst)" : "⚡ Đã bật Giám Sát Hiệu Năng Cao (10Hz)"
     }
 
     /// Thiết lập hệ thống phát hiện té ngã 2 tầng kiên cường (Two-Tier Resilient Fall Detection):
@@ -1412,8 +1412,8 @@ final class HealthSync: ObservableObject {
             return
         }
 
-        // Tối ưu pin thích ứng: Khi phát hiện dấu hiệu gia tốc bất thường, tự động tăng tần số lên 40Hz
-        if (g < 0.4 || g > 1.8) && !isBurstSampling {
+        // Tối ưu pin thích ứng: Khi phát hiện dấu hiệu gia tốc bất thường (<0.65g hoặc >1.4g), tự động tăng tần số lên 40Hz
+        if (g < 0.65 || g > 1.4) && !isBurstSampling {
             triggerBurstSampling()
         }
 

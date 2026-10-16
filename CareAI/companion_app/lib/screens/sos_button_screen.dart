@@ -92,7 +92,6 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     super.initState();
     // Khởi tạo FallService và lắng nghe sự kiện Native trước khi truy vấn trạng thái
     FallService.instance.initialize();
-    FallService.instance.startPhoneAccelerometerDetector();
 
     _fallSubscription = FallService.instance.onFallDetected.listen((fallEvent) {
       if (mounted) {
@@ -493,7 +492,19 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             );
           }
         }());
+
+        final isWatchWornAndActive = (status.isWorn ?? true) && !(status.isCharging ?? false);
+        if (isWatchWornAndActive) {
+          // Người già đang đeo đồng hồ: Tắt hoàn toàn cảm biến nền điện thoại để tiết kiệm 100% pin
+          FallService.instance.stopPhoneAccelerometerDetector();
+        } else {
+          // Đồng hồ đã tháo hoặc đang cắm sạc: Kích hoạt cảm biến điện thoại dự phòng
+          FallService.instance.startPhoneAccelerometerDetector();
+        }
       } else {
+        // Đồng hồ mất kết nối: Tự động kích hoạt cảm biến điện thoại dự phòng bảo vệ người già
+        FallService.instance.startPhoneAccelerometerDetector();
+
         // Đang không kết nối:
         if (status.reason == 'BLUETOOTH_OFF') {
           // Trường hợp A: Tắt Bluetooth chủ động trên điện thoại -> Báo Server ngay lập tức (0.1 giây)
