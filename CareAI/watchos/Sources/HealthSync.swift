@@ -175,6 +175,13 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             handleUnpairCommand()
             return
         }
+        if let action = applicationContext["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
+            let status = applicationContext["status"] as? String ?? "RESOLVED"
+            let name = applicationContext["acknowledgedByName"] as? String
+            let notes = applicationContext["notes"] as? String
+            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
+            return
+        }
         handleIncomingCredentials(applicationContext)
     }
 
@@ -188,6 +195,13 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             handleUnpairCommand()
             return
         }
+        if let action = userInfo["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
+            let status = userInfo["status"] as? String ?? "RESOLVED"
+            let name = userInfo["acknowledgedByName"] as? String
+            let notes = userInfo["notes"] as? String
+            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
+            return
+        }
         handleIncomingCredentials(userInfo)
     }
 
@@ -199,6 +213,13 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         }
         if let action = message["action"] as? String, action == "UNPAIR" {
             handleUnpairCommand()
+            return
+        }
+        if let action = message["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
+            let status = message["status"] as? String ?? "RESOLVED"
+            let name = message["acknowledgedByName"] as? String
+            let notes = message["notes"] as? String
+            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
             return
         }
         handleIncomingCredentials(message)
@@ -216,8 +237,48 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             replyHandler(["status": "OK"])
             return
         }
+        if let action = message["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
+            let status = message["status"] as? String ?? "RESOLVED"
+            let name = message["acknowledgedByName"] as? String
+            let notes = message["notes"] as? String
+            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
+            replyHandler(["status": "OK"])
+            return
+        }
         handleIncomingCredentials(message)
         replyHandler(["status": "OK"])
+    }
+
+    private func handleIncidentStatusUpdate(status: String, acknowledgedByName: String?, notes: String?) {
+        NSLog("[CareAI-Watch] Nhận lệnh INCIDENT_STATUS_CHANGED: status=%@, by=%@", status, acknowledgedByName ?? "nil")
+        Task { @MainActor in
+            guard let sync = HealthSync.shared else { return }
+            if status == "ACKNOWLEDGED" {
+                let name = (acknowledgedByName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+                    ? acknowledgedByName!.trimmingCharacters(in: .whitespacesAndNewlines)
+                    : "Người Thân"
+                sync.customAlert = "ACKNOWLEDGED"
+                sync.acknowledgedByText = name
+                sync.status = "🟢 \(name) đã tiếp nhận"
+                sync.diagnosticLog = "✅ \(name) đã tiếp nhận hỗ trợ"
+                WKInterfaceDevice.current().play(.success)
+
+                // Sau 8 giây hiển thị tiếp nhận, tự động xóa cảnh báo nếu không có sự cố mới
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+                    if sync.customAlert == "ACKNOWLEDGED" {
+                        sync.customAlert = nil
+                        sync.acknowledgedByText = nil
+                        sync.status = "🟢 Đang Giám Sát Cổ Tay"
+                    }
+                }
+            } else if status == "RESOLVED" || status == "CLEAR" {
+                sync.customAlert = nil
+                sync.acknowledgedByText = nil
+                sync.status = "🟢 Đang Giám Sát Cổ Tay"
+                sync.diagnosticLog = "✅ Sự cố đã kết thúc an toàn"
+                WKInterfaceDevice.current().play(.directionUp)
+            }
+        }
     }
 
     private func handleUnpairCommand() {
@@ -362,6 +423,7 @@ final class HealthSync: ObservableObject {
     @Published var isCharging: Bool = false
     @Published var status = "Set up backend to start"
     @Published var customAlert: String?
+    @Published var acknowledgedByText: String?
     @Published var diagnosticLog = "⚡ Cảm biến sẵn sàng"
     @Published var autoFallDetectionEnabled = true
     @Published private(set) var hasSpo2Hardware: Bool = true
@@ -698,6 +760,14 @@ final class HealthSync: ObservableObject {
         enqueueDemo(metricType: "DEMO_HEART_RATE", value: 75.0, unit: "bpm")
         enqueueDemo(metricType: "DEMO_SPO2", value: 98.5, unit: "%")
         updateHealthAlert()
+    }
+
+    func simulateAcknowledged(name: String = "Người Thân") {
+        customAlert = "ACKNOWLEDGED"
+        acknowledgedByText = name
+        status = "🟢 \(name) đã tiếp nhận"
+        diagnosticLog = "⚡ Mô phỏng: \(name) đã tiếp nhận hỗ trợ"
+        WKInterfaceDevice.current().play(.success)
     }
 
     func simulateHighHeartRate() {

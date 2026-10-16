@@ -8,6 +8,7 @@ using Microsoft.Extensions.Caching.Memory;
 using CareAI.API.Middlewares;
 using CareAI.Core.DTOs;
 using CareAI.Core.Entities;
+using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
 using CareAI.Infrastructure.Engines;
 
@@ -305,14 +306,162 @@ public class DevicesController : ControllerBase
         }
 
         var device = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == authenticatedDeviceId, ct);
+        object? activeIncidentInfo = null;
+
         if (device != null)
         {
             device.LastHeartbeat = DateTime.UtcNow;
             device.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
+
+            // Truy vấn sự cố đang mở hoặc đã tiếp nhận của người cao tuổi này
+            var active = await _db.Incidents
+                .AsNoTracking()
+                .Where(i => i.ElderProfileId == device.ElderProfileId &&
+                           (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged))
+                .OrderByDescending(i => i.TriggeredAt)
+                .Select(i => new { i.Id, Status = i.Status.ToString().ToUpperInvariant(), i.AcknowledgedByCaregiverId, i.AcknowledgedAt })
+                .FirstOrDefaultAsync(ct);
+
+            if (active != null)
+            {
+                string? ackName = null;
+                if (!string.IsNullOrEmpty(active.AcknowledgedByCaregiverId))
+                {
+                    ackName = await _db.Caregivers.AsNoTracking()
+                        .Where(c => c.Id == active.AcknowledgedByCaregiverId)
+                        .Select(c => c.FullName).FirstOrDefaultAsync(ct) ?? active.AcknowledgedByCaregiverId;
+                }
+                activeIncidentInfo = new
+                {
+                    incidentId = active.Id,
+                    status = active.Status,
+                    acknowledgedByName = ackName,
+                    acknowledgedAt = active.AcknowledgedAt
+                };
+            }
         }
 
-        return Ok(new { status = "ALIVE", deviceId = authenticatedDeviceId, serverTime = DateTime.UtcNow });
+        return Ok(new
+        {
+            status = "ALIVE",
+            deviceId = authenticatedDeviceId,
+            serverTime = DateTime.UtcNow,
+            activeIncident = activeIncidentInfo
+        });
+    }
+
+    /// <summary>
+    /// Kiểm tra trạng thái phản hồi sự cố khẩn cấp dành cho thiết bị người cao tuổi (Closed-Loop Telecare Feedback)
+    /// </summary>
+    [HttpGet("active-incident")]
+    [ProducesResponseType(typeof(DeviceActiveIncidentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetActiveIncidentForDevice(CancellationToken ct)
+    {
+        var authenticatedDeviceId = HttpContext.Items["ValidatedDeviceId"] as string;
+        if (string.IsNullOrEmpty(authenticatedDeviceId))
+        {
+            return Unauthorized(new { error = "Không tìm thấy danh tính thiết bị đã xác thực." });
+        }
+
+        var device = await _db.DeviceRegistrations.AsNoTracking().FirstOrDefaultAsync(d => d.Id == authenticatedDeviceId && d.IsActive, ct);
+        if (device == null)
+        {
+            return Unauthorized(new { error = "Thiết bị không tồn tại hoặc đã bị vô hiệu hóa." });
+        }
+
+        // 1. Kiểm tra sự cố Active (Open hoặc Acknowledged)
+        var activeIncident = await _db.Incidents
+            .AsNoTracking()
+            .Include(i => i.TimelineEvents)
+            .Where(i => i.ElderProfileId == device.ElderProfileId &&
+                       (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged))
+            .OrderByDescending(i => i.TriggeredAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (activeIncident != null)
+        {
+            string? acknowledgedByName = null;
+            if (!string.IsNullOrEmpty(activeIncident.AcknowledgedByCaregiverId))
+            {
+                acknowledgedByName = await _db.Caregivers
+                    .AsNoTracking()
+                    .Where(c => c.Id == activeIncident.AcknowledgedByCaregiverId)
+                    .Select(c => c.FullName)
+                    .FirstOrDefaultAsync(ct) ?? activeIncident.AcknowledgedByCaregiverId;
+            }
+
+            var ackEvent = activeIncident.TimelineEvents
+                .Where(e => e.EventType == "ACKNOWLEDGED")
+                .OrderByDescending(e => e.RecordedAt)
+                .FirstOrDefault();
+
+            return Ok(new DeviceActiveIncidentResponse(
+                HasActiveIncident: true,
+                IncidentId: activeIncident.Id,
+                Status: activeIncident.Status.ToString().ToUpperInvariant(),
+                EmergencyType: activeIncident.EmergencyType,
+                TriggeredAt: activeIncident.TriggeredAt,
+                AcknowledgedAt: activeIncident.AcknowledgedAt,
+                AcknowledgedByName: acknowledgedByName,
+                AcknowledgedNote: ackEvent?.Description,
+                ResolvedAt: null,
+                ResolvedByName: null,
+                ResolutionNotes: null
+            ));
+        }
+
+        // 2. Nếu không có sự cố Active, kiểm tra sự cố được giải quyết gần nhất trong vòng 15 phút
+        var recentlyResolved = await _db.Incidents
+            .AsNoTracking()
+            .Where(i => i.ElderProfileId == device.ElderProfileId &&
+                        i.Status == IncidentStatus.Resolved &&
+                        i.ResolvedAt >= DateTime.UtcNow.AddMinutes(-15))
+            .OrderByDescending(i => i.ResolvedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (recentlyResolved != null)
+        {
+            string? resolvedByName = null;
+            if (!string.IsNullOrEmpty(recentlyResolved.ResolvedByCaregiverId))
+            {
+                resolvedByName = await _db.Caregivers
+                    .AsNoTracking()
+                    .Where(c => c.Id == recentlyResolved.ResolvedByCaregiverId)
+                    .Select(c => c.FullName)
+                    .FirstOrDefaultAsync(ct) ?? recentlyResolved.ResolvedByCaregiverId;
+            }
+
+            return Ok(new DeviceActiveIncidentResponse(
+                HasActiveIncident: false,
+                IncidentId: recentlyResolved.Id,
+                Status: "RESOLVED",
+                EmergencyType: recentlyResolved.EmergencyType,
+                TriggeredAt: recentlyResolved.TriggeredAt,
+                AcknowledgedAt: recentlyResolved.AcknowledgedAt,
+                AcknowledgedByName: null,
+                AcknowledgedNote: null,
+                ResolvedAt: recentlyResolved.ResolvedAt,
+                ResolvedByName: resolvedByName,
+                ResolutionNotes: recentlyResolved.ResolutionNotes
+            ));
+        }
+
+        // 3. Hoàn toàn bình thường
+        return Ok(new DeviceActiveIncidentResponse(
+            HasActiveIncident: false,
+            IncidentId: null,
+            Status: "NONE",
+            EmergencyType: null,
+            TriggeredAt: null,
+            AcknowledgedAt: null,
+            AcknowledgedByName: null,
+            AcknowledgedNote: null,
+            ResolvedAt: null,
+            ResolvedByName: null,
+            ResolutionNotes: null
+        ));
     }
 
     /// <summary>

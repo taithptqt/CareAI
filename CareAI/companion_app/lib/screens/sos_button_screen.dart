@@ -20,6 +20,8 @@ import '../caregiver/screens/home_screen.dart';
 import '../caregiver/screens/login_screen.dart';
 import '../caregiver/services/caregiver_api_service.dart';
 import '../services/location_service.dart';
+import '../services/voice_guidance_service.dart';
+import 'package:intl/intl.dart';
 import 'device_pairing_screen.dart';
 import 'fall_countdown_dialog.dart';
 import 'role_selection_screen.dart';
@@ -44,6 +46,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   String _gpsStatus = 'Đang lấy vị trí hiện tại...';
   bool _locatingGps = false;
   bool _backgroundGpsGranted = false;
+
+  Timer? _incidentPollTimer;
+  String? _activeIncidentStatus;
+  String? _acknowledgedByName;
+  DateTime? _acknowledgedAt;
+  String? _acknowledgedNote;
+  bool _acknowledgedAnnounced = false;
 
   WatchStatus _watchStatus = const WatchStatus(isConnected: false);
   String? _lastPairedWatchName;
@@ -210,6 +219,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _stopIncidentPolling();
     _healthCheckTimer?.cancel();
     _watchStatusTimer?.cancel();
     _watchDisconnectDebounceTimer?.cancel();
@@ -219,6 +229,107 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     FallService.instance.stopPhoneAccelerometerDetector();
     SyncService.instance.stopPeriodicSync();
     super.dispose();
+  }
+
+  void _startIncidentPolling() {
+    _incidentPollTimer?.cancel();
+    _incidentPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _pollActiveIncident();
+    });
+    unawaited(_pollActiveIncident());
+  }
+
+  void _stopIncidentPolling() {
+    _incidentPollTimer?.cancel();
+    _incidentPollTimer = null;
+  }
+
+  Future<void> _pollActiveIncident() async {
+    if (!mounted) return;
+    try {
+      final incident = await ApiService.instance.getActiveIncident();
+      if (!mounted || incident == null) return;
+
+      if (incident.hasActiveIncident) {
+        if (incident.status == 'ACKNOWLEDGED') {
+          final wasAck = _activeIncidentStatus == 'ACKNOWLEDGED';
+          setState(() {
+            _isSosActive = true;
+            _activeIncidentStatus = 'ACKNOWLEDGED';
+            _acknowledgedByName = incident.acknowledgedByName;
+            _acknowledgedAt = incident.acknowledgedAt;
+            _acknowledgedNote = incident.acknowledgedNote;
+          });
+
+          // Ngắt còi hú nếu còn đang phát
+          unawaited(FallService.instance.stopEmergencySound());
+
+          // Đồng bộ sang Apple Watch / Wear OS
+          unawaited(FallService.instance.notifyIncidentStatusToWatch(
+            status: 'ACKNOWLEDGED',
+            acknowledgedByName: incident.acknowledgedByName,
+            notes: incident.acknowledgedNote,
+            incidentId: incident.incidentId,
+          ));
+
+          // Phát âm báo giọng nói tiếng Việt an tâm (một lần duy nhất)
+          if (!_acknowledgedAnnounced) {
+            _acknowledgedAnnounced = true;
+            final who = (incident.acknowledgedByName != null && incident.acknowledgedByName!.trim().isNotEmpty)
+                ? incident.acknowledgedByName!.trim()
+                : 'Người thân';
+            final text = '$who đã tiếp nhận hỗ trợ.';
+            unawaited(VoiceGuidanceService.instance.speak(text));
+          }
+        } else if (incident.status == 'OPEN') {
+          if (_activeIncidentStatus != 'OPEN') {
+            setState(() {
+              _isSosActive = true;
+              _activeIncidentStatus = 'OPEN';
+            });
+          }
+        }
+      } else {
+        // Sự cố đã được đóng (RESOLVED) hoặc không còn sự cố nào trên máy chủ
+        if (_isSosActive || _activeIncidentStatus != null) {
+          final resolvedName = incident.resolvedByName;
+          _stopIncidentPolling();
+          setState(() {
+            _isSosActive = false;
+            _activeIncidentStatus = null;
+            _acknowledgedByName = null;
+            _acknowledgedAt = null;
+            _acknowledgedNote = null;
+            _acknowledgedAnnounced = false;
+          });
+
+          // Ngắt còi hú
+          unawaited(FallService.instance.stopEmergencySound());
+
+          // Báo đồng hồ đưa về bình thường
+          unawaited(FallService.instance.notifyIncidentStatusToWatch(
+            status: 'RESOLVED',
+            incidentId: incident.incidentId,
+          ));
+
+          // Phát âm thông báo an toàn
+          final text = (resolvedName != null && resolvedName.trim().isNotEmpty)
+              ? 'Sự cố đã được $resolvedName giải quyết an toàn.'
+              : 'Sự cố đã được xử lý hoàn tất.';
+          unawaited(VoiceGuidanceService.instance.speak(text));
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(text),
+                backgroundColor: const Color(0xFF059669),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   String get _platformWatchTitle {
@@ -466,6 +577,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         if (wasOffline || _heartbeatTicks % 3 == 1) {
           unawaited(_sendElderDeviceHeartbeat());
         }
+
+        // Tự động duy trì hoặc khôi phục kiểm tra phản hồi sự cố khép kín
+        if (_isSosActive && _incidentPollTimer == null) {
+          _startIncidentPolling();
+        } else if (!_isSosActive && _heartbeatTicks % 6 == 1) {
+          unawaited(_pollActiveIncident());
+        }
       }
 
       // Tự động xả hàng đợi ngoại tuyến ngay khi máy có kết nối trở lại
@@ -514,7 +632,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           setState(() {
             _isSosActive = true;
             _lastSosPacketId = packetId;
+            _activeIncidentStatus = 'OPEN';
+            _acknowledgedAnnounced = false;
           });
+          _startIncidentPolling();
         },
       ),
     ).whenComplete(() {
@@ -581,7 +702,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     setState(() {
       _isSosActive = true;
       _lastSosPacketId = packetId;
+      _activeIncidentStatus = 'OPEN';
+      _acknowledgedAnnounced = false;
     });
+    _startIncidentPolling();
 
     // BƯỚC 2: Thử Fast-Lane HTTP POST trực tiếp lên máy chủ
     try {
@@ -1926,36 +2050,79 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               },
             ),
 
-            // Banner trạng thái SOS đang kích hoạt
+            // Banner trạng thái SOS / Sự cố khẩn cấp (Phản hồi 2 chiều Closed-Loop)
             if (_isSosActive)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7F1D1D),
+                  color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                      ? const Color(0xFF064E3B) // Xanh lục an tâm (Emerald 900)
+                      : const Color(0xFF7F1D1D), // Đỏ cảnh báo (Red 900)
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFEF4444)),
+                  border: Border.all(
+                    color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                        ? const Color(0xFF10B981) // Emerald 500
+                        : const Color(0xFFEF4444), // Red 500
+                    width: 1.5,
+                  ),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.notifications_active, color: Colors.white),
-                    const SizedBox(width: 10),
+                    Icon(
+                      _activeIncidentStatus == 'ACKNOWLEDGED'
+                          ? Icons.check_circle_rounded
+                          : Icons.notifications_active,
+                      color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                          ? const Color(0xFF34D399)
+                          : Colors.white,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'ĐÃ PHÁT TÍN HIỆU CẤP CỨU ($_lastSosPacketId)\nĐang chờ người nhà tiếp nhận!',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _activeIncidentStatus == 'ACKNOWLEDGED'
+                                ? 'NGƯỜI THÂN ĐÃ TIẾP NHẬN!'
+                                : 'ĐÃ PHÁT TÍN HIỆU CẤP CỨU',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _activeIncidentStatus == 'ACKNOWLEDGED'
+                                ? '${_acknowledgedByName ?? 'Người thân'} đã tiếp nhận${_acknowledgedAt != null ? ' lúc ${DateFormat('HH:mm').format(_acknowledgedAt!.toLocal())}' : ''}\n${_acknowledgedNote != null && _acknowledgedNote!.isNotEmpty ? _acknowledgedNote! : 'Đang đến hỗ trợ, cụ yên tâm nhé!'}'
+                                : 'Mã: ${_lastSosPacketId ?? 'SOS'}\nĐang chờ người nhà tiếp nhận...',
+                            style: TextStyle(
+                              color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                                  ? const Color(0xFFD1FAE5)
+                                  : Colors.white70,
+                              fontSize: 12,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white70),
+                      tooltip: 'Đóng thông báo',
                       onPressed: () {
+                        _stopIncidentPolling();
                         setState(() {
                           _isSosActive = false;
+                          _activeIncidentStatus = null;
                         });
+                        FallService.instance.stopEmergencySound();
+                        FallService.instance.notifyIncidentStatusToWatch(status: 'RESOLVED');
                       },
                     ),
                   ],

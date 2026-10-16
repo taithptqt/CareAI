@@ -451,6 +451,36 @@ import workmanager_apple
         result(pending)
       case "checkExactAlarmPermission":
         result(true)
+      case "notifyIncidentStatusToWatch":
+        if WCSession.isSupported() {
+          let session = WCSession.default
+          if session.activationState != .activated {
+            session.activate()
+          }
+          let args = call.arguments as? [String: Any] ?? [:]
+          let status = args["status"] as? String ?? "RESOLVED"
+          let name = args["acknowledgedByName"] as? String ?? ""
+          let notes = args["notes"] as? String ?? ""
+          let incidentId = args["incidentId"] as? String ?? ""
+
+          let payload: [String: Any] = [
+            "action": "INCIDENT_STATUS_CHANGED",
+            "status": status,
+            "acknowledgedByName": name,
+            "notes": notes,
+            "incidentId": incidentId
+          ]
+
+          try? session.updateApplicationContext(payload)
+          session.transferUserInfo(payload)
+          if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+          }
+          NSLog("[CareAI-iOS] Đã gửi INCIDENT_STATUS_CHANGED (%@, by=%@) sang Apple Watch qua WCSession.", status, name)
+          result(true)
+        } else {
+          result(false)
+        }
       default:
         result(FlutterMethodNotImplemented)
       }

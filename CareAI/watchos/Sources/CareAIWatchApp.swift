@@ -320,7 +320,9 @@ struct PrimaryEmergencyView: View {
     @State private var lastSecretTapTime = Date.distantPast
 
     private var statusColor: Color {
-        if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 || (sync.latestBpSystolic ?? 0) >= 180 {
+        if sync.customAlert == "ACKNOWLEDGED" {
+            return Color(red: 0.06, green: 0.73, blue: 0.51) // Green
+        } else if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 || (sync.latestBpSystolic ?? 0) >= 180 {
             return Color(red: 0.94, green: 0.27, blue: 0.27) // Red
         } else if sync.customAlert == "BRADYCARDIA" || ((sync.latestHeartRate ?? 100) <= 45 && (sync.latestHeartRate ?? 0) > 0) || ((sync.latestBpSystolic ?? 120) < 90 && (sync.latestBpSystolic ?? 0) > 0) {
             return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
@@ -340,6 +342,9 @@ struct PrimaryEmergencyView: View {
     private var statusTitle: String {
         if let alert = sync.customAlert {
             switch alert {
+            case "ACKNOWLEDGED":
+                let name = sync.acknowledgedByText ?? "Người Thân"
+                return "🟢 \(name) Đã Nhận"
             case "TACHYCARDIA": return "🚨 Nhanh \(Int(sync.latestHeartRate ?? 155)) BPM"
             case "BRADYCARDIA": return "⚠️ Chậm \(Int(sync.latestHeartRate ?? 38)) BPM"
             case "HYPOXIA": return "🫁 Oxy \(String(format: "%.0f", sync.latestSpo2 ?? 88.0))%"
@@ -1162,6 +1167,12 @@ struct VitalsTestLabSheetView: View {
                             .font(.system(size: 9.5, weight: .bold))
                             .buttonStyle(.borderedProminent)
                             .tint(Color(red: 0.06, green: 0.73, blue: 0.51))
+                    }
+                    HStack(spacing: 4) {
+                        Button("🟢 Người Thân Đã Nhận") { sync.simulateAcknowledged() }
+                            .font(.system(size: 9.5, weight: .bold))
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.05, green: 0.59, blue: 0.41))
                     }
                 }
 

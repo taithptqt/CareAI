@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using CareAI.API.Controllers;
 using CareAI.Core.DTOs;
 using CareAI.Core.Entities;
+using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
 using Xunit;
 
@@ -715,6 +716,101 @@ public class DashboardAndGpsTests : IDisposable
         var staleFromDb = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == "WATCH_STALE_YESTERDAY");
         Assert.NotNull(staleFromDb);
         Assert.False(staleFromDb.IsActive, "Bản ghi đồng hồ cũ (zombie) phải được tự động chuyển sang IsActive = false");
+    }
+
+    [Fact]
+    public async Task GetActiveIncidentForDevice_ClosedLoopFlow_TracksOpenAcknowledgedAndResolved()
+    {
+        // 1. Setup companion device for test elder
+        var deviceId = "COMPANION_TEST_DEVICE_CLOSED_LOOP";
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = deviceId,
+            ElderProfileId = _testElderId,
+            DeviceType = "Smartphone",
+            DeviceTokenHash = "HASH123",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var devicesController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devicesController.HttpContext.Items["ValidatedDeviceId"] = deviceId;
+
+        // Ban đầu chưa có sự cố nào
+        var initialRes = await devicesController.GetActiveIncidentForDevice(CancellationToken.None);
+        var okInitial = Assert.IsType<OkObjectResult>(initialRes);
+        var initialDto = Assert.IsType<DeviceActiveIncidentResponse>(okInitial.Value);
+        Assert.False(initialDto.HasActiveIncident);
+        Assert.Equal("NONE", initialDto.Status);
+
+        // 2. Kích hoạt sự cố SOS (Open)
+        var incident = new Incident
+        {
+            Id = "INC_TEST_CLOSED_LOOP_01",
+            ElderProfileId = _testElderId,
+            Status = IncidentStatus.Open,
+            Severity = IncidentSeverity.Critical,
+            EmergencyType = "MANUAL_SOS",
+            TriggeredAt = DateTime.UtcNow
+        };
+        _db.Incidents.Add(incident);
+        await _db.SaveChangesAsync();
+
+        var openRes = await devicesController.GetActiveIncidentForDevice(CancellationToken.None);
+        var okOpen = Assert.IsType<OkObjectResult>(openRes);
+        var openDto = Assert.IsType<DeviceActiveIncidentResponse>(okOpen.Value);
+        Assert.True(openDto.HasActiveIncident);
+        Assert.Equal("OPEN", openDto.Status);
+        Assert.Equal("INC_TEST_CLOSED_LOOP_01", openDto.IncidentId);
+        Assert.Null(openDto.AcknowledgedByName);
+
+        // Kiểm tra cả Heartbeat cũng trả về activeIncident
+        var hbRes = await devicesController.Heartbeat(new HeartbeatRequest(null, null), CancellationToken.None);
+        var okHb = Assert.IsType<OkObjectResult>(hbRes);
+        Assert.NotNull(okHb.Value);
+
+        // 3. Người thân tiếp nhận sự cố (Acknowledged)
+        incident.Status = IncidentStatus.Acknowledged;
+        incident.AcknowledgedAt = DateTime.UtcNow;
+        incident.AcknowledgedByCaregiverId = _authCaregiverId;
+        _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
+        {
+            IncidentId = incident.Id,
+            ActorCaregiverId = _authCaregiverId,
+            EventType = "ACKNOWLEDGED",
+            Description = "Người thân Nguyễn Văn A đã tiếp nhận sự cố: Đang về hỗ trợ",
+            RecordedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var ackRes = await devicesController.GetActiveIncidentForDevice(CancellationToken.None);
+        var okAck = Assert.IsType<OkObjectResult>(ackRes);
+        var ackDto = Assert.IsType<DeviceActiveIncidentResponse>(okAck.Value);
+        Assert.True(ackDto.HasActiveIncident);
+        Assert.Equal("ACKNOWLEDGED", ackDto.Status);
+        Assert.NotNull(ackDto.AcknowledgedByName);
+        Assert.NotNull(ackDto.AcknowledgedNote);
+
+        // 4. Người thân đóng sự cố (Resolved)
+        incident.Status = IncidentStatus.Resolved;
+        incident.ResolvedAt = DateTime.UtcNow;
+        incident.ResolvedByCaregiverId = _authCaregiverId;
+        incident.ResolutionNotes = "Đã kiểm tra an toàn";
+        await _db.SaveChangesAsync();
+
+        var resolvedRes = await devicesController.GetActiveIncidentForDevice(CancellationToken.None);
+        var okResolved = Assert.IsType<OkObjectResult>(resolvedRes);
+        var resolvedDto = Assert.IsType<DeviceActiveIncidentResponse>(okResolved.Value);
+        Assert.False(resolvedDto.HasActiveIncident);
+        Assert.Equal("RESOLVED", resolvedDto.Status);
+        Assert.Equal("Đã kiểm tra an toàn", resolvedDto.ResolutionNotes);
     }
 
     public void Dispose()

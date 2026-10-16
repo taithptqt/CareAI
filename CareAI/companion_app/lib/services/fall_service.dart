@@ -214,6 +214,30 @@ class FallService {
     }
   }
 
+  /// Thông báo trạng thái phản hồi sự cố khẩn cấp sang Apple Watch / Wear OS (Closed-Loop Feedback)
+  Future<bool> notifyIncidentStatusToWatch({
+    required String status,
+    String? acknowledgedByName,
+    String? notes,
+    String? incidentId,
+  }) async {
+    if (!_isSupportedPlatform) {
+      return false;
+    }
+    try {
+      final success = await _fallChannel.invokeMethod<bool>('notifyIncidentStatusToWatch', {
+        'status': status,
+        'acknowledgedByName': acknowledgedByName ?? '',
+        'notes': notes ?? '',
+        'incidentId': incidentId ?? '',
+      });
+      return success ?? false;
+    } catch (e) {
+      debugPrint('[FallService] Lỗi gửi trạng thái sự cố sang đồng hồ: $e');
+      return false;
+    }
+  }
+
   void dispose() {
     _sensorSubscription?.cancel();
     _fallEventController.close();

@@ -638,6 +638,33 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
                 }
+                "notifyIncidentStatusToWatch" -> {
+                    try {
+                        val status = call.argument<String>("status") ?: "RESOLVED"
+                        val ackName = call.argument<String>("acknowledgedByName") ?: ""
+                        val notes = call.argument<String>("notes") ?: ""
+                        val incidentId = call.argument<String>("incidentId") ?: ""
+                        val json = JSONObject().apply {
+                            put("action", "INCIDENT_STATUS_CHANGED")
+                            put("status", status)
+                            put("acknowledgedByName", ackName)
+                            put("notes", notes)
+                            put("incidentId", incidentId)
+                        }.toString()
+                        Wearable.getNodeClient(this).connectedNodes.addOnSuccessListener { nodes ->
+                            for (node in nodes) {
+                                Wearable.getMessageClient(this).sendMessage(
+                                    node.id,
+                                    "/careai/incident_status",
+                                    json.toByteArray(Charsets.UTF_8)
+                                )
+                            }
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(true)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

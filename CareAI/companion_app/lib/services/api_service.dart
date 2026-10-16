@@ -554,4 +554,44 @@ class ApiService {
       return false;
     }
   }
+
+  /// Kiểm tra trạng thái phản hồi sự cố khẩn cấp dành cho thiết bị người già (Closed-Loop Feedback)
+  Future<DeviceActiveIncidentResponse?> getActiveIncident() async {
+    final deviceId = await getDeviceId();
+    final deviceToken = await getDeviceToken();
+    if (deviceId == null || deviceToken == null || deviceId.isEmpty || deviceToken.isEmpty) {
+      return null;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'X-DeviceId': deviceId,
+      'X-Device-Token': deviceToken,
+    };
+
+    final prefs = await SharedPreferences.getInstance();
+    final pairedUrl = prefs.getString('server_base_url');
+    final endpoints = {
+      if (pairedUrl != null && pairedUrl.isNotEmpty) pairedUrl,
+      _activeServerUrl,
+      ..._getEndpointsToTry(),
+    };
+
+    for (final url in endpoints) {
+      try {
+        final res = await http.get(
+          Uri.parse('$url/api/v1/devices/active-incident'),
+          headers: headers,
+        ).timeout(const Duration(seconds: 3));
+
+        if (res.statusCode == 200) {
+          _activeServerUrl = url;
+          final json = jsonDecode(res.body) as Map<String, dynamic>;
+          return DeviceActiveIncidentResponse.fromJson(json);
+        }
+      } catch (_) {}
+    }
+
+    return null;
+  }
 }
