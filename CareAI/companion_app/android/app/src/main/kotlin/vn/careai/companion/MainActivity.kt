@@ -418,6 +418,82 @@ class MainActivity : FlutterActivity() {
         }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "vn.careai.companion/power_optimization").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isIgnoringBatteryOptimizations" -> {
+                    val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                    val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        pm?.isIgnoringBatteryOptimizations(packageName) ?: false
+                    } else {
+                        true
+                    }
+                    result.success(isIgnoring)
+                }
+                "requestIgnoreBatteryOptimizations" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        try {
+                            val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                            if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+                                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:$packageName")
+                                }
+                                startActivity(intent)
+                                result.success(true)
+                                return@setMethodCallHandler
+                            }
+                        } catch (e: Exception) {
+                            Log.w("CareAI-MainActivity", "Không thể gọi ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS: ${e.message}")
+                        }
+                    }
+                    result.success(false)
+                }
+                "openAutostartSettings" -> {
+                    val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
+                    val intent = Intent()
+                    when {
+                        manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
+                            intent.component = android.content.ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+                        }
+                        manufacturer.contains("oppo") || manufacturer.contains("realme") -> {
+                            intent.component = android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
+                        }
+                        manufacturer.contains("vivo") || manufacturer.contains("iqoo") -> {
+                            intent.component = android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")
+                        }
+                        manufacturer.contains("huawei") || manufacturer.contains("honor") -> {
+                            intent.component = android.content.ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
+                        }
+                        manufacturer.contains("samsung") -> {
+                            intent.component = android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")
+                        }
+                        else -> {
+                            intent.action = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                            intent.data = Uri.parse("package:$packageName")
+                        }
+                    }
+                    try {
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        try {
+                            val fallback = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(fallback)
+                            result.success(true)
+                        } catch (ex: Exception) {
+                            result.success(false)
+                        }
+                    }
+                }
+                "getManufacturer" -> {
+                    result.success(Build.MANUFACTURER)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "vn.careai.companion/caregiver_alarm").setMethodCallHandler { call, result ->
             when (call.method) {
                 "start", "stop" -> {

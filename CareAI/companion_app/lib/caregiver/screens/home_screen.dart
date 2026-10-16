@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 import '../services/caregiver_push_service.dart';
+import '../services/power_optimization_service.dart';
 import '../services/place_search_service.dart';
 import '../widgets/home_address_field.dart';
 import 'elder_dashboard_screen.dart';
@@ -57,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       CaregiverPushService.instance.registerCurrentToken();
       CaregiverPushService.instance.openPendingIncident();
+      _checkBatteryOptimizationOnboarding();
     });
   }
 
@@ -1263,6 +1265,135 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _checkBatteryOptimizationOnboarding() async {
+    if (!mounted) return;
+    final shouldShow = await PowerOptimizationService.instance.shouldShowOnboarding();
+    if (shouldShow && mounted) {
+      await _showBatteryOnboardingDialog();
+    }
+  }
+
+  Future<void> _showBatteryOnboardingDialog() async {
+    final manufacturer = await PowerOptimizationService.instance.getManufacturer();
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.notifications_active_rounded, color: Color(0xFFEF4444), size: 24),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Kích Hoạt Còi Hú Cấp Cứu',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Để còi báo động luôn hú to đánh thức bạn lúc nửa đêm khi người thân bị té ngã hoặc nguy kịch (kể cả khi điện thoại tắt màn hình):',
+                style: TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.battery_charging_full_rounded, color: Color(0xFF0284C7), size: 18),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '1. Chọn "Không hạn chế pin"',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Hệ điều hành Android sẽ không đóng băng app khi máy ngủ sâu (tiêu thụ pin < 0.1%/ngày).',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.rocket_launch_rounded, color: Color(0xFF10B981), size: 18),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '2. Bật "Tự khởi chạy" ($manufacturer)',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Cho phép hệ thống tự đánh thức chuông báo cấp cứu khi bạn vuốt tắt app.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await PowerOptimizationService.instance.dismissOnboarding();
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('ĐỂ SAU', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () async {
+              await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+              await PowerOptimizationService.instance.dismissOnboarding();
+              if (ctx.mounted) Navigator.pop(ctx);
+              final lower = manufacturer.toLowerCase();
+              if (lower.contains('xiaomi') || lower.contains('redmi') || lower.contains('oppo') || lower.contains('vivo') || lower.contains('huawei') || lower.contains('samsung')) {
+                await PowerOptimizationService.instance.openAutostartSettings();
+              }
+            },
+            child: const Text('CẤP QUYỀN NGAY', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showBatteryOptimizationGuide() {
     showDialog(
       context: context,
@@ -1280,43 +1411,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              const Text(
                 'Để còi hú cấp cứu luôn đổ chuông ngay cả khi điện thoại tắt màn hình hoặc đang ở chế độ chờ:',
                 style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
               ),
-              SizedBox(height: 10),
-              Text(
+              const SizedBox(height: 10),
+              const Text(
                 '1. Tắt Tối Ưu Hóa Pin (Samsung One UI / Xiaomi / Oppo):',
                 style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
               ),
-              SizedBox(height: 2),
-              Text(
-                'Vào Cài đặt > Ứng dụng > CareAI > Pin > Chọn "Không giới hạn" (Unrestricted) để hệ điều hành không đóng băng app.',
+              const SizedBox(height: 2),
+              const Text(
+                'Chọn "Không giới hạn" (Unrestricted) để hệ điều hành không đóng băng app.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
               ),
-              SizedBox(height: 10),
-              Text(
-                '2. Cho Phép Hiển Thị Trên Ứng Dụng Khác:',
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.battery_charging_full_rounded, size: 16),
+                  label: const Text('Bỏ Tối Ưu Pin (1 Chạm)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  onPressed: () => PowerOptimizationService.instance.requestIgnoreBatteryOptimizations(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                '2. Bật Quyền "Tự Khởi Chạy" (Autostart):',
                 style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
               ),
-              SizedBox(height: 2),
-              Text(
-                'Bật quyền "Xuất hiện trên cùng" (Appear on top) để màn hình còi hú có thể bật sáng ngay lập tức khi người cao tuổi nhấn SOS.',
+              const SizedBox(height: 2),
+              const Text(
+                'Cho phép Google Play Services đánh thức app khi có sự cố khẩn cấp.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
               ),
-              SizedBox(height: 10),
-              Text(
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.rocket_launch_rounded, size: 16),
+                  label: const Text('Mở Cài Đặt Tự Khởi Chạy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
                 '3. Bỏ Qua Chế Độ Không Làm Phiền:',
                 style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
               ),
-              SizedBox(height: 2),
-              Text(
-                'Vào Thông báo của CareAI > Kênh "Caregiver Emergency Alerts" > Bật "Đặt làm ưu tiên / Bỏ qua Không làm phiền".',
+              const SizedBox(height: 2),
+              const Text(
+                'Vào Thông báo của CareAI > Kênh "Cấp cứu người thân" > Bật "Đặt làm ưu tiên / Bỏ qua Không làm phiền".',
                 style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
               ),
             ],
