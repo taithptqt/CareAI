@@ -63,7 +63,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   static const Duration _kWatchDisconnectDebounce = Duration(minutes: 3);
   Timer? _healthCheckTimer;
   StreamSubscription<FallEvent>? _fallSubscription;
+  StreamSubscription<Map<String, dynamic>>? _manualSosSubscription;
   StreamSubscription<WatchStatus>? _watchStatusSubscription;
+  DateTime? _sosStartTime;
   late AnimationController _rippleController;
   bool _isFallDialogShowing = false;
 
@@ -95,6 +97,21 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     _fallSubscription = FallService.instance.onFallDetected.listen((fallEvent) {
       if (mounted) {
         _showFallCountdownModal(fallEvent);
+      }
+    });
+
+    // Lắng nghe lệnh phát tín hiệu SOS trực tiếp từ đồng hồ (Bỏ qua đếm ngược té ngã vì cụ chủ động bấm nút)
+    _manualSosSubscription = FallService.instance.onManualSosTriggered.listen((payload) {
+      if (mounted) {
+        final packetId = payload['packetId'] as String? ?? 'SOS_WATCH_${DateTime.now().millisecondsSinceEpoch}';
+        _sosStartTime = DateTime.now();
+        setState(() {
+          _isSosActive = true;
+          _lastSosPacketId = packetId;
+          _activeIncidentStatus = 'OPEN';
+          _acknowledgedAnnounced = false;
+        });
+        _startIncidentPolling();
       }
     });
 
@@ -224,6 +241,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     _watchStatusTimer?.cancel();
     _watchDisconnectDebounceTimer?.cancel();
     _fallSubscription?.cancel();
+    _manualSosSubscription?.cancel();
     _watchStatusSubscription?.cancel();
     _rippleController.dispose();
     FallService.instance.stopPhoneAccelerometerDetector();
@@ -233,15 +251,48 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   void _startIncidentPolling() {
     _incidentPollTimer?.cancel();
-    _incidentPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      _pollActiveIncident();
-    });
+    _sosStartTime ??= DateTime.now();
+    _scheduleNextIncidentPoll();
     unawaited(_pollActiveIncident());
+  }
+
+  void _scheduleNextIncidentPoll() {
+    _incidentPollTimer?.cancel();
+    if (!mounted || !_isSosActive) return;
+
+    // Tính toán chu kỳ thích ứng (Adaptive Interval):
+    // - Khi chưa được tiếp nhận (OPEN):
+    //   * 3 phút đầu: 3 giây (đảm bảo phản hồi tức thì dưới 3s cho người già)
+    //   * Sau 3 phút: 10 giây (tiết kiệm pin khi người thân chưa kịp mở điện thoại)
+    // - Khi đã được tiếp nhận (ACKNOWLEDGED):
+    //   * 8 giây (còi đã tắt, giọng nói an tâm đã phát, kiểm tra RESOLVED tiết kiệm pin)
+    // - Quá 2 giờ: giãn ra 60 giây (bảo vệ pin nếu sự cố bị lãng quên hoặc treo)
+    final now = DateTime.now();
+    final elapsedSec = _sosStartTime != null ? now.difference(_sosStartTime!).inSeconds : 0;
+
+    Duration interval;
+    if (elapsedSec > 7200) {
+      interval = const Duration(seconds: 60);
+    } else if (_activeIncidentStatus == 'ACKNOWLEDGED') {
+      interval = const Duration(seconds: 8);
+    } else if (elapsedSec < 180) {
+      interval = const Duration(seconds: 3);
+    } else {
+      interval = const Duration(seconds: 10);
+    }
+
+    _incidentPollTimer = Timer(interval, () {
+      if (mounted && _isSosActive) {
+        _pollActiveIncident();
+        _scheduleNextIncidentPoll();
+      }
+    });
   }
 
   void _stopIncidentPolling() {
     _incidentPollTimer?.cancel();
     _incidentPollTimer = null;
+    _sosStartTime = null;
   }
 
   Future<void> _pollActiveIncident() async {
@@ -260,6 +311,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             _acknowledgedAt = incident.acknowledgedAt;
             _acknowledgedNote = incident.acknowledgedNote;
           });
+
+          if (!wasAck) {
+            _scheduleNextIncidentPoll();
+          }
 
           // Ngắt còi hú nếu còn đang phát
           unawaited(FallService.instance.stopEmergencySound());

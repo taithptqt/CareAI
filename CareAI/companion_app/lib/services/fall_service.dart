@@ -14,6 +14,9 @@ class FallService {
   final _fallEventController = StreamController<FallEvent>.broadcast();
   Stream<FallEvent> get onFallDetected => _fallEventController.stream;
 
+  final _manualSosController = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onManualSosTriggered => _manualSosController.stream;
+
   final _watchStatusController = StreamController<WatchStatus>.broadcast();
   Stream<WatchStatus> get onWatchConnectionChanged => _watchStatusController.stream;
 
@@ -31,6 +34,9 @@ class FallService {
         final rawMap = Map<String, dynamic>.from(call.arguments as Map);
         final event = FallEvent.fromMap(rawMap, isHardware: true);
         _fallEventController.add(event);
+      } else if (call.method == 'onManualSosTriggered') {
+        final rawMap = Map<String, dynamic>.from(call.arguments as Map);
+        _manualSosController.add(rawMap);
       } else if (call.method == 'onWatchConnectionChanged') {
         final rawMap = Map<String, dynamic>.from(call.arguments as Map);
         final status = WatchStatus.fromMap(rawMap);
@@ -241,6 +247,7 @@ class FallService {
   void dispose() {
     _sensorSubscription?.cancel();
     _fallEventController.close();
+    _manualSosController.close();
     _watchStatusController.close();
   }
 }

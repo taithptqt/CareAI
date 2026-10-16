@@ -269,14 +269,17 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                         sync.customAlert = nil
                         sync.acknowledgedByText = nil
                         sync.status = "🟢 Đang Giám Sát Cổ Tay"
+                        sync.deactivateEmergencySession()
                     }
                 }
             } else if status == "RESOLVED" || status == "CLEAR" {
+                sync.stopStandaloneIncidentPolling()
                 sync.customAlert = nil
                 sync.acknowledgedByText = nil
                 sync.status = "🟢 Đang Giám Sát Cổ Tay"
                 sync.diagnosticLog = "✅ Sự cố đã kết thúc an toàn"
                 WKInterfaceDevice.current().play(.directionUp)
+                sync.deactivateEmergencySession()
             }
         }
     }
@@ -905,33 +908,118 @@ final class HealthSync: ObservableObject {
             if code == 200 || code == 201 {
                 let successMsg = "✅ Đã gửi \(type == "FALL_DETECTED" ? "cảnh báo ngã" : "SOS") thành công!"
                 diagnosticLog = successMsg
-                deactivateEmergencySession()
+                if !isPhoneReachable {
+                    startStandaloneIncidentPolling()
+                }
                 return (true, successMsg)
             } else {
                 let failMsg = "⚠️ Máy chủ phản hồi mã \(code ?? 0). Đã lưu đệm."
                 diagnosticLog = failMsg
                 enqueueDemo(metricType: type == "FALL_DETECTED" ? "FALL" : "SOS", value: 1.0, unit: "event")
-                deactivateEmergencySession()
+                if !isPhoneReachable {
+                    startStandaloneIncidentPolling()
+                }
                 return (false, failMsg)
             }
         } catch {
             let errorMsg = "⚠️ Lỗi mạng: \(error.localizedDescription). Đã lưu đệm."
             diagnosticLog = errorMsg
             enqueueDemo(metricType: type == "FALL_DETECTED" ? "FALL" : "SOS", value: 1.0, unit: "event")
-            deactivateEmergencySession()
+            if !isPhoneReachable {
+                startStandaloneIncidentPolling()
+            }
             return (false, errorMsg)
         }
     }
 
+    private var standalonePollTimer: Timer?
+
+    func startStandaloneIncidentPolling() {
+        standalonePollTimer?.invalidate()
+        standalonePollTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            Task { @MainActor in
+                await self.pollActiveIncidentStandalone()
+            }
+        }
+        Task { @MainActor in
+            await self.pollActiveIncidentStandalone()
+        }
+    }
+
+    func stopStandaloneIncidentPolling() {
+        standalonePollTimer?.invalidate()
+        standalonePollTimer = nil
+    }
+
+    func pollActiveIncidentStandalone() async {
+        guard !isPhoneReachable else { return }
+        guard customAlert == "MANUAL_SOS" || customAlert == "FALL_DETECTED" || customAlert == "ACKNOWLEDGED" else {
+            stopStandaloneIncidentPolling()
+            return
+        }
+        guard let base = UserDefaults.standard.string(forKey: "backend"),
+              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/v1/devices/active-incident"),
+              let deviceId = UserDefaults.standard.string(forKey: "deviceId"),
+              let token = KeychainToken.load() else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 4
+        request.setValue(deviceId, forHTTPHeaderField: "X-DeviceId")
+        request.setValue(token, forHTTPHeaderField: "X-Device-Token")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 else { return }
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+
+            let hasActive = json["hasActiveIncident"] as? Bool ?? false
+            let statusStr = json["status"] as? String ?? ""
+            let name = json["acknowledgedByName"] as? String
+
+            if hasActive && statusStr == "ACKNOWLEDGED" {
+                if customAlert != "ACKNOWLEDGED" {
+                    customAlert = "ACKNOWLEDGED"
+                    let ackName = (name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+                        ? name!.trimmingCharacters(in: .whitespacesAndNewlines)
+                        : "Người Thân"
+                    acknowledgedByText = ackName
+                    status = "🟢 \(ackName) đã tiếp nhận"
+                    diagnosticLog = "✅ \(ackName) đã tiếp nhận hỗ trợ (Wi-Fi/LTE)"
+                    WKInterfaceDevice.current().play(.success)
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
+                        guard let self = self else { return }
+                        if self.customAlert == "ACKNOWLEDGED" {
+                            self.customAlert = nil
+                            self.acknowledgedByText = nil
+                            self.status = "🟢 Đang Giám Sát Cổ Tay"
+                            self.deactivateEmergencySession()
+                        }
+                    }
+                }
+            } else if !hasActive && (customAlert == "MANUAL_SOS" || customAlert == "FALL_DETECTED" || customAlert == "ACKNOWLEDGED") {
+                stopStandaloneIncidentPolling()
+                customAlert = nil
+                acknowledgedByText = nil
+                status = "🟢 Đang Giám Sát Cổ Tay"
+                diagnosticLog = "✅ Sự cố đã kết thúc an toàn (Wi-Fi/LTE)"
+                WKInterfaceDevice.current().play(.directionUp)
+                deactivateEmergencySession()
+            }
+        } catch {}
+    }
+
     /// Kích hoạt phiên thực thi mở rộng giữ đồng hồ thức ngầm khi có cấp cứu
-    private func activateEmergencySession() {
+    func activateEmergencySession() {
         guard activeEmergencySession == nil || activeEmergencySession?.state == .invalid else { return }
         let session = WKExtendedRuntimeSession()
         session.start()
         activeEmergencySession = session
     }
 
-    private func deactivateEmergencySession() {
+    func deactivateEmergencySession() {
         activeEmergencySession?.invalidate()
         activeEmergencySession = nil
     }

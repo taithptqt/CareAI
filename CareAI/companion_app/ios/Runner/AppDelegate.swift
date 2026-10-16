@@ -769,9 +769,10 @@ import workmanager_apple
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
     // Bất biến Fact 35: Lưu mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
-    var samples: [[String: Any]] = [
-      ["metricType": "FALL", "value": 2.5, "unit": "G", "timestamp": triggeredAt]
-    ]
+    var samples: [[String: Any]] = []
+    if emergencyType == "FALL_DETECTED" {
+      samples.append(["metricType": "FALL", "value": 2.5, "unit": "G", "timestamp": triggeredAt])
+    }
     if let hr = hr, hr > 0 {
       samples.append(["metricType": "HEART_RATE", "value": hr, "unit": "bpm", "timestamp": triggeredAt])
     }
@@ -788,21 +789,32 @@ import workmanager_apple
       "samples": samples
     ]
 
-    // Chuyển tiếp sự kiện té ngã lên giao diện Flutter nếu ứng dụng đang mở và kích hoạt còi hú y tế
+    // Chuyển tiếp sự kiện cấp cứu lên giao diện Flutter nếu ứng dụng đang mở và kích hoạt còi hú y tế
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
       self.startAlarmSound()
-      let flutterPayload: [String: Any] = [
-        "eventId": eventId,
-        "timestamp": Int64(Date().timeIntervalSince1970 * 1000),
-        "impactG": 2.5,
-        "source": "APPLE_WATCH_HARDWARE",
-        "isHardwareVerified": true
-      ]
-      if let channel = self.fallChannel {
-        channel.invokeMethod("onHardwareFallDetected", arguments: flutterPayload)
+      if emergencyType == "FALL_DETECTED" {
+        let flutterPayload: [String: Any] = [
+          "eventId": eventId,
+          "timestamp": Int64(Date().timeIntervalSince1970 * 1000),
+          "impactG": 2.5,
+          "source": "APPLE_WATCH_HARDWARE",
+          "isHardwareVerified": true
+        ]
+        if let channel = self.fallChannel {
+          channel.invokeMethod("onHardwareFallDetected", arguments: flutterPayload)
+        } else {
+          self.pendingFallPayload = flutterPayload
+        }
       } else {
-        self.pendingFallPayload = flutterPayload
+        // Cấp cứu SOS thủ công từ Apple Watch: chuyển trực tiếp trạng thái khẩn cấp không qua đếm ngược 30s té ngã
+        let flutterPayload: [String: Any] = [
+          "packetId": packetId,
+          "eventId": eventId,
+          "emergencyType": "MANUAL_SOS",
+          "triggeredAt": triggeredAt
+        ]
+        self.fallChannel?.invokeMethod("onManualSosTriggered", arguments: flutterPayload)
       }
     }
 
