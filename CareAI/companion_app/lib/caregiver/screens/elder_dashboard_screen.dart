@@ -2215,28 +2215,6 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     ],
                   ),
 
-                  // Huy hiệu nguồn bản đồ & chủ quyền biển đảo
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.88),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF334155), width: 0.8),
-                      ),
-                      child: Text(
-                        MapSovereigntyHelper.mapProviderBadge,
-                        style: const TextStyle(
-                          color: Color(0xFFF1F5F9),
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-
                   // Thanh nổi thông tin tọa độ & sao chép link Google Maps
                   Positioned(
                     bottom: 8,

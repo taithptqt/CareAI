@@ -127,8 +127,4 @@ class MapSovereigntyHelper {
       ),
     ];
   }
-
-  /// Tên nhà cung cấp bản đồ hiển thị huy hiệu / nguồn
-  static String get mapProviderBadge =>
-      hasVietmapKey ? '🗺️ Vietmap (Việt Nam)' : '🗺️ QĐ. Hoàng Sa & Trường Sa 🇻🇳';
 }

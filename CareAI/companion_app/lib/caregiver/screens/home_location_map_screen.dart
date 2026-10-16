@@ -133,7 +133,7 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
               if (!MapSovereigntyHelper.hasVietmapKey)
                 MarkerLayer(markers: MapSovereigntyHelper.buildSovereigntyMarkers()),
               SimpleAttributionWidget(
-                source: Text(MapSovereigntyHelper.mapProviderBadge),
+                source: Text(MapSovereigntyHelper.hasVietmapKey ? 'VIETMAP' : 'OpenStreetMap'),
               ),
             ],
           ),
