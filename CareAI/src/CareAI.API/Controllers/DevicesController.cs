@@ -617,9 +617,97 @@ public class DevicesController : ControllerBase
             }
         }
 
+        // Đồng bộ các chỉ số sinh hiệu thời gian thực từ cảm biến đồng hồ (chỉ lưu giá trị thực, không lưu rác)
+        if (request.HeartRate.HasValue && request.HeartRate.Value > 0 && double.IsFinite(request.HeartRate.Value))
+        {
+            _db.HealthMeasurements.Add(new HealthMeasurement
+            {
+                ElderProfileId = companionDevice.ElderProfileId,
+                DeviceId = watchDevice?.Id ?? companionDevice.Id,
+                PacketId = $"SYNC_HR_{now.Ticks}",
+                MetricType = "HEART_RATE",
+                Value = request.HeartRate.Value,
+                Unit = "bpm",
+                Timestamp = now,
+                RecordedAt = now
+            });
+        }
+
+        if (request.Spo2.HasValue && request.Spo2.Value > 0 && double.IsFinite(request.Spo2.Value))
+        {
+            _db.HealthMeasurements.Add(new HealthMeasurement
+            {
+                ElderProfileId = companionDevice.ElderProfileId,
+                DeviceId = watchDevice?.Id ?? companionDevice.Id,
+                PacketId = $"SYNC_SPO2_{now.Ticks}",
+                MetricType = "SPO2",
+                Value = request.Spo2.Value,
+                Unit = "%",
+                Timestamp = now,
+                RecordedAt = now
+            });
+        }
+
+        if (request.BpSystolic.HasValue && request.BpSystolic.Value > 0 && double.IsFinite(request.BpSystolic.Value))
+        {
+            _db.HealthMeasurements.Add(new HealthMeasurement
+            {
+                ElderProfileId = companionDevice.ElderProfileId,
+                DeviceId = watchDevice?.Id ?? companionDevice.Id,
+                PacketId = $"SYNC_BP_SYS_{now.Ticks}",
+                MetricType = "BLOOD_PRESSURE",
+                Value = request.BpSystolic.Value,
+                Unit = "mmHg",
+                Timestamp = now,
+                RecordedAt = now
+            });
+            if (request.BpDiastolic.HasValue && request.BpDiastolic.Value > 0 && double.IsFinite(request.BpDiastolic.Value))
+            {
+                _db.HealthMeasurements.Add(new HealthMeasurement
+                {
+                    ElderProfileId = companionDevice.ElderProfileId,
+                    DeviceId = watchDevice?.Id ?? companionDevice.Id,
+                    PacketId = $"SYNC_BP_DIA_{now.Ticks}",
+                    MetricType = "BP_DIASTOLIC",
+                    Value = request.BpDiastolic.Value,
+                    Unit = "mmHg",
+                    Timestamp = now,
+                    RecordedAt = now
+                });
+            }
+        }
+
+        if (request.SleepMinutes.HasValue && request.SleepMinutes.Value > 0)
+        {
+            var lastNight = now.AddDays(-1).Date.AddHours(22);
+            var existingSleep = await _db.HealthMeasurements
+                .FirstOrDefaultAsync(m => m.ElderProfileId == companionDevice.ElderProfileId &&
+                                          m.MetricType == "SLEEP" &&
+                                          m.Timestamp >= now.Date.AddDays(-1), ct);
+            if (existingSleep != null)
+            {
+                existingSleep.Value = request.SleepMinutes.Value;
+                existingSleep.Timestamp = now;
+            }
+            else
+            {
+                _db.HealthMeasurements.Add(new HealthMeasurement
+                {
+                    ElderProfileId = companionDevice.ElderProfileId,
+                    DeviceId = watchDevice?.Id ?? companionDevice.Id,
+                    PacketId = $"SYNC_SLEEP_{now.Ticks}",
+                    MetricType = "SLEEP",
+                    Value = request.SleepMinutes.Value,
+                    Unit = "minutes",
+                    Timestamp = lastNight,
+                    RecordedAt = now
+                });
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}, TodaySteps={TodaySteps}) cho Cụ {ElderId}",
-            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, request.TodaySteps, companionDevice.ElderProfileId);
+        _logger.LogInformation("[DEVICE-SYNC-WATCH] Companion {DeviceId} đã đồng bộ đồng hồ: {WatchModel} (IsConnected={IsConnected}, Reason={Reason}, Worn={IsWorn}, Charging={IsCharging}, Battery={BatteryLevel}, TodaySteps={TodaySteps}, HR={HR}, SpO2={SpO2}, BP={BP}) cho Cụ {ElderId}",
+            authenticatedDeviceId, request.WatchModel, isConnected, request.DisconnectReason, request.IsWorn, request.IsCharging, request.BatteryLevel, request.TodaySteps, request.HeartRate, request.Spo2, request.BpSystolic, companionDevice.ElderProfileId);
 
         return Ok(new
         {
@@ -630,7 +718,13 @@ public class DevicesController : ControllerBase
             isWorn = watchDevice?.IsWatchWorn ?? request.IsWorn,
             isCharging = watchDevice?.IsWatchCharging ?? request.IsCharging,
             batteryLevel = watchDevice?.WatchBatteryLevel ?? request.BatteryLevel,
-            todaySteps = request.TodaySteps
+            todaySteps = request.TodaySteps,
+            heartRate = request.HeartRate,
+            spo2 = request.Spo2,
+            bpSystolic = request.BpSystolic,
+            bpDiastolic = request.BpDiastolic,
+            sleepMinutes = request.SleepMinutes,
+            supportedMetrics = request.SupportedMetrics
         });
     }
 }

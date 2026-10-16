@@ -150,6 +150,32 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         if let steps = HealthSync.shared?.todaySteps, steps > 0 {
             payload["todaySteps"] = steps
         }
+        if let hr = HealthSync.shared?.latestHeartRate, hr > 0 {
+            payload["heartRate"] = hr
+        }
+        if let spo2 = HealthSync.shared?.latestSpo2, spo2 > 0 {
+            payload["spo2"] = spo2
+        }
+        if let sys = HealthSync.shared?.latestBpSystolic, sys > 0 {
+            payload["bpSystolic"] = sys
+            if let dia = HealthSync.shared?.latestBpDiastolic, dia > 0 {
+                payload["bpDiastolic"] = dia
+            }
+        }
+        if let sleep = HealthSync.shared?.lastNightSleepMinutes, sleep > 0 {
+            payload["sleepMinutes"] = sleep
+        }
+        var supported: [String] = ["HEART_RATE", "STEPS"]
+        if HealthSync.shared?.hasSpo2Hardware == true || (HealthSync.shared?.latestSpo2 ?? 0) > 0 {
+            supported.append("SPO2")
+        }
+        if HealthSync.shared?.latestBpSystolic != nil {
+            supported.append("BLOOD_PRESSURE")
+        }
+        if HealthSync.shared?.lastNightSleepMinutes != nil {
+            supported.append("SLEEP")
+        }
+        payload["supportedMetrics"] = supported
         if session.activationState == .activated {
             session.transferUserInfo(payload)
             if session.isReachable {
@@ -459,11 +485,13 @@ final class HealthSync: ObservableObject {
     private var metrics: [(HKQuantityTypeIdentifier, String, HKUnit, String)] {
         var list: [(HKQuantityTypeIdentifier, String, HKUnit, String)] = [
             (.heartRate, "HEART_RATE", HKUnit.count().unitDivided(by: .minute()), "bpm"),
-            (.stepCount, "STEPS", HKUnit.count(), "count")
+            (.stepCount, "STEPS", HKUnit.count(), "count"),
+            (.oxygenSaturation, "SPO2", HKUnit.percent(), "%"),
+            (.bloodPressureSystolic, "BP_SYSTOLIC", HKUnit.millimeterOfMercury(), "mmHg"),
+            (.bloodPressureDiastolic, "BP_DIASTOLIC", HKUnit.millimeterOfMercury(), "mmHg"),
+            (.bodyTemperature, "BODY_TEMPERATURE", HKUnit.degreeCelsius(), "°C"),
+            (.respiratoryRate, "RESPIRATORY_RATE", HKUnit.count().unitDivided(by: .minute()), "count/min")
         ]
-        if hasSpo2Hardware {
-            list.append((.oxygenSaturation, "SPO2", HKUnit.percent(), "%"))
-        }
         return list
     }
 
@@ -630,6 +658,9 @@ final class HealthSync: ObservableObject {
             let minutes = Int(totalSeconds / 60)
             Task { @MainActor in
                 self?.lastNightSleepMinutes = minutes > 0 ? minutes : nil
+                if minutes > 0 {
+                    WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                }
             }
         }
         healthStore.execute(query)
@@ -656,6 +687,7 @@ final class HealthSync: ObservableObject {
                     self.latestBpSystolic = sys
                     self.latestBpDiastolic = dia
                     self.latestBpAt = sampleDate
+                    WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                 }
             }
             self.healthStore.execute(diaQuery)
@@ -1321,6 +1353,14 @@ final class HealthSync: ObservableObject {
                         self.latestSpo2At = sample.endDate
                         UserDefaults.standard.set(value, forKey: "latest.spo2")
                         UserDefaults.standard.set(sample.endDate, forKey: "latest.spo2At")
+                    } else if identifier == .bloodPressureSystolic,
+                              sample.endDate > (self.latestBpAt ?? .distantPast) {
+                        self.latestBpSystolic = value
+                        self.latestBpAt = sample.endDate
+                        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                    } else if identifier == .bloodPressureDiastolic {
+                        self.latestBpDiastolic = value
+                        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                     }
                     let reading = PendingReading(sampleId: sample.uuid.uuidString,
                         metricType: metric.1, value: value, unit: metric.3,

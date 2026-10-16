@@ -619,6 +619,24 @@ import workmanager_apple
     if let steps = UserDefaults.standard.object(forKey: "careai_watch_today_steps") as? Int, steps > 0 {
       payload["todaySteps"] = steps
     }
+    if let hr = UserDefaults.standard.object(forKey: "careai_watch_heart_rate") as? Double, hr > 0 {
+      payload["heartRate"] = hr
+    }
+    if let spo2 = UserDefaults.standard.object(forKey: "careai_watch_spo2") as? Double, spo2 > 0 {
+      payload["spo2"] = spo2
+    }
+    if let sys = UserDefaults.standard.object(forKey: "careai_watch_bp_systolic") as? Double, sys > 0 {
+      payload["bpSystolic"] = sys
+    }
+    if let dia = UserDefaults.standard.object(forKey: "careai_watch_bp_diastolic") as? Double, dia > 0 {
+      payload["bpDiastolic"] = dia
+    }
+    if let sleep = UserDefaults.standard.object(forKey: "careai_watch_sleep_minutes") as? Int, sleep > 0 {
+      payload["sleepMinutes"] = sleep
+    }
+    if let supported = UserDefaults.standard.object(forKey: "careai_watch_supported_metrics") as? [String] {
+      payload["supportedMetrics"] = supported
+    }
 
     DispatchQueue.main.async { [weak self] in
       self?.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: payload)
@@ -673,6 +691,13 @@ import workmanager_apple
       let isCharging = payload["isCharging"] as? Bool
       let batteryLevel = payload["batteryLevel"] as? Int
       let todaySteps = payload["todaySteps"] as? Int
+      let heartRate = payload["heartRate"] as? Double
+      let spo2 = payload["spo2"] as? Double
+      let bpSystolic = payload["bpSystolic"] as? Double
+      let bpDiastolic = payload["bpDiastolic"] as? Double
+      let sleepMinutes = payload["sleepMinutes"] as? Int
+      let supportedMetrics = payload["supportedMetrics"] as? [String]
+
       let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name")
       let rawWatchModel = payload["watchModel"] as? String
       let watchModel = (rawWatchModel != nil && rawWatchModel != "Apple Watch" && !rawWatchModel!.isEmpty)
@@ -681,12 +706,21 @@ import workmanager_apple
       if watchModel != "Apple Watch" {
         UserDefaults.standard.set(watchModel, forKey: "careai_apple_watch_name")
       }
-      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: model=%@, worn=%@, charging=%@, battery=%@, steps=%@", watchModel, String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel), String(describing: todaySteps))
+      NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Received: model=%@, worn=%@, charging=%@, battery=%@, steps=%@, hr=%@, spo2=%@, bp=%@/%@",
+            watchModel, String(describing: isWorn), String(describing: isCharging), String(describing: batteryLevel),
+            String(describing: todaySteps), String(describing: heartRate), String(describing: spo2),
+            String(describing: bpSystolic), String(describing: bpDiastolic))
 
       if let isWorn = isWorn { UserDefaults.standard.set(isWorn, forKey: "careai_watch_is_worn") }
       if let isCharging = isCharging { UserDefaults.standard.set(isCharging, forKey: "careai_watch_is_charging") }
       if let batteryLevel = batteryLevel { UserDefaults.standard.set(batteryLevel, forKey: "careai_watch_battery_level") }
       if let todaySteps = todaySteps, todaySteps > 0 { UserDefaults.standard.set(todaySteps, forKey: "careai_watch_today_steps") }
+      if let heartRate = heartRate, heartRate > 0 { UserDefaults.standard.set(heartRate, forKey: "careai_watch_heart_rate") }
+      if let spo2 = spo2, spo2 > 0 { UserDefaults.standard.set(spo2, forKey: "careai_watch_spo2") }
+      if let bpSystolic = bpSystolic, bpSystolic > 0 { UserDefaults.standard.set(bpSystolic, forKey: "careai_watch_bp_systolic") }
+      if let bpDiastolic = bpDiastolic, bpDiastolic > 0 { UserDefaults.standard.set(bpDiastolic, forKey: "careai_watch_bp_diastolic") }
+      if let sleepMinutes = sleepMinutes, sleepMinutes > 0 { UserDefaults.standard.set(sleepMinutes, forKey: "careai_watch_sleep_minutes") }
+      if let supportedMetrics = supportedMetrics { UserDefaults.standard.set(supportedMetrics, forKey: "careai_watch_supported_metrics") }
 
       DispatchQueue.main.async { [weak self] in
         guard let self = self else { return }
@@ -703,6 +737,12 @@ import workmanager_apple
         if let isCharging = isCharging { map["isCharging"] = isCharging }
         if let batteryLevel = batteryLevel { map["batteryLevel"] = batteryLevel }
         if let todaySteps = todaySteps, todaySteps > 0 { map["todaySteps"] = todaySteps }
+        if let heartRate = heartRate, heartRate > 0 { map["heartRate"] = heartRate }
+        if let spo2 = spo2, spo2 > 0 { map["spo2"] = spo2 }
+        if let bpSystolic = bpSystolic, bpSystolic > 0 { map["bpSystolic"] = bpSystolic }
+        if let bpDiastolic = bpDiastolic, bpDiastolic > 0 { map["bpDiastolic"] = bpDiastolic }
+        if let sleepMinutes = sleepMinutes, sleepMinutes > 0 { map["sleepMinutes"] = sleepMinutes }
+        if let supportedMetrics = supportedMetrics { map["supportedMetrics"] = supportedMetrics }
         self.fallChannel?.invokeMethod("onWatchConnectionChanged", arguments: map)
       }
       return
@@ -714,6 +754,12 @@ import workmanager_apple
       UserDefaults.standard.removeObject(forKey: "careai_watch_is_worn")
       UserDefaults.standard.removeObject(forKey: "careai_watch_is_charging")
       UserDefaults.standard.removeObject(forKey: "careai_watch_today_steps")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_heart_rate")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_spo2")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_bp_systolic")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_bp_diastolic")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_sleep_minutes")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_supported_metrics")
       NSLog("[CareAI-iOS] Nhận thông báo WATCH_UNPAIRED từ Apple Watch. Đã xóa trạng thái ghép nối đồng hồ.")
       notifyWatchConnectionStatus()
       return

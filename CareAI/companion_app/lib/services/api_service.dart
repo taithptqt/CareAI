@@ -216,6 +216,12 @@ class ApiService {
     bool? isCharging,
     int? batteryLevel,
     int? todaySteps,
+    double? heartRate,
+    double? spo2,
+    double? bpSystolic,
+    double? bpDiastolic,
+    int? sleepMinutes,
+    List<String>? supportedMetrics,
   }) async {
     final deviceId = await getDeviceId();
     final deviceToken = await getDeviceToken();
@@ -244,6 +250,24 @@ class ApiService {
     }
     if (todaySteps != null && todaySteps > 0) {
       bodyMap['todaySteps'] = todaySteps;
+    }
+    if (heartRate != null && heartRate > 0) {
+      bodyMap['heartRate'] = heartRate;
+    }
+    if (spo2 != null && spo2 > 0) {
+      bodyMap['spo2'] = spo2;
+    }
+    if (bpSystolic != null && bpSystolic > 0) {
+      bodyMap['bpSystolic'] = bpSystolic;
+    }
+    if (bpDiastolic != null && bpDiastolic > 0) {
+      bodyMap['bpDiastolic'] = bpDiastolic;
+    }
+    if (sleepMinutes != null && sleepMinutes > 0) {
+      bodyMap['sleepMinutes'] = sleepMinutes;
+    }
+    if (supportedMetrics != null && supportedMetrics.isNotEmpty) {
+      bodyMap['supportedMetrics'] = supportedMetrics;
     }
     final body = jsonEncode(bodyMap);
     final endpoints = _getEndpointsToTry();

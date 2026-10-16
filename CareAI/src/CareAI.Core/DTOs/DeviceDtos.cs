@@ -2,7 +2,21 @@ namespace CareAI.Core.DTOs;
 
 public record GeneratePinResponse(string Pin, DateTime ExpiresAt);
 public record PairDeviceRequest(string DeviceId, string PairingPin, string DeviceType, string? FirmwareVersion, string? DeviceModel = null);
-public record SyncWatchRequest(string WatchModel, bool? IsConnected = true, string? DisconnectReason = null, bool? IsWorn = null, bool? IsCharging = null, int? BatteryLevel = null, int? TodaySteps = null);
+public record SyncWatchRequest(
+    string WatchModel,
+    bool? IsConnected = true,
+    string? DisconnectReason = null,
+    bool? IsWorn = null,
+    bool? IsCharging = null,
+    int? BatteryLevel = null,
+    int? TodaySteps = null,
+    double? HeartRate = null,
+    double? Spo2 = null,
+    double? BpSystolic = null,
+    double? BpDiastolic = null,
+    int? SleepMinutes = null,
+    List<string>? SupportedMetrics = null
+);
 public record PairDeviceResponse(string DeviceId, string DeviceToken, string ElderProfileId, string FullName);
 public record CreateElderRequest(string FullName, DateTime DateOfBirth, string? MedicalNotes, string? EmergencyContact, string? HomeAddress = null, double? HomeLatitude = null, double? HomeLongitude = null);
 public record UpdateElderHomeAddressRequest(string? HomeAddress, double? HomeLatitude = null, double? HomeLongitude = null);

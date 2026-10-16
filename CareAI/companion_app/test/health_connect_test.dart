@@ -91,5 +91,44 @@ void main() {
       expect(withoutSteps.isConnected, isTrue);
       expect(withoutSteps.todaySteps, isNull);
     });
+
+    test('WatchStatus parses multi-metric vitals (HR, SpO2, BP, Sleep, SupportedMetrics) correctly', () {
+      final multiMetric = WatchStatus.fromMap({
+        'isConnected': true,
+        'watchName': 'Galaxy Watch6',
+        'isWorn': true,
+        'batteryLevel': 85,
+        'todaySteps': 6120,
+        'heartRate': 72.0,
+        'spo2': 98.0,
+        'bpSystolic': 120.0,
+        'bpDiastolic': 80.0,
+        'sleepMinutes': 450,
+        'supportedMetrics': ['HEART_RATE', 'STEPS', 'SPO2', 'BLOOD_PRESSURE', 'SLEEP'],
+      });
+      expect(multiMetric.isConnected, isTrue);
+      expect(multiMetric.watchName, 'Galaxy Watch6');
+      expect(multiMetric.todaySteps, 6120);
+      expect(multiMetric.heartRate, 72.0);
+      expect(multiMetric.spo2, 98.0);
+      expect(multiMetric.bpSystolic, 120.0);
+      expect(multiMetric.bpDiastolic, 80.0);
+      expect(multiMetric.sleepMinutes, 450);
+      expect(multiMetric.supportedMetrics, containsAll(['HEART_RATE', 'STEPS', 'SPO2', 'BLOOD_PRESSURE', 'SLEEP']));
+
+      // Watch không có cảm biến huyết áp / giấc ngủ (null) thì trường tương ứng là null, không gán bừa
+      final minimalWatch = WatchStatus.fromMap({
+        'isConnected': true,
+        'watchName': 'Apple Watch SE',
+        'todaySteps': 3000,
+        'heartRate': 80.0,
+      });
+      expect(minimalWatch.bpSystolic, isNull);
+      expect(minimalWatch.bpDiastolic, isNull);
+      expect(minimalWatch.sleepMinutes, isNull);
+      expect(minimalWatch.spo2, isNull);
+      expect(minimalWatch.todaySteps, 3000);
+      expect(minimalWatch.heartRate, 80.0);
+    });
   });
 }

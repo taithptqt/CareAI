@@ -901,6 +901,95 @@ public class DashboardAndGpsTests : IDisposable
         Assert.Equal(2500, dto2.TodaySteps); // Chính xác 2500, không bị nhân đôi lên 5000!
     }
 
+    [Fact]
+    public async Task Fact_WatchTelemetry_MultiMetric_SyncsHeartRateSpO2BloodPressureAndSleep()
+    {
+        var elderId = "ELDER_MULTI_METRIC";
+        _db.ElderProfiles.Add(new ElderProfile
+        {
+            Id = elderId,
+            FullName = "Cụ Nguyễn Văn Đa Dụng",
+            DateOfBirth = new DateTime(1946, 3, 15),
+            CreatedAt = DateTime.UtcNow
+        });
+        _db.ElderCaregivers.Add(new ElderCaregiver
+        {
+            CaregiverId = _authCaregiverId,
+            ElderProfileId = elderId,
+            IsActive = true
+        });
+
+        var companionId = "DEV_COMPANION_MULTI_METRIC";
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = companionId,
+            ElderProfileId = elderId,
+            DeviceTokenHash = "companion_hash_multi",
+            DeviceType = "CompanionPhone",
+            IsActive = true,
+            LastHeartbeat = DateTime.UtcNow,
+            RegisteredAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var devicesController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devicesController.HttpContext.Items["ValidatedDeviceId"] = companionId;
+
+        // 1. Đồng bộ đồng hồ đa cảm biến: Huyết áp, SpO2, Nhịp tim, Giấc ngủ, Bước chân
+        var res = await devicesController.SyncWatch(
+            new SyncWatchRequest(
+                WatchModel: "Galaxy Watch6 Classic",
+                IsConnected: true,
+                DisconnectReason: null,
+                IsWorn: true,
+                IsCharging: false,
+                BatteryLevel: 85,
+                TodaySteps: 3500,
+                HeartRate: 74.0,
+                Spo2: 97.5,
+                BpSystolic: 122.0,
+                BpDiastolic: 78.0,
+                SleepMinutes: 420,
+                SupportedMetrics: new List<string> { "HEART_RATE", "STEPS", "SPO2", "BLOOD_PRESSURE", "SLEEP" }
+            ),
+            CancellationToken.None);
+
+        var okRes = Assert.IsType<OkObjectResult>(res);
+        Assert.NotNull(okRes.Value);
+
+        // 2. Kiểm tra CSDL HealthMeasurements đã ghi nhận đầy đủ các sinh hiệu thực tế
+        var measurements = await _db.HealthMeasurements
+            .Where(m => m.ElderProfileId == elderId)
+            .ToListAsync();
+
+        Assert.Contains(measurements, m => m.MetricType == "STEPS" && m.Value == 3500);
+        Assert.Contains(measurements, m => m.MetricType == "HEART_RATE" && m.Value == 74.0);
+        Assert.Contains(measurements, m => m.MetricType == "SPO2" && m.Value == 97.5);
+        Assert.Contains(measurements, m => m.MetricType == "BLOOD_PRESSURE" && m.Value == 122.0);
+        Assert.Contains(measurements, m => m.MetricType == "BP_DIASTOLIC" && m.Value == 78.0);
+        Assert.Contains(measurements, m => m.MetricType == "SLEEP" && m.Value == 420);
+
+        // 3. Dashboard người thân hiển thị đồng bộ đầy đủ các chỉ số này
+        var dashController = CreateController(_authCaregiverId);
+        var dashRes = await dashController.GetElderDashboard(elderId, CancellationToken.None);
+        var okDash = Assert.IsType<OkObjectResult>(dashRes);
+        var dto = Assert.IsType<ElderDashboardResponse>(okDash.Value);
+
+        Assert.Equal(3500, dto.TodaySteps);
+        Assert.NotNull(dto.LatestHeartRate);
+        Assert.Equal(74, dto.LatestHeartRate!.Value);
+        Assert.NotNull(dto.LatestSpO2);
+        Assert.Equal(97.5, dto.LatestSpO2!.Value);
+        Assert.NotNull(dto.LatestBloodPressure);
+        Assert.Equal(122, dto.LatestBloodPressure!.Value);
+    }
+
     public void Dispose()
     {
         _db.Dispose();

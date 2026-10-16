@@ -58,15 +58,25 @@ class WearOsMessageReceiverService : WearableListenerService() {
                 val isCharging = if (json.has("isCharging")) json.getBoolean("isCharging") else null
                 val batteryLevel = if (json.has("batteryLevel")) json.getInt("batteryLevel") else null
                 val todaySteps = if (json.has("todaySteps")) json.getInt("todaySteps") else null
+                val heartRate = if (json.has("heartRate")) json.getDouble("heartRate") else null
+                val spo2 = if (json.has("spo2")) json.getDouble("spo2") else null
+                val bpSystolic = if (json.has("bpSystolic")) json.getDouble("bpSystolic") else null
+                val bpDiastolic = if (json.has("bpDiastolic")) json.getDouble("bpDiastolic") else null
+                val sleepMinutes = if (json.has("sleepMinutes")) json.getInt("sleepMinutes") else null
                 val watchName = json.optString("watchName", "Galaxy Watch")
 
-                Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%, steps=$todaySteps")
+                Log.i("CareAI-WearReceiver", "[WATCH_TELEMETRY] Nhận viễn trắc đồng hồ: worn=$isWorn, charging=$isCharging, battery=$batteryLevel%, steps=$todaySteps, hr=$heartRate, spo2=$spo2, bp=$bpSystolic/$bpDiastolic")
                 val prefs = getSharedPreferences("careai_watch_telemetry", Context.MODE_PRIVATE)
                 prefs.edit().apply {
                     if (isWorn != null) putBoolean("isWorn", isWorn)
                     if (isCharging != null) putBoolean("isCharging", isCharging)
                     if (batteryLevel != null) putInt("batteryLevel", batteryLevel)
                     if (todaySteps != null && todaySteps > 0) putInt("todaySteps", todaySteps)
+                    if (heartRate != null && heartRate > 0) putFloat("heartRate", heartRate.toFloat())
+                    if (spo2 != null && spo2 > 0) putFloat("spo2", spo2.toFloat())
+                    if (bpSystolic != null && bpSystolic > 0) putFloat("bpSystolic", bpSystolic.toFloat())
+                    if (bpDiastolic != null && bpDiastolic > 0) putFloat("bpDiastolic", bpDiastolic.toFloat())
+                    if (sleepMinutes != null && sleepMinutes > 0) putInt("sleepMinutes", sleepMinutes)
                     putString("watchName", watchName)
                     apply()
                 }
@@ -80,6 +90,11 @@ class WearOsMessageReceiverService : WearableListenerService() {
                     if (isCharging != null) putExtra("isCharging", isCharging)
                     if (batteryLevel != null) putExtra("batteryLevel", batteryLevel)
                     if (todaySteps != null && todaySteps > 0) putExtra("todaySteps", todaySteps)
+                    if (heartRate != null && heartRate > 0) putExtra("heartRate", heartRate)
+                    if (spo2 != null && spo2 > 0) putExtra("spo2", spo2)
+                    if (bpSystolic != null && bpSystolic > 0) putExtra("bpSystolic", bpSystolic)
+                    if (bpDiastolic != null && bpDiastolic > 0) putExtra("bpDiastolic", bpDiastolic)
+                    if (sleepMinutes != null && sleepMinutes > 0) putExtra("sleepMinutes", sleepMinutes)
                 })
             } catch (e: Exception) {
                 Log.e("CareAI-WearReceiver", "Lỗi phân tích /careai/watch_telemetry: ${e.message}")

@@ -267,6 +267,12 @@ class WatchStatus {
   final bool? isCharging; // true = đang cắm sạc, false = không sạc, null = chưa xác định
   final int? batteryLevel; // 0 - 100%, null = chưa xác định
   final int? todaySteps; // Số bước chân hôm nay đo từ đồng hồ, null = chưa có/không hỗ trợ
+  final double? heartRate; // Nhịp tim đo từ đồng hồ
+  final double? spo2; // Nồng độ oxy trong máu (%)
+  final double? bpSystolic; // Huyết áp tâm thu (mmHg)
+  final double? bpDiastolic; // Huyết áp tâm trương (mmHg)
+  final int? sleepMinutes; // Thời lượng giấc ngủ đêm qua (phút)
+  final List<String>? supportedMetrics; // Danh sách chỉ số phần cứng hỗ trợ
 
   const WatchStatus({
     required this.isConnected,
@@ -282,6 +288,12 @@ class WatchStatus {
     this.isCharging,
     this.batteryLevel,
     this.todaySteps,
+    this.heartRate,
+    this.spo2,
+    this.bpSystolic,
+    this.bpDiastolic,
+    this.sleepMinutes,
+    this.supportedMetrics,
   });
 
   factory WatchStatus.fromMap(Map<dynamic, dynamic> map) {
@@ -300,6 +312,12 @@ class WatchStatus {
       isCharging: map['isCharging'] as bool?,
       batteryLevel: map['batteryLevel'] as int?,
       todaySteps: map['todaySteps'] as int?,
+      heartRate: (map['heartRate'] as num?)?.toDouble(),
+      spo2: (map['spo2'] as num?)?.toDouble(),
+      bpSystolic: (map['bpSystolic'] as num?)?.toDouble(),
+      bpDiastolic: (map['bpDiastolic'] as num?)?.toDouble(),
+      sleepMinutes: map['sleepMinutes'] as int?,
+      supportedMetrics: (map['supportedMetrics'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
     );
   }
 }

@@ -70,6 +70,26 @@ class MainActivity : FlutterActivity() {
                 val s = intent.getIntExtra("todaySteps", -1)
                 if (s > 0) payload["todaySteps"] = s
             }
+            if (intent.hasExtra("heartRate")) {
+                val hr = intent.getDoubleExtra("heartRate", -1.0)
+                if (hr > 0) payload["heartRate"] = hr
+            }
+            if (intent.hasExtra("spo2")) {
+                val spo2 = intent.getDoubleExtra("spo2", -1.0)
+                if (spo2 > 0) payload["spo2"] = spo2
+            }
+            if (intent.hasExtra("bpSystolic")) {
+                val sys = intent.getDoubleExtra("bpSystolic", -1.0)
+                if (sys > 0) payload["bpSystolic"] = sys
+            }
+            if (intent.hasExtra("bpDiastolic")) {
+                val dia = intent.getDoubleExtra("bpDiastolic", -1.0)
+                if (dia > 0) payload["bpDiastolic"] = dia
+            }
+            if (intent.hasExtra("sleepMinutes")) {
+                val sleep = intent.getIntExtra("sleepMinutes", -1)
+                if (sleep > 0) payload["sleepMinutes"] = sleep
+            }
 
             Log.i("CareAI-MainActivity", "[EVENT-DRIVEN] Nhận sự kiện đồng hồ: isConnected=$isConnected, watch=$watchName, worn=${payload["isWorn"]}, charging=${payload["isCharging"]}, battery=${payload["batteryLevel"]} (0.1s)")
             runOnUiThread {
