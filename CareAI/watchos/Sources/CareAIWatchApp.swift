@@ -947,18 +947,6 @@ struct SettingsSheetView: View {
                             sync.applyBatteryPolicy()
                         }
 
-                    Toggle("Mô phỏng Mất Mạng", isOn: Binding(
-                        get: { sync.simulatedOffline },
-                        set: { sync.setSimulatedOffline($0) }
-                    ))
-                    .font(.system(size: 10))
-
-                    Toggle("Mô phỏng Đang đeo cổ tay", isOn: Binding(
-                        get: { sync.isWorn },
-                        set: { if $0 { sync.simulateWorn() } else { sync.simulateUnworn() } }
-                    ))
-                    .font(.system(size: 10))
-
                     Button(action: {
                         guard !isSending else { return }
                         isSending = true
@@ -1251,7 +1239,19 @@ struct VitalsTestLabSheetView: View {
                     .tint(Color(red: 0.22, green: 0.74, blue: 0.97))
                 }
 
-                // 3. Nhật ký chẩn đoán / truyền tin
+                // 4. Thử nghiệm kết nối mạng & Ngoại tuyến
+                Text("THỬ NGHIỆM KẾT NỐI MẠNG")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundColor(.gray)
+                    .padding(.top, 4)
+
+                Toggle("Mô phỏng Mất Mạng (Offline)", isOn: Binding(
+                    get: { sync.simulatedOffline },
+                    set: { sync.setSimulatedOffline($0) }
+                ))
+                .font(.system(size: 9.5))
+
+                // 5. Nhật ký chẩn đoán / truyền tin
                 if !sync.diagnosticLog.isEmpty {
                     Text("NHẬT KÝ TRUYỀN TIN")
                         .font(.system(size: 8.5, weight: .bold))
