@@ -168,7 +168,7 @@ public class DashboardAndGpsTests : IDisposable
                 MetricType = "SLEEP",
                 Value = 420,
                 Unit = "minutes",
-                Timestamp = now.Date.AddDays(-1).AddHours(22),
+                Timestamp = DateTime.UtcNow.AddHours(7).Date.AddDays(-1).AddHours(22).AddHours(-7),
                 RecordedAt = now
             }
         );
@@ -876,7 +876,7 @@ public class DashboardAndGpsTests : IDisposable
                 PacketId = "HK_BATCH_INTERVAL_1",
                 MetricType = "STEPS",
                 Value = 1000,
-                Timestamp = now.AddHours(-2)
+                Timestamp = now.AddMinutes(-5)
             },
             new HealthMeasurement
             {
@@ -885,7 +885,7 @@ public class DashboardAndGpsTests : IDisposable
                 PacketId = "HK_BATCH_INTERVAL_2",
                 MetricType = "STEPS",
                 Value = 1500,
-                Timestamp = now.AddHours(-1)
+                Timestamp = now.AddMinutes(-2)
             }
         );
         await _db.SaveChangesAsync();

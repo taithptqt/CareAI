@@ -29,6 +29,10 @@ void main() {
             return false;
           case 'openNotificationSettings':
             return true;
+          case 'isBackgroundDataRestricted':
+            return true;
+          case 'openBackgroundDataSettings':
+            return true;
           default:
             return null;
         }
@@ -60,11 +64,31 @@ void main() {
       expect(log.any((c) => c.method == 'openNotificationSettings'), isTrue);
     });
 
-    test('checkCriticalPermissionsStatus detects missing notifications and battery opt', () async {
+    test('isBackgroundDataRestricted and openBackgroundDataSettings invoke native channel', () async {
+      final isRestricted = await PowerOptimizationService.instance.isBackgroundDataRestricted();
+      expect(isRestricted, isTrue);
+      expect(log.any((c) => c.method == 'isBackgroundDataRestricted'), isTrue);
+
+      final opened = await PowerOptimizationService.instance.openBackgroundDataSettings();
+      expect(opened, isTrue);
+      expect(log.any((c) => c.method == 'openBackgroundDataSettings'), isTrue);
+    });
+
+    test('checkCriticalPermissionsStatus detects missing notifications, battery opt, and background data', () async {
       final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
       expect(status.notificationsEnabled, isFalse);
+      expect(status.backgroundDataRestricted, isTrue);
       expect(status.hasMissingCriticalPermissions, isTrue);
       expect(status.primaryWarningMessage, contains('Thông báo bị tắt'));
+
+      const dataOnlyStatus = CriticalPermissionsStatus(
+        notificationsEnabled: true,
+        batteryOptimizationIgnored: true,
+        backgroundDataRestricted: true,
+        manufacturer: 'Samsung',
+      );
+      expect(dataOnlyStatus.hasMissingCriticalPermissions, isTrue);
+      expect(dataOnlyStatus.primaryWarningMessage, contains('Dữ liệu nền bị Tiết kiệm pin/dữ liệu chặn'));
     });
   });
 }

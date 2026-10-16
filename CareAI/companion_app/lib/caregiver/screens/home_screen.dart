@@ -1398,6 +1398,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       ),
                     ],
+                    const SizedBox(height: 10),
+                    const Row(
+                      children: [
+                        Icon(Icons.wifi_protected_setup_rounded, color: Color(0xFF0284C7), size: 18),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '3. Cho phép dữ liệu nền',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Đảm bảo CareAI được phép dùng mạng khi bật chế độ "Tiết kiệm dữ liệu" (Data Saver).',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
                   ],
                 ),
               ),
@@ -1426,6 +1444,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (ctx.mounted) Navigator.pop(ctx);
               if (isChineseOem || isSamsung) {
                 await PowerOptimizationService.instance.openAutostartSettings();
+              }
+              final isDataRestricted = await PowerOptimizationService.instance.isBackgroundDataRestricted();
+              if (isDataRestricted) {
+                await PowerOptimizationService.instance.openBackgroundDataSettings();
               }
             },
             child: const Text('CẤP QUYỀN NGAY', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1541,6 +1563,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await _checkCriticalPermissionsRealtime();
       return;
     }
+    if (status.backgroundDataRestricted) {
+      await PowerOptimizationService.instance.openBackgroundDataSettings();
+      await _checkCriticalPermissionsRealtime();
+      return;
+    }
     if (!status.notificationsEnabled) {
       await PowerOptimizationService.instance.openNotificationSettings();
       await _checkCriticalPermissionsRealtime();
@@ -1554,6 +1581,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final isNotifOff = !status.notificationsEnabled;
     final isBatteryOff = !status.batteryOptimizationIgnored;
+    final isDataRestricted = status.backgroundDataRestricted;
 
     await showDialog(
       context: context,
@@ -1625,6 +1653,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ],
                 ),
               ),
+            if (isDataRestricted)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.wifi_off_rounded, color: Color(0xFFDC2626), size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Dữ liệu nền bị chặn: Chế độ Tiết kiệm dữ liệu/pin đang ngắt mạng khi tắt màn hình.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF991B1B)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
         actions: [
@@ -1647,7 +1697,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Text(
               isBatteryOff && defaultTargetPlatform == TargetPlatform.android
                   ? 'BỎ TỐI ƯU PIN (1 CHẠM)'
-                  : 'MỞ CÀI ĐẶT BẬT LẠI',
+                  : (isDataRestricted
+                      ? 'BẬT MẠNG NỀN'
+                      : 'MỞ CÀI ĐẶT BẬT LẠI'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),

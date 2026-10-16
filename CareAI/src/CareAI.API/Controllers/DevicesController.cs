@@ -679,14 +679,17 @@ public class DevicesController : ControllerBase
 
         async Task UpsertLastNightMetric(string metricType, double value, string unit)
         {
+            var vnNow = DateTime.UtcNow.AddHours(7);
+            var lastNightUtc = vnNow.Date.AddDays(-1).AddHours(22).AddHours(-7);
             var existing = await _db.HealthMeasurements
                 .FirstOrDefaultAsync(m => m.ElderProfileId == companionDevice.ElderProfileId &&
                                           m.MetricType == metricType &&
-                                          m.Timestamp >= now.Date.AddDays(-1), ct);
+                                          m.Timestamp >= lastNightUtc.AddHours(-4), ct);
             if (existing != null)
             {
                 existing.Value = value;
-                existing.Timestamp = now;
+                existing.Timestamp = lastNightUtc;
+                existing.RecordedAt = now;
             }
             else
             {
@@ -698,7 +701,7 @@ public class DevicesController : ControllerBase
                     MetricType = metricType,
                     Value = value,
                     Unit = unit,
-                    Timestamp = now.AddDays(-1).Date.AddHours(22),
+                    Timestamp = lastNightUtc,
                     RecordedAt = now
                 });
             }

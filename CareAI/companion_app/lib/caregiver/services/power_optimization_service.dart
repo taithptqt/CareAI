@@ -5,16 +5,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 class CriticalPermissionsStatus {
   final bool notificationsEnabled;
   final bool batteryOptimizationIgnored;
+  final bool backgroundDataRestricted;
   final String manufacturer;
 
   const CriticalPermissionsStatus({
     required this.notificationsEnabled,
     required this.batteryOptimizationIgnored,
+    this.backgroundDataRestricted = false,
     required this.manufacturer,
   });
 
   bool get hasMissingCriticalPermissions =>
-      !notificationsEnabled || !batteryOptimizationIgnored;
+      !notificationsEnabled || !batteryOptimizationIgnored || backgroundDataRestricted;
 
   String? get primaryWarningMessage {
     if (!notificationsEnabled) {
@@ -22,6 +24,9 @@ class CriticalPermissionsStatus {
     }
     if (!batteryOptimizationIgnored) {
       return 'Chạy ngầm bị hạn chế! Điện thoại có thể không nhận được cảnh báo khi tắt màn hình.';
+    }
+    if (backgroundDataRestricted) {
+      return 'Dữ liệu nền bị Tiết kiệm pin/dữ liệu chặn! Cần cấp quyền để nhận cảnh báo ngầm.';
     }
     return null;
   }
@@ -102,13 +107,35 @@ class PowerOptimizationService {
     }
   }
 
+  Future<bool> isBackgroundDataRestricted() async {
+    if (kIsWeb) return false;
+    try {
+      final res = await _channel.invokeMethod<bool>('isBackgroundDataRestricted');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> openBackgroundDataSettings() async {
+    if (kIsWeb) return false;
+    try {
+      final res = await _channel.invokeMethod<bool>('openBackgroundDataSettings');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<CriticalPermissionsStatus> checkCriticalPermissionsStatus() async {
     final notifs = await areNotificationsEnabled();
     final battery = await isIgnoringBatteryOptimizations();
+    final bgData = await isBackgroundDataRestricted();
     final mfg = await getManufacturer();
     return CriticalPermissionsStatus(
       notificationsEnabled: notifs,
       batteryOptimizationIgnored: battery,
+      backgroundDataRestricted: bgData,
       manufacturer: mfg,
     );
   }

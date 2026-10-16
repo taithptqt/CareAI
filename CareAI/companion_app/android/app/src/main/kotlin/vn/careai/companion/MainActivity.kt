@@ -518,6 +518,38 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                 }
+                "isBackgroundDataRestricted" -> {
+                    val connManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+                    val isRestricted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && connManager != null) {
+                        connManager.restrictBackgroundStatus == android.net.ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED
+                    } else {
+                        false
+                    }
+                    result.success(isRestricted)
+                }
+                "openBackgroundDataSettings" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        try {
+                            val intent = Intent(android.provider.Settings.ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                            return@setMethodCallHandler
+                        } catch (e: Exception) {
+                            Log.w("CareAI-MainActivity", "Không thể gọi ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS: ${e.message}")
+                        }
+                    }
+                    try {
+                        val fallback = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(fallback)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

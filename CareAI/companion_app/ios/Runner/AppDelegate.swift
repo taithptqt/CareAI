@@ -557,6 +557,23 @@ import workmanager_apple
           }
           result(false)
         }
+      case "isBackgroundDataRestricted":
+        DispatchQueue.main.async {
+          let status = UIApplication.shared.backgroundRefreshStatus
+          let isRestricted = (status == .denied || status == .restricted)
+          result(isRestricted)
+        }
+      case "openBackgroundDataSettings":
+        DispatchQueue.main.async {
+          if let url = URL(string: UIApplication.openSettingsURLString) {
+            if UIApplication.shared.canOpenURL(url) {
+              UIApplication.shared.open(url, options: [:], completionHandler: nil)
+              result(true)
+              return
+            }
+          }
+          result(false)
+        }
       default:
         result(FlutterMethodNotImplemented)
       }
