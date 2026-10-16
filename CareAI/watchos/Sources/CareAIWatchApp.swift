@@ -462,7 +462,7 @@ struct PrimaryEmergencyView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                         if sync.pendingCount > 0 && sync.isWorn && !sync.isCharging {
-                            Text("· Đệm (\(sync.pendingCount))")
+                            Text("· Mất kết nối")
                                 .font(.system(size: 7.5, weight: .semibold))
                                 .foregroundColor(Color.orange)
                         }
@@ -833,13 +833,13 @@ struct DailyWellnessView: View {
                             .font(.system(size: 7.5))
                             .foregroundColor(sync.isWorn ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
                         if sync.pendingCount > 0 {
-                            Text("🟡 Đệm (\(sync.pendingCount))")
+                            Text("🟡 Mất kết nối")
                                 .font(.system(size: 7.5))
                                 .foregroundColor(Color.orange)
                         } else {
-                            Text(sync.isPhoneReachable ? "🟢 iPhone (Trực tiếp)" : "🟢 iPhone (Nền)")
+                            Text(sync.isPaired ? "🟢 iPhone" : "⚪ Chưa kết nối")
                                 .font(.system(size: 7.5))
-                                .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                                .foregroundColor(sync.isPaired ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.gray)
                         }
                     }
                 }
@@ -1096,17 +1096,17 @@ struct StatusDetailSheetView: View {
                         .font(.system(size: 8, weight: .bold))
                         .foregroundColor(.gray)
                     if sync.pendingCount > 0 {
-                        Text("🟡 Đang lưu đệm \(sync.pendingCount) gói tin (Chờ gửi)")
+                        Text("🟡 Mất kết nối (Đang lưu tạm \(sync.pendingCount) gói tin)")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(Color(red: 0.96, green: 0.62, blue: 0.04))
-                    } else if sync.isPhoneReachable {
-                        Text("🟢 Trực tiếp (0ms qua Bluetooth)")
+                    } else if sync.isPaired {
+                        Text("🟢 Đã kết nối với iPhone")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
                     } else {
-                        Text("🟢 Nền tự động (Đồng bộ qua iOS)")
+                        Text("⚪ Chưa kết nối với iPhone")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                            .foregroundColor(.gray)
                     }
                 }
                 .padding(5)
