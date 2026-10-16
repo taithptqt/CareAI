@@ -517,9 +517,22 @@ final class HealthSync: ObservableObject {
     @Published private(set) var pendingCount = 0
     @Published private(set) var healthAlert: String?
     @Published private(set) var simulatedOffline = false
+    @Published var isNetworkSatisfied: Bool = true
     @Published private(set) var demoHeartRateAlert: String?
     @Published private(set) var demoSpo2Alert: String?
     private let healthStore = HKHealthStore()
+
+    var isOnline: Bool {
+        if simulatedOffline { return false }
+        if isPhoneReachable { return true }
+        if WCSession.isSupported() {
+            let session = WCSession.default
+            if session.activationState == .activated && (session.isPaired || isPaired) {
+                return true
+            }
+        }
+        return isNetworkSatisfied
+    }
     private let pathMonitor = NWPathMonitor()
     private let outboxURL = FileManager.default.urls(for: .applicationSupportDirectory,
         in: .userDomainMask)[0].appendingPathComponent("healthkit-pending-readings.json")
@@ -582,12 +595,15 @@ final class HealthSync: ObservableObject {
         setupFallDetection()
         requestHealthKitAuthorization()
         pathMonitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isNetworkSatisfied = (path.status == .satisfied)
+            }
             guard path.status == .satisfied else { return }
-            Task { @MainActor [weak self] in self?.flush(force: false) }
+            Task { @MainActor [weak self] in self?.flush(force: true) }
         }
         pathMonitor.start(queue: DispatchQueue(label: "careai.watch.network"))
-        // Tối ưu pin: Chu kỳ quét nền gom lô giãn ra 300 giây (5 phút) thay vì 60 giây
-        retryTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+        // Chu kỳ gửi ngầm định kỳ (Background Cyclic Sync): Đẩy telemetry sang iPhone và backend đều đặn
+        retryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateHealthAlert()
                 self?.flush(force: true)
@@ -1502,12 +1518,14 @@ final class HealthSync: ObservableObject {
                         self.latestHeartRateAt = sample.endDate
                         UserDefaults.standard.set(value, forKey: "latest.heartRate")
                         UserDefaults.standard.set(sample.endDate, forKey: "latest.heartRateAt")
+                        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                     } else if identifier == .oxygenSaturation,
                               sample.endDate > (self.latestSpo2At ?? .distantPast) {
                         self.latestSpo2 = value
                         self.latestSpo2At = sample.endDate
                         UserDefaults.standard.set(value, forKey: "latest.spo2")
                         UserDefaults.standard.set(sample.endDate, forKey: "latest.spo2At")
+                        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
                     } else if identifier == .bloodPressureSystolic,
                               sample.endDate > (self.latestBpAt ?? .distantPast) {
                         self.latestBpSystolic = value
@@ -1542,7 +1560,7 @@ final class HealthSync: ObservableObject {
                     UserDefaults.standard.set(data, forKey: key)
                 }
                 self.status = "Watching HealthKit · queued \(self.queue.count)"
-                if sendAfter { self.flush(force: false) }
+                if sendAfter { self.flush(force: true) }
             }
         }
         healthStore.execute(query)

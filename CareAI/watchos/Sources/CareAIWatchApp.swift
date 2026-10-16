@@ -319,27 +319,11 @@ struct PrimaryEmergencyView: View {
     @State private var secretTapCount = 0
     @State private var lastSecretTapTime = Date.distantPast
 
-    private var statusColor: Color {
-        if sync.customAlert == "ACKNOWLEDGED" {
-            return Color(red: 0.06, green: 0.73, blue: 0.51) // Green
-        } else if sync.customAlert == "FALL_DETECTED" || sync.customAlert == "MANUAL_SOS" || sync.customAlert == "TACHYCARDIA" || (sync.latestHeartRate ?? 0) >= 140 || (sync.latestBpSystolic ?? 0) >= 180 {
-            return Color(red: 0.94, green: 0.27, blue: 0.27) // Red
-        } else if sync.customAlert == "BRADYCARDIA" || ((sync.latestHeartRate ?? 100) <= 45 && (sync.latestHeartRate ?? 0) > 0) || ((sync.latestBpSystolic ?? 120) < 90 && (sync.latestBpSystolic ?? 0) > 0) {
-            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
-        } else if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 ?? 100) <= 90.0 {
-            return Color(red: 0.66, green: 0.33, blue: 0.97) // Purple
-        } else if sync.isCharging {
-            return Color(red: 0.22, green: 0.74, blue: 0.97) // Blue
-        } else if !sync.isWorn {
-            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber
-        } else if !sync.isPhoneReachable {
-            return Color(red: 0.96, green: 0.62, blue: 0.04) // Amber for Offline Buffer
-        } else {
-            return Color(red: 0.06, green: 0.73, blue: 0.51) // Green
-        }
+    private var isOnline: Bool {
+        sync.isOnline
     }
 
-    private var statusTitle: String {
+    private var emergencyAlertTitle: String? {
         if let alert = sync.customAlert {
             switch alert {
             case "ACKNOWLEDGED":
@@ -350,10 +334,6 @@ struct PrimaryEmergencyView: View {
             case "HYPOXIA": return "🫁 Oxy \(String(format: "%.0f", sync.latestSpo2 ?? 88.0))%"
             case "FALL_DETECTED": return "💥 BÁO ĐỘNG NGÃ!"
             case "MANUAL_SOS": return "🆘 ĐÃ GỬI SOS!"
-            case "NORMAL":
-                if sync.isCharging { return "⚡ Đang Cắm Sạc" }
-                if !sync.isWorn { return "🟡 Đã Tháo Cổ Tay" }
-                return sync.isPhoneReachable ? "🟢 Giám Sát Cổ Tay" : "🟡 Lưu Đệm Cục Bộ"
             default: break
             }
         }
@@ -368,16 +348,18 @@ struct PrimaryEmergencyView: View {
         } else if let sys = sync.latestBpSystolic, let dia = sync.latestBpDiastolic, sys < 90 && sys > 0 {
             return "⚠️ HA Thấp \(Int(sys))/\(Int(dia))"
         }
-        if sync.isCharging {
-            return "⚡ Đang Cắm Sạc"
+        return nil
+    }
+
+    private var emergencyAlertColor: Color {
+        if sync.customAlert == "ACKNOWLEDGED" {
+            return Color(red: 0.06, green: 0.73, blue: 0.51)
+        } else if sync.customAlert == "BRADYCARDIA" || ((sync.latestHeartRate ?? 100) <= 45 && (sync.latestHeartRate ?? 0) > 0) || ((sync.latestBpSystolic ?? 120) < 90 && (sync.latestBpSystolic ?? 0) > 0) {
+            return Color(red: 0.96, green: 0.62, blue: 0.04)
+        } else if sync.customAlert == "HYPOXIA" || (sync.latestSpo2 ?? 100) <= 90.0 {
+            return Color(red: 0.66, green: 0.33, blue: 0.97)
         }
-        if !sync.isWorn {
-            return "🟡 Đã Tháo Cổ Tay"
-        }
-        if !sync.isPhoneReachable {
-            return "🟡 Lưu Đệm Cục Bộ"
-        }
-        return "🟢 Giám Sát Cổ Tay"
+        return Color(red: 0.94, green: 0.27, blue: 0.27)
     }
 
     // Sắp xếp thông minh: Ưu tiên hiển thị SpO2 nếu có phần cứng hoặc đang có cảnh báo thiếu oxy;
@@ -404,8 +386,8 @@ struct PrimaryEmergencyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 5) {
-                // Tiêu đề ứng dụng (Tích hợp gõ 5 lần bí mật để mở Phòng Thử Nghiệm)
-                HStack {
+                // Tiêu đề ứng dụng & Icon trạng thái trực tuyến / ngoại tuyến
+                HStack(spacing: 4) {
                     Button(action: {
                         let now = Date()
                         if now.timeIntervalSince(lastSecretTapTime) < 2.5 {
@@ -420,7 +402,7 @@ struct PrimaryEmergencyView: View {
                         }
                         lastSecretTapTime = now
                     }) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             Image("CareAILogo")
                                 .resizable()
                                 .scaledToFit()
@@ -429,6 +411,19 @@ struct PrimaryEmergencyView: View {
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
                         }
+                    }
+                    .buttonStyle(.plain)
+
+                    // Icon chấm tròn: Xanh (Trực tuyến) / Vàng (Ngoại tuyến) - Chạm để xem bảng chi tiết
+                    Button(action: {
+                        WKInterfaceDevice.current().play(.click)
+                        showStatusDetail = true
+                    }) {
+                        Circle()
+                            .fill(isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
+                            .frame(width: 8, height: 8)
+                            .padding(4)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 
@@ -455,32 +450,30 @@ struct PrimaryEmergencyView: View {
                 }
                 .padding(.horizontal, 4)
 
-                // Nút Huy Hiệu Trạng Thái (Status Badge Button - Chạm để xem chi tiết / chuyển trang / test)
-                Button(action: {
-                    WKInterfaceDevice.current().play(.click)
-                    showStatusDetail = true
-                }) {
-                    HStack(spacing: 4) {
-                        Text(statusTitle)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(statusColor)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                        Image(systemName: "chevron.right.circle.fill")
-                            .font(.system(size: 8))
-                            .foregroundColor(statusColor.opacity(0.8))
+                // Chỉ hiển thị Banner khi có Báo Động Khẩn Cấp (té ngã, SOS, sinh hiệu nguy kịch)
+                if let alertTitle = emergencyAlertTitle {
+                    Button(action: {
+                        WKInterfaceDevice.current().play(.click)
+                        showStatusDetail = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(alertTitle)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                            Image(systemName: "chevron.right.circle.fill")
+                                .font(.system(size: 8))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .frame(maxWidth: .infinity)
+                        .background(emergencyAlertColor)
+                        .cornerRadius(12)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .frame(maxWidth: .infinity)
-                    .background(statusColor.opacity(0.18))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(statusColor.opacity(0.6), lineWidth: 1)
-                    )
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 // Thẻ sinh hiệu trực tiếp thông minh (Adaptive Vitals Card)
                 VStack(spacing: 4) {
@@ -585,7 +578,7 @@ struct PrimaryEmergencyView: View {
             .padding(.vertical, 4)
         }
         .sheet(isPresented: $showStatusDetail) {
-            StatusDetailSheetView(sync: sync, selectedTab: $selectedTab, showTestLab: $showTestLab)
+            StatusDetailSheetView(sync: sync)
         }
     }
 }
@@ -795,11 +788,11 @@ struct DailyWellnessView: View {
                         }
                     } else {
                         HStack {
-                            Text(sync.hasSpo2Hardware ? "Chưa ghi nhận" : "Cần máy kẹp ngón")
+                            Text("Chưa ghi nhận")
                                 .font(.system(size: 10.5, weight: .bold))
                                 .foregroundColor(Color(white: 0.6))
                             Spacer()
-                            Text(sync.hasSpo2Hardware ? "Apple Health / Quang học" : "Apple Health / SE")
+                            Text("Apple Health")
                                 .font(.system(size: 7))
                                 .foregroundColor(Color(white: 0.4))
                         }
@@ -1028,8 +1021,6 @@ struct SettingsSheetView: View {
 
 struct StatusDetailSheetView: View {
     @ObservedObject var sync: HealthSync
-    @Binding var selectedTab: Int
-    @Binding var showTestLab: Bool
     @Environment(\.dismiss) private var dismiss
 
     private var batteryPercent: Int {
@@ -1084,11 +1075,26 @@ struct StatusDetailSheetView: View {
                 .background(Color.white.opacity(0.06))
                 .cornerRadius(6)
 
-                // 3. Kết nối iPhone Companion
+                // 3. Kết nối iPhone Companion (Có icon số lượng gói tin đang chờ ở góc phải trên)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("KẾT NỐI IPHONE")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.gray)
+                    HStack {
+                        Text("KẾT NỐI IPHONE")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.gray)
+                        Spacer()
+                        // Icon số lượng gói tin đang chờ ở góc phải trên
+                        HStack(spacing: 2) {
+                            Image(systemName: sync.pendingCount > 0 ? "tray.and.arrow.up.fill" : "tray.fill")
+                                .font(.system(size: 8))
+                            Text("\(sync.pendingCount)")
+                                .font(.system(size: 8, weight: .bold))
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(sync.pendingCount > 0 ? Color.orange.opacity(0.2) : Color.white.opacity(0.08))
+                        .foregroundColor(sync.pendingCount > 0 ? Color.orange : Color(white: 0.6))
+                        .cornerRadius(4)
+                    }
                     Text(sync.isPhoneReachable ? "🟢 Trực tiếp (0ms qua Bluetooth)" : "🟡 Lưu đệm cục bộ (Chờ kết nối)")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
@@ -1097,39 +1103,6 @@ struct StatusDetailSheetView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.white.opacity(0.06))
                 .cornerRadius(6)
-
-                // Nút chuyển nhanh sang Trang 2
-                Button(action: {
-                    dismiss()
-                    selectedTab = 1
-                }) {
-                    HStack {
-                        Image(systemName: "list.bullet.clipboard.fill")
-                        Text("Xem Trang 2: Sức Khỏe")
-                    }
-                    .font(.system(size: 9.5, weight: .bold))
-                    .frame(maxWidth: .infinity, minHeight: 26)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.22, green: 0.74, blue: 0.97))
-                .padding(.top, 2)
-
-                // Nút mở Phòng Thử Nghiệm
-                Button(action: {
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showTestLab = true
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: "hammer.fill")
-                        Text("Phòng Thử Nghiệm & Test")
-                    }
-                    .font(.system(size: 9, weight: .semibold))
-                    .frame(maxWidth: .infinity, minHeight: 24)
-                }
-                .buttonStyle(.bordered)
-                .tint(.orange)
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
