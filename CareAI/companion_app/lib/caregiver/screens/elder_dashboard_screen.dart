@@ -369,112 +369,107 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         border: Border.all(color: const Color(0xFF334155)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0284C7).withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                d.fullName.isNotEmpty ? d.fullName[0].toUpperCase() : 'C',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        d.fullName,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isOnline ? const Color(0xFF064E3B) : const Color(0xFF334155),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isOnline ? const Color(0xFF10B981) : const Color(0xFF64748B),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isOnline ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            isOnline ? 'Online' : 'Offline',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: isOnline ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
-                            ),
-                          ),
-                        ],
-                      ),
+          // 1. Dòng thông tin người cao tuổi (Avatar + Tên/Tuổi + Badge Online/Offline)
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 4,
-                  runSpacing: 4,
+                child: Center(
+                  child: Text(
+                    d.fullName.isNotEmpty ? d.fullName[0].toUpperCase() : 'C',
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${d.age} tuổi',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                      d.fullName,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const Text('•', style: TextStyle(color: Color(0xFF64748B))),
-                    _buildWatchStatusBadge(d),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${d.age} tuổi · Người cao tuổi',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isOnline ? const Color(0xFF064E3B) : const Color(0xFF334155),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isOnline ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isOnline ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isOnline ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isOnline ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          // 2. Thanh trạng thái thiết bị đeo chuyên biệt (Toàn chiều rộng thẻ)
+          _buildWatchStatusBar(d),
         ],
       ),
     );
   }
 
-  Widget _buildWatchStatusBadge(ElderDashboard d) {
+  Widget _buildWatchStatusBar(ElderDashboard d) {
     final status = d.watchStatus;
     final isOnline = status == 'ONLINE';
     final isDisconnected = status == 'DISCONNECTED';
@@ -505,7 +500,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           badgeBg = const Color(0xFF7F1D1D);
           badgeBorder = const Color(0xFFEF4444);
           badgeTextColor = const Color(0xFFFCA5A5);
-          badgeText = 'Đã tháo · Pin yếu $batteryPct%';
+          badgeText = 'Đã tháo · Pin $batteryPct%';
         } else {
           iconData = Icons.watch_off_outlined;
           iconColor = const Color(0xFFF59E0B);
@@ -539,93 +534,151 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         }
       }
 
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(iconData, size: 14, color: iconColor),
-          const SizedBox(width: 4),
-          Text(
-            d.watchModel ?? 'Đồng hồ thông minh',
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF38BDF8),
-              fontWeight: FontWeight.w500,
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.8)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(iconData, size: 16, color: iconColor),
             ),
-          ),
-          Container(
-            margin: const EdgeInsets.only(left: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: badgeBg,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: badgeBorder, width: 0.8),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                d.watchModel ?? 'Apple Watch / Galaxy Watch',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFE2E8F0),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            child: Text(
-              badgeText,
-              style: TextStyle(fontSize: 10, color: badgeTextColor, fontWeight: FontWeight.bold),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: badgeBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: badgeBorder, width: 0.8),
+              ),
+              child: Text(
+                badgeText,
+                style: TextStyle(fontSize: 11, color: badgeTextColor, fontWeight: FontWeight.bold),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
     if (isDisconnected) {
       final isBtOff = d.watchDisconnectReason == 'BLUETOOTH_OFF';
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isBtOff ? Icons.bluetooth_disabled_rounded : Icons.watch_off_outlined,
-            size: 14,
-            color: isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isBtOff ? const Color(0xFF7F1D1D) : const Color(0xFF78350F),
+            width: 0.8,
           ),
-          const SizedBox(width: 4),
-          Text(
-            d.watchModel ?? 'Đồng hồ thông minh',
-            style: TextStyle(
-              fontSize: 12,
-              color: isBtOff ? const Color(0xFFF87171) : const Color(0xFFFBBF24),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.only(left: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: isBtOff ? const Color(0xFF7F1D1D) : const Color(0xFF78350F),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: (isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B)).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isBtOff ? Icons.bluetooth_disabled_rounded : Icons.watch_off_outlined,
+                size: 16,
                 color: isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
-                width: 0.8,
               ),
             ),
-            child: Text(
-              isBtOff ? 'Đã tắt Bluetooth' : 'Mất tín hiệu',
-              style: TextStyle(
-                fontSize: 10,
-                color: isBtOff ? const Color(0xFFFECACA) : const Color(0xFFFDE68A),
-                fontWeight: FontWeight.bold,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                d.watchModel ?? 'Đồng hồ thông minh',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFE2E8F0),
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isBtOff ? const Color(0xFF7F1D1D) : const Color(0xFF78350F),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                  width: 0.8,
+                ),
+              ),
+              child: Text(
+                isBtOff ? 'Đã tắt Bluetooth' : 'Mất tín hiệu',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isBtOff ? const Color(0xFFFECACA) : const Color(0xFFFDE68A),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.watch_rounded, size: 14, color: Color(0xFF64748B)),
-        const SizedBox(width: 4),
-        Text(
-          d.watchModel ?? 'Chưa ghép nối đồng hồ',
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF94A3B8),
-            fontWeight: FontWeight.w500,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.8)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF64748B).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.watch_rounded, size: 16, color: Color(0xFF64748B)),
           ),
-        ),
-      ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              d.watchModel ?? 'Chưa ghép nối đồng hồ',
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF94A3B8),
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -822,20 +875,18 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
     if (hr == null && oxygen == null) {
       if (d.watchStatus != 'DISCONNECTED' && d.watchStatus != 'NOT_PAIRED') {
-        messages.add('Chưa có mẫu nhịp tim hoặc SpO₂. Kiểm tra kết nối đồng hồ, quyền truy cập sức khỏe và mạng.');
+        messages.add('Chưa có mẫu sinh hiệu từ thiết bị. Kiểm tra kết nối đồng hồ và quyền truy cập cảm biến.');
       }
     } else {
-      if (hr == null) messages.add('Chưa có mẫu nhịp tim. Kiểm tra quyền cảm biến nhịp tim trên đồng hồ.');
-      if (oxygen == null) messages.add('Chưa có mẫu SpO₂. Kiểm tra quyền cảm biến SpO₂ và khả năng đo của đồng hồ.');
       if (hr != null) {
-        if (now.difference(hr.timestamp).inHours >= 2) {
+        if (now.toUtc().difference(hr.timestamp.toUtc()).inHours >= 2) {
           messages.add('Mẫu nhịp tim đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.');
         } else if (hr.value < 50 || hr.value > 100) {
           messages.add('Nhịp tim gần nhất nằm ngoài khoảng tham chiếu trên app. Hãy hỏi thăm cảm giác của người thân.');
         }
       }
       if (oxygen != null) {
-        if (now.difference(oxygen.timestamp).inHours >= 2) {
+        if (now.toUtc().difference(oxygen.timestamp.toUtc()).inHours >= 2) {
           messages.add('Mẫu SpO₂ đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.');
         } else if (oxygen.value < 95) {
           messages.add('SpO₂ gần nhất thấp: hỏi thăm triệu chứng, kiểm tra lại phép đo và liên hệ nhân viên y tế nếu mức thấp lặp lại.');

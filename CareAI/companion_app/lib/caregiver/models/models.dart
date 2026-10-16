@@ -105,6 +105,16 @@ class ElderItem {
   }
 }
 
+DateTime _parseUtcDateTime(dynamic value) {
+  if (value == null) return DateTime.now().toUtc();
+  final s = value.toString().trim();
+  if (s.isEmpty) return DateTime.now().toUtc();
+  if (!s.endsWith('Z') && !s.contains('+') && !RegExp(r'-\d\d:\d\d').hasMatch(s)) {
+    return (DateTime.tryParse('${s}Z') ?? DateTime.tryParse(s) ?? DateTime.now()).toUtc();
+  }
+  return (DateTime.tryParse(s) ?? DateTime.now()).toUtc();
+}
+
 class VitalSign {
   final String metricType;
   final double value;
@@ -125,7 +135,7 @@ class VitalSign {
       metricType: json['metricType'] ?? '',
       value: (json['value'] as num?)?.toDouble() ?? 0.0,
       unit: json['unit'] ?? '',
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: _parseUtcDateTime(json['timestamp']),
       statusColor: json['statusColor'] ?? 'GREEN',
     );
   }
@@ -349,7 +359,7 @@ class ElderDashboard {
       todaySteps: json['todaySteps'] ?? 0,
       stepGoal: json['stepGoal'] ?? 6000,
       lastKnownGpsLocation: json['lastKnownGpsLocation'],
-      lastSyncedAt: json['lastSyncedAt'] != null ? DateTime.tryParse(json['lastSyncedAt']) : null,
+      lastSyncedAt: json['lastSyncedAt'] != null ? _parseUtcDateTime(json['lastSyncedAt']) : null,
       activeEmergency: json['activeEmergency'] != null ? Incident.fromJson(json['activeEmergency']) : null,
       watchModel: json['watchModel'] as String?,
       watchStatus: json['watchStatus'] as String?,
@@ -369,7 +379,7 @@ class HeartRatePoint {
 
   factory HeartRatePoint.fromJson(Map<String, dynamic> json) {
     return HeartRatePoint(
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: _parseUtcDateTime(json['timestamp']),
       value: (json['value'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -558,7 +568,7 @@ class BloodPressurePoint {
 
   factory BloodPressurePoint.fromJson(Map<String, dynamic> json) {
     return BloodPressurePoint(
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: _parseUtcDateTime(json['timestamp']),
       systolic: (json['systolic'] as num?)?.toDouble() ?? 120.0,
       diastolic: (json['diastolic'] as num?)?.toDouble() ?? 80.0,
     );
@@ -577,7 +587,7 @@ class HeartRateSample {
   factory HeartRateSample.fromJson(Map<String, dynamic> json) {
     return HeartRateSample(
       bpm: (json['bpm'] as num?)?.toDouble() ?? 0.0,
-      timestamp: DateTime.tryParse(json['timestamp']?.toString() ?? '') ?? DateTime.now(),
+      timestamp: _parseUtcDateTime(json['timestamp']),
     );
   }
 }
@@ -645,7 +655,7 @@ class Spo2Point {
 
   factory Spo2Point.fromJson(Map<String, dynamic> json) {
     return Spo2Point(
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: _parseUtcDateTime(json['timestamp']),
       value: (json['value'] as num?)?.toDouble() ?? 98.0,
     );
   }
