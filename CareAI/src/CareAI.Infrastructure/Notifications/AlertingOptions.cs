@@ -7,5 +7,6 @@ public class AlertingOptions
     public int MaxReminders { get; set; } = 3;
     public int StableVitalsReminderMinutes { get; set; } = 15;
     public int MaxStableVitalsReminders { get; set; } = 2;
+    public int PersistentCriticalMinutes { get; set; } = 3;
 }
 

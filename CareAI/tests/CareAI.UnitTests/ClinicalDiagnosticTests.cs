@@ -257,6 +257,54 @@ public class ClinicalDiagnosticTests
     private static ClinicalDiagnosticEngine Engine(CareAiDbContext db) =>
         new(db, NullLogger<ClinicalDiagnosticEngine>.Instance);
 
+    [Fact]
+    public async Task AckedCriticalHeartRate_PersistentAfterThreeMinutes_TriggersReEscalation()
+    {
+        await using var db = NewMemoryDb();
+        await SeedAsync(db);
+        var engine = new ClinicalDiagnosticEngine(db, NullLogger<ClinicalDiagnosticEngine>.Instance);
+        var t0 = DateTime.UtcNow.AddMinutes(-10);
+
+        // Kích hoạt chu kỳ 1
+        var incident = await engine.EvaluateHeartRateSampleAsync("elder", "device", 185, measuredAtUtc: t0);
+        Assert.NotNull(incident);
+        Assert.Equal(IncidentStatus.Open, incident.Status);
+        Assert.Equal(1, incident.AlertCycleNumber);
+
+        // Người thân tiếp nhận lúc t0 + 10s
+        var ackTime = t0.AddSeconds(10);
+        incident.Status = IncidentStatus.Acknowledged;
+        incident.AcknowledgedAt = ackTime;
+        incident.AcknowledgedByCaregiverId = "caregiver";
+        incident.AcknowledgedCriticalHeartRateBpm = 185;
+        incident.AcknowledgedCriticalRuleCode = "HR_CRITICAL_HIGH";
+        await db.SaveChangesAsync();
+
+        // 1 phút sau: Nhịp tim vẫn 185 bpm (< 3 phút) -> Giữ nguyên Acknowledged để tránh bão còi hú
+        await engine.EvaluateHeartRateSampleAsync("elder", "device", 185, measuredAtUtc: ackTime.AddMinutes(1));
+        Assert.Equal(IncidentStatus.Acknowledged, incident.Status);
+        Assert.Equal(1, incident.AlertCycleNumber);
+
+        // 3 phút 5 giây sau: Nhịp tim VẪN 185 bpm (kéo dài >= 3 phút) -> TÁI CẢNH BÁO CẤP CỨU CHU KỲ 2!
+        await engine.EvaluateHeartRateSampleAsync("elder", "device", 185, measuredAtUtc: ackTime.AddMinutes(3).AddSeconds(5));
+        Assert.Equal(IncidentStatus.Open, incident.Status);
+        Assert.Equal(IncidentSeverity.Critical, incident.Severity);
+        Assert.Equal(2, incident.AlertCycleNumber);
+        Assert.Null(incident.AcknowledgedAt);
+        Assert.Equal(0, incident.ReminderCount);
+
+        // Kiểm tra timeline event ghi nhận chính xác lý do kéo dài
+        var reEscalationEvent = db.IncidentTimelineEvents.FirstOrDefault(e => e.EventType == "CLINICAL_REESCALATION" && e.AlertCycleNumber == 2);
+        Assert.NotNull(reEscalationEvent);
+        Assert.Contains("kéo dài liên tục trên 3 phút", reEscalationEvent.Description);
+
+        // Kiểm tra thông báo còi hú gửi tới người thân
+        var latestOutbox = await db.NotificationOutboxes.OrderByDescending(n => n.CreatedAt).FirstOrDefaultAsync();
+        Assert.NotNull(latestOutbox);
+        Assert.Contains("\"siren\":true", latestOutbox.DataPayloadJson);
+        Assert.Contains("\"priority\":\"HIGH\"", latestOutbox.DataPayloadJson);
+    }
+
     private static CareAiDbContext NewMemoryDb() => new(new DbContextOptionsBuilder<CareAiDbContext>()
         .UseInMemoryDatabase($"Clinical_{Guid.NewGuid():N}").Options);
 

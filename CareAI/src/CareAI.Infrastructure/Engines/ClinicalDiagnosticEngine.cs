@@ -3,8 +3,10 @@ using CareAI.Core.Entities;
 using CareAI.Core.Enums;
 using CareAI.Core.Interfaces;
 using CareAI.Infrastructure.Data;
+using CareAI.Infrastructure.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace CareAI.Infrastructure.Engines;
 
@@ -14,15 +16,18 @@ public class ClinicalDiagnosticEngine
     private readonly CareAiDbContext _db;
     private readonly ILogger<ClinicalDiagnosticEngine> _logger;
     private readonly IAdaptiveThresholdService? _thresholdService;
+    private readonly AlertingOptions _options;
 
     public ClinicalDiagnosticEngine(
         CareAiDbContext db,
         ILogger<ClinicalDiagnosticEngine> logger,
-        IAdaptiveThresholdService? thresholdService = null)
+        IAdaptiveThresholdService? thresholdService = null,
+        IOptions<AlertingOptions>? alertingOptions = null)
     {
         _db = db;
         _logger = logger;
         _thresholdService = thresholdService;
+        _options = alertingOptions?.Value ?? new AlertingOptions();
     }
 
     public async Task<Incident?> EvaluateHeartRateSampleAsync(
@@ -106,12 +111,21 @@ public class ClinicalDiagnosticEngine
         {
             var wasCritical = active.Severity == IncidentSeverity.Critical;
             var previousRule = active.LatestCriticalRuleCode;
-            var reOpen = active.Status == IncidentStatus.Acknowledged && critical &&
-                (!active.AcknowledgedAt.HasValue || measuredAt > active.AcknowledgedAt.Value) &&
-                (active.AcknowledgedCriticalRuleCode != rule ||
+
+            // 1. Chỉ số xấu hơn tức thì so với lúc tiếp nhận hoặc đổi dạng nguy kịch
+            var worsening = active.AcknowledgedCriticalRuleCode != rule ||
                  !active.AcknowledgedCriticalHeartRateBpm.HasValue ||
                  (rule == "HR_CRITICAL_HIGH" && heartRate > active.AcknowledgedCriticalHeartRateBpm.Value) ||
-                 (rule == "HR_CRITICAL_LOW" && heartRate < active.AcknowledgedCriticalHeartRateBpm.Value));
+                 (rule == "HR_CRITICAL_LOW" && heartRate < active.AcknowledgedCriticalHeartRateBpm.Value);
+
+            // 2. Nguy kịch kéo dài (Persistent Criticality): Chỉ số không giảm, vẫn ở ngưỡng nguy hiểm sau PersistentCriticalMinutes
+            var ackTime = active.AcknowledgedAt ?? active.AlertStartedAt ?? active.TriggeredAt;
+            var elapsedMinutes = (measuredAt - ackTime).TotalMinutes;
+            var isPersistentCritical = !worsening && elapsedMinutes >= _options.PersistentCriticalMinutes;
+
+            var reOpen = active.Status == IncidentStatus.Acknowledged && critical &&
+                (!active.AcknowledgedAt.HasValue || measuredAt > active.AcknowledgedAt.Value) &&
+                (worsening || isPersistentCritical);
             var escalate = active.Status == IncidentStatus.Open && critical && !wasCritical;
             var distinctCritical = active.Status == IncidentStatus.Open && critical && wasCritical &&
                 previousRule != rule && !inCooldown;
@@ -146,13 +160,18 @@ public class ClinicalDiagnosticEngine
                     active.AlertStartedAt = now;
                     active.AlertDeadlineAt = now.AddSeconds(60);
                 }
+
+                var alertReason = isPersistentCritical
+                    ? $"Tái cảnh báo cấp cứu (Chu kỳ {active.AlertCycleNumber}): Nhịp tim nguy kịch ({heartRate} bpm) kéo dài liên tục trên {_options.PersistentCriticalMinutes} phút sau khi tiếp nhận."
+                    : reason;
+
                 _db.IncidentTimelineEvents.Add(new IncidentTimelineEvent
                 {
                     IncidentId = active.Id, AlertCycleNumber = active.AlertCycleNumber,
                     EventType = reOpen ? "CLINICAL_REESCALATION" : "CLINICAL_ESCALATION",
-                    Description = reason, RecordedAt = now
+                    Description = alertReason, RecordedAt = now
                 });
-                await EnqueueQuorumAlertsAsync(active.Id, elderProfileId, emergencyType, reason,
+                await EnqueueQuorumAlertsAsync(active.Id, elderProfileId, emergencyType, alertReason,
                     active.AlertCycleNumber, now, true, ct);
                 TouchCooldown(elderProfileId, rule, active.Id, now, cooldown);
                 if (saveChanges) await _db.SaveChangesAsync(ct);
