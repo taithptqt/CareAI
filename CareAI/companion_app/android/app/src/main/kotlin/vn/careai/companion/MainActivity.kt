@@ -498,42 +498,87 @@ class MainActivity : FlutterActivity() {
                 }
                 "openAutostartSettings" -> {
                     val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
-                    val intent = Intent()
+                    val candidateIntents = mutableListOf<Intent>()
+
                     when {
+                        manufacturer.contains("samsung") -> {
+                            // 1. Samsung Device Care Battery Action (One UI 4/5/6)
+                            candidateIntents.add(Intent("com.samsung.android.sm.ACTION_BATTERY"))
+                            // 2. Samsung Smart Manager Battery Activity (One UI 2/3/4/5)
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity")
+                            })
+                            // 3. Samsung Sleeping Apps Action
+                            candidateIntents.add(Intent("com.samsung.android.sm.ACTION_OPEN_CHECKABLE_LISTACTIVITY"))
+                            // 4. Samsung Battery Activity alternative path
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.samsung.android.sm", "com.samsung.android.sm.battery.ui.BatteryActivity")
+                            })
+                            // 5. Samsung lool package (trên một số phiên bản One UI)
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")
+                            })
+                            // 6. Trang Pin cấp 1 chuẩn Android (Samsung ánh xạ sang menu Pin của One UI)
+                            candidateIntents.add(Intent(Intent.ACTION_POWER_USAGE_SUMMARY))
+                            // 7. Trang Device Care Dashboard chính
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.DefaultActivity")
+                            })
+                            // 8. Trang danh sách ứng dụng bỏ tối ưu pin
+                            candidateIntents.add(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        }
                         manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
-                            intent.component = android.content.ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+                            })
+                            candidateIntents.add(Intent("miui.intent.action.OP_AUTO_START").apply {
+                                addCategory(Intent.CATEGORY_DEFAULT)
+                            })
+                            candidateIntents.add(Intent(Intent.ACTION_POWER_USAGE_SUMMARY))
                         }
                         manufacturer.contains("oppo") || manufacturer.contains("realme") -> {
-                            intent.component = android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
+                            })
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")
+                            })
+                            candidateIntents.add(Intent(Intent.ACTION_POWER_USAGE_SUMMARY))
                         }
                         manufacturer.contains("vivo") || manufacturer.contains("iqoo") -> {
-                            intent.component = android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")
+                            })
+                            candidateIntents.add(Intent(Intent.ACTION_POWER_USAGE_SUMMARY))
                         }
                         manufacturer.contains("huawei") || manufacturer.contains("honor") -> {
-                            intent.component = android.content.ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
-                        }
-                        manufacturer.contains("samsung") -> {
-                            intent.component = android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")
+                            candidateIntents.add(Intent().apply {
+                                component = android.content.ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity")
+                            })
+                            candidateIntents.add(Intent(Intent.ACTION_POWER_USAGE_SUMMARY))
                         }
                         else -> {
-                            intent.action = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                            intent.data = Uri.parse("package:$packageName")
+                            candidateIntents.add(Intent(Intent.ACTION_POWER_USAGE_SUMMARY))
                         }
                     }
-                    try {
-                        startActivity(intent)
-                        result.success(true)
-                    } catch (e: Exception) {
+
+                    // Fallback cuối cùng: Trang thông tin ứng dụng
+                    candidateIntents.add(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:$packageName")
+                    })
+
+                    var launched = false
+                    for (candidate in candidateIntents) {
                         try {
-                            val fallback = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.parse("package:$packageName")
-                            }
-                            startActivity(fallback)
-                            result.success(true)
-                        } catch (ex: Exception) {
-                            result.success(false)
+                            candidate.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(candidate)
+                            launched = true
+                            break
+                        } catch (_: Exception) {
+                            // Thử candidate kế tiếp
                         }
                     }
+                    result.success(launched)
                 }
                 "getManufacturer" -> {
                     result.success(Build.MANUFACTURER)
