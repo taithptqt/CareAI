@@ -278,7 +278,6 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           }
         });
 
-        final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
         final isStatusGeneric = status.watchName == null || status.watchName!.trim().isEmpty || status.watchName == 'Apple Watch' || status.watchName == 'Galaxy Watch';
         final isSavedSpecific = savedWatchName != null && savedWatchName.trim().isNotEmpty && savedWatchName != 'Apple Watch' && savedWatchName != 'Galaxy Watch';
 
@@ -370,12 +369,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
         final channelDesc = defaultTargetPlatform == TargetPlatform.iOS ? 'Bluetooth / Apple Watch App' : 'Bluetooth / Galaxy Wearable';
         final effectiveWatchName = _effectiveWatchDisplayName;
+        final hasKnownWatch = status.isPaired || _lastPairedWatchName != null || (_customWatchAlias != null && _customWatchAlias!.trim().isNotEmpty);
         String feedbackMsg;
         if (status.isConnected) {
-          feedbackMsg = '🟢 Đã kết nối: ${effectiveWatchName ?? platformName} (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})';
+          feedbackMsg = '🟢 Đã kết nối: $effectiveWatchName (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})';
         } else if (status.reason == 'BLUETOOTH_OFF') {
-          feedbackMsg = '🔴 Bluetooth đang tắt${effectiveWatchName != null ? ": $effectiveWatchName" : ""} (Bật lại Bluetooth trên điện thoại)';
-        } else if (effectiveWatchName != null) {
+          feedbackMsg = '🔴 Bluetooth đang tắt: $effectiveWatchName (Bật lại Bluetooth trên điện thoại)';
+        } else if (hasKnownWatch) {
           feedbackMsg = '🔴 Mất tín hiệu: $effectiveWatchName (Kiểm tra khoảng cách/Pin đồng hồ)';
         } else {
           feedbackMsg = '⚪ Chưa phát hiện $platformName kết nối (Kiểm tra qua $channelDesc)';
@@ -970,10 +970,6 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         );
       },
     );
-  }
-
-  Future<void> _handleUnpair() async {
-    await _showSettingsDialog();
   }
 
   /// Đổi tên thân thuộc cho đồng hồ (biệt danh) để người thân dễ nhận biết
