@@ -310,15 +310,15 @@ public class AdaptiveThresholdTests
         db.ElderProfiles.Add(elder);
         await db.SaveChangesAsync();
 
-        // 1. Kiểm tra thời điểm ban ngày (14:30) -> Dùng ngưỡng ban ngày
-        var dayTime = new DateTime(2026, 9, 25, 14, 30, 0, DateTimeKind.Utc);
+        // 1. Kiểm tra thời điểm ban ngày (14:30 giờ VN = 07:30 UTC) -> Dùng ngưỡng ban ngày
+        var dayTime = new DateTime(2026, 9, 25, 7, 30, 0, DateTimeKind.Utc);
         var dayThresholds = await service.GetEffectiveThresholdsForTimeAsync(elder.Id, dayTime);
         Assert.False(dayThresholds.IsNight);
         Assert.Equal(50.0, dayThresholds.Min);
         Assert.Equal(115.0, dayThresholds.Max);
 
-        // 2. Kiểm tra thời điểm ban đêm (02:15) -> Dùng ngưỡng ban đêm
-        var nightTime = new DateTime(2026, 9, 25, 2, 15, 0, DateTimeKind.Utc);
+        // 2. Kiểm tra thời điểm ban đêm (02:15 giờ VN = 19:15 UTC ngày hôm trước) -> Dùng ngưỡng ban đêm
+        var nightTime = new DateTime(2026, 9, 24, 19, 15, 0, DateTimeKind.Utc);
         var nightThresholds = await service.GetEffectiveThresholdsForTimeAsync(elder.Id, nightTime);
         Assert.True(nightThresholds.IsNight);
         Assert.Equal(42.0, nightThresholds.Min);
@@ -391,4 +391,37 @@ public class AdaptiveThresholdTests
         Assert.Equal(EmergencyType.Tachycardia, incidentNightTachycardia.EmergencyType);
         Assert.Contains("ban đêm (lúc ngủ)", incidentNightTachycardia.TimelineEvents.First().Description);
     }
+
+    // ============================================================================
+    // FACT 58: XỬ LÝ CHÍNH XÁC MÚI GIỜ (UTC+7 VN) VÀ KHUNG GIỜ NGỦ VƯỢT NỬA ĐÊM
+    // ============================================================================
+    [Fact]
+    public void Fact_58_IsInSleepWindow_HandlesTimezonesAndMidnightCrossing_Accurately()
+    {
+        var vnZone = AdaptiveThresholdService.ResolveTimeZone("Asia/Ho_Chi_Minh");
+
+        // 1. Lúc 23:30 đêm ở Việt Nam (tương ứng 16:30 UTC):
+        // Nằm trong khung 22:00 - 06:00 -> PHẢI là Ban đêm (true)
+        var utcNight = new DateTime(2026, 9, 25, 16, 30, 0, DateTimeKind.Utc);
+        Assert.True(AdaptiveThresholdService.IsInSleepWindow(utcNight, "22:00", "06:00", vnZone));
+
+        // 2. Lúc 10:30 sáng ở Việt Nam (tương ứng 03:30 UTC):
+        // Nằm ngoài khung 22:00 - 06:00 -> PHẢI là Ban ngày (false)
+        var utcDay = new DateTime(2026, 9, 25, 3, 30, 0, DateTimeKind.Utc);
+        Assert.False(AdaptiveThresholdService.IsInSleepWindow(utcDay, "22:00", "06:00", vnZone));
+
+        // 3. Lúc 05:15 sáng ở Việt Nam (tương ứng 22:15 UTC ngày hôm trước):
+        // Vẫn trước 06:00 sáng -> PHẢI là Ban đêm (true)
+        var utcEarlyMorning = new DateTime(2026, 9, 24, 22, 15, 0, DateTimeKind.Utc);
+        Assert.True(AdaptiveThresholdService.IsInSleepWindow(utcEarlyMorning, "22:00", "06:00", vnZone));
+
+        // 4. Khung giờ nghỉ trưa (không vượt qua nửa đêm): ví dụ 12:30 - 14:00
+        // 13:00 VN (06:00 UTC) -> PHẢI là true
+        var utcNoon = new DateTime(2026, 9, 25, 6, 0, 0, DateTimeKind.Utc);
+        Assert.True(AdaptiveThresholdService.IsInSleepWindow(utcNoon, "12:30", "14:00", vnZone));
+
+        // 5. Fallback khi chuỗi giờ ngủ rỗng hoặc lỗi format:
+        Assert.True(AdaptiveThresholdService.IsInSleepWindow(utcNight, "invalid_time", "corrupt_time", vnZone));
+    }
 }
+

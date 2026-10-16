@@ -41,7 +41,7 @@ public class ClinicalDiagnosticEngine
         bool isNight = false;
         if (_thresholdService != null)
         {
-            var thresholds = await _thresholdService.GetEffectiveThresholdsForTimeAsync(elderProfileId, now, ct);
+            var thresholds = await _thresholdService.GetEffectiveThresholdsForTimeAsync(elderProfileId, measuredAt, ct);
             minBpm = thresholds.Min;
             maxBpm = thresholds.Max;
             isNight = thresholds.IsNight;

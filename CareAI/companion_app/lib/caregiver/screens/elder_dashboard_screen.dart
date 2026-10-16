@@ -2560,6 +2560,27 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       'Ban Đêm ($sleepStart - $sleepEnd)',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF818CF8)),
                     ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () => _showSleepWindowDialog(sleepStart, sleepEnd, dayMinBpm, dayMaxBpm, nightMinBpm, nightMaxBpm),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF818CF8).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFF818CF8).withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit_calendar_rounded, color: Color(0xFF818CF8), size: 11),
+                            SizedBox(width: 3),
+                            Text('Đổi giờ', style: TextStyle(color: Color(0xFF818CF8), fontSize: 10, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -2657,6 +2678,171 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         );
       }
     }
+  }
+
+  Future<void> _showSleepWindowDialog(
+    String currentStart,
+    String currentEnd,
+    double dayMinBpm,
+    double dayMaxBpm,
+    double nightMinBpm,
+    double nightMaxBpm,
+  ) async {
+    TimeOfDay parseTime(String s, TimeOfDay fallback) {
+      final parts = s.split(':');
+      if (parts.length >= 2) {
+        final h = int.tryParse(parts[0]);
+        final m = int.tryParse(parts[1]);
+        if (h != null && m != null) return TimeOfDay(hour: h, minute: m);
+      }
+      return fallback;
+    }
+
+    String formatTime(TimeOfDay t) =>
+        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+    var startTime = parseTime(currentStart, const TimeOfDay(hour: 22, minute: 0));
+    var endTime = parseTime(currentEnd, const TimeOfDay(hour: 6, minute: 0));
+
+    await showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.bedtime_rounded, color: Color(0xFF818CF8), size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Điều Chỉnh Khung Giờ Ngủ',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Trong khung giờ này, CareAI sẽ áp dụng dải ngưỡng ban đêm để tự động triệt tiêu báo động giả khi nhịp tim cụ chậm sinh lý lúc ngủ sâu.',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.nights_stay_rounded, color: Color(0xFF818CF8)),
+                title: const Text('Bắt đầu ngủ (Giờ lên giường):', style: TextStyle(color: Colors.white, fontSize: 13)),
+                trailing: TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFF334155)),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: startTime,
+                    );
+                    if (picked != null) {
+                      setDlgState(() => startTime = picked);
+                    }
+                  },
+                  child: Text(
+                    formatTime(startTime),
+                    style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+              ),
+              const Divider(color: Color(0xFF334155)),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.wb_sunny_rounded, color: Color(0xFFFBBF24)),
+                title: const Text('Thức dậy (Giờ thức giấc):', style: TextStyle(color: Colors.white, fontSize: 13)),
+                trailing: TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Color(0xFF334155)),
+                    ),
+                  ),
+                  onPressed: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: endTime,
+                    );
+                    if (picked != null) {
+                      setDlgState(() => endTime = picked);
+                    }
+                  },
+                  child: Text(
+                    formatTime(endTime),
+                    style: const TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('Hủy', style: TextStyle(color: Color(0xFF94A3B8))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                Navigator.pop(dlgCtx);
+                final startStr = formatTime(startTime);
+                final endStr = formatTime(endTime);
+                try {
+                  final updated = await CaregiverApiService.instance.updateElderThresholds(
+                    widget.elderProfileId,
+                    dayMinBpm,
+                    dayMaxBpm,
+                    nightMinBpm: nightMinBpm,
+                    nightMaxBpm: nightMaxBpm,
+                    sleepStart: startStr,
+                    sleepEnd: endStr,
+                  );
+                  if (mounted) {
+                    setState(() {
+                      _thresholdData = updated;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đã cập nhật khung giờ ngủ: $startStr - $endStr!'),
+                        backgroundColor: const Color(0xFF10B981),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Không thể cập nhật khung giờ ngủ: $e'),
+                        backgroundColor: const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Lưu Thay Đổi', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTuningModal(BuildContext ctx, ThresholdRecommendation rec) {

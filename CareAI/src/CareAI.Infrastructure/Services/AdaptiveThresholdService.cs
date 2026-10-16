@@ -13,6 +13,7 @@ public class AdaptiveThresholdService : IAdaptiveThresholdService
     private readonly CareAiDbContext _db;
     private readonly IMemoryCache _cache;
     private readonly ILogger<AdaptiveThresholdService> _logger;
+    private readonly TimeZoneInfo _timeZone;
 
     public const double ClinicalAbsoluteMinBpm = 40.0;
     public const double ClinicalAbsoluteMaxBpm = 160.0;
@@ -22,11 +23,13 @@ public class AdaptiveThresholdService : IAdaptiveThresholdService
     public AdaptiveThresholdService(
         CareAiDbContext db,
         IMemoryCache cache,
-        ILogger<AdaptiveThresholdService> logger)
+        ILogger<AdaptiveThresholdService> logger,
+        TimeZoneInfo? timeZone = null)
     {
         _db = db;
         _cache = cache;
         _logger = logger;
+        _timeZone = timeZone ?? ResolveTimeZone();
     }
 
     /// <summary>
@@ -213,7 +216,7 @@ public class AdaptiveThresholdService : IAdaptiveThresholdService
         _logger.LogInformation("[ADAPTIVE-THRESHOLDS] Đã cập nhật ngưỡng thích nghi cho Cụ {ElderId}: Ngày=[{DayMin}, {DayMax}] bpm, Đêm=[{NightMin}, {NightMax}] bpm, Giờ ngủ={SleepStart}-{SleepEnd}.",
             elderProfileId, elder.RestingHeartRateMin, elder.RestingHeartRateMax, elder.NightHeartRateMin, elder.NightHeartRateMax, elder.SleepWindowStart, elder.SleepWindowEnd);
 
-        var isCurrentlySleep = IsInSleepWindow(DateTime.UtcNow, elder.SleepWindowStart, elder.SleepWindowEnd);
+        var isCurrentlySleep = IsInSleepWindow(DateTime.UtcNow, elder.SleepWindowStart, elder.SleepWindowEnd, _timeZone);
 
         return new ThresholdResponse(
             ElderProfileId: elderProfileId,
@@ -261,12 +264,12 @@ public class AdaptiveThresholdService : IAdaptiveThresholdService
     }
 
     /// <summary>
-    /// Lấy dải ngưỡng hiệu lực tương ứng theo thời gian (tự động phân biệt Ngày và Đêm theo Khung giờ ngủ).
+    /// Lấy dải ngưỡng hiệu lực tương ứng theo thời gian (tự động phân biệt Ngày và Đêm theo Khung giờ ngủ và Múi giờ).
     /// </summary>
     public async Task<(double Min, double Max, bool IsNight)> GetEffectiveThresholdsForTimeAsync(string elderProfileId, DateTime timestamp, CancellationToken ct = default)
     {
         var data = await GetThresholdDataInternalAsync(elderProfileId, ct);
-        var isNight = IsInSleepWindow(timestamp, data.SleepStart, data.SleepEnd);
+        var isNight = IsInSleepWindow(timestamp, data.SleepStart, data.SleepEnd, _timeZone);
         if (isNight)
         {
             return (data.NightMin, data.NightMax, true);
@@ -274,12 +277,50 @@ public class AdaptiveThresholdService : IAdaptiveThresholdService
         return (data.DayMin, data.DayMax, false);
     }
 
-    public static bool IsInSleepWindow(DateTime timestamp, string windowStart = "22:00", string windowEnd = "06:00")
+    public static TimeZoneInfo ResolveTimeZone(string? timeZoneId = null)
+    {
+        var id = string.IsNullOrWhiteSpace(timeZoneId) ? "Asia/Ho_Chi_Minh" : timeZoneId.Trim();
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(id);
+        }
+        catch
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            }
+            catch
+            {
+                return TimeZoneInfo.CreateCustomTimeZone("ICT", TimeSpan.FromHours(7), "Indochina Time", "Indochina Time");
+            }
+        }
+    }
+
+    public static bool IsInSleepWindow(DateTime timestamp, string windowStart = "22:00", string windowEnd = "06:00", TimeZoneInfo? zone = null)
     {
         if (!TimeSpan.TryParse(windowStart, out var start)) start = new TimeSpan(22, 0, 0);
         if (!TimeSpan.TryParse(windowEnd, out var end)) end = new TimeSpan(6, 0, 0);
 
-        var time = timestamp.TimeOfDay;
+        zone ??= ResolveTimeZone();
+
+        DateTime localTime;
+        if (timestamp.Kind == DateTimeKind.Utc)
+        {
+            localTime = TimeZoneInfo.ConvertTimeFromUtc(timestamp, zone);
+        }
+        else if (timestamp.Kind == DateTimeKind.Local)
+        {
+            localTime = TimeZoneInfo.ConvertTime(timestamp, zone);
+        }
+        else
+        {
+            localTime = zone.Equals(TimeZoneInfo.Utc)
+                ? timestamp
+                : TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(timestamp, DateTimeKind.Utc), zone);
+        }
+
+        var time = localTime.TimeOfDay;
         if (start <= end)
         {
             return time >= start && time < end;
