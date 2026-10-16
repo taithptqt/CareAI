@@ -120,12 +120,18 @@ public class DevicesController : ControllerBase
         using var sha = SHA256.Create();
         var tokenHash = Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(rawDeviceToken))).ToLowerInvariant();
 
+        var targetDeviceType = request.DeviceType ?? "Smartwatch";
+        var isWatch = targetDeviceType.Contains("watch", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(targetDeviceType, "WearOS", StringComparison.OrdinalIgnoreCase);
+        var isPhone = string.Equals(targetDeviceType, "Smartphone", StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(targetDeviceType, "SMARTPHONE_COMPANION", StringComparison.OrdinalIgnoreCase);
+
         var existingDevice = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == request.DeviceId, ct);
         if (existingDevice != null)
         {
             existingDevice.ElderProfileId = elder.Id;
             existingDevice.DeviceTokenHash = tokenHash;
-            existingDevice.DeviceType = request.DeviceType ?? "Smartwatch";
+            existingDevice.DeviceType = targetDeviceType;
             existingDevice.DeviceModel = request.DeviceModel ?? existingDevice.DeviceModel;
             existingDevice.FirmwareVersion = request.FirmwareVersion ?? "1.0.0";
             existingDevice.IsActive = true;
@@ -139,7 +145,7 @@ public class DevicesController : ControllerBase
                 Id = request.DeviceId,
                 ElderProfileId = elder.Id,
                 DeviceTokenHash = tokenHash,
-                DeviceType = request.DeviceType ?? "Smartwatch",
+                DeviceType = targetDeviceType,
                 DeviceModel = request.DeviceModel,
                 FirmwareVersion = request.FirmwareVersion ?? "1.0.0",
                 IsActive = true,
@@ -148,6 +154,36 @@ public class DevicesController : ControllerBase
                 CreatedAt = now,
                 UpdatedAt = now
             });
+        }
+
+        // Tự động vô hiệu hóa các thiết bị cũ cùng loại của Cụ để tránh thiết bị "ma" (ghost devices)
+        if (isWatch)
+        {
+            var oldWatches = await _db.DeviceRegistrations
+                .Where(d => d.ElderProfileId == elder.Id &&
+                            d.Id != request.DeviceId &&
+                            d.IsActive &&
+                            (d.DeviceType == "Smartwatch" || d.DeviceType == "AppleWatch" || d.DeviceType == "GalaxyWatch" || d.DeviceType == "WearOS"))
+                .ToListAsync(ct);
+            foreach (var w in oldWatches)
+            {
+                w.IsActive = false;
+                w.UpdatedAt = now;
+            }
+        }
+        else if (isPhone)
+        {
+            var oldPhones = await _db.DeviceRegistrations
+                .Where(d => d.ElderProfileId == elder.Id &&
+                            d.Id != request.DeviceId &&
+                            d.IsActive &&
+                            (d.DeviceType == "Smartphone" || d.DeviceType == "SMARTPHONE_COMPANION"))
+                .ToListAsync(ct);
+            foreach (var p in oldPhones)
+            {
+                p.IsActive = false;
+                p.UpdatedAt = now;
+            }
         }
 
         // Vô hiệu hóa PIN sau khi sử dụng thành công (One-Time PIN)
@@ -300,15 +336,31 @@ public class DevicesController : ControllerBase
             return NotFound(new { error = "Không tìm thấy thiết bị trạm trung chuyển." });
         }
 
-        var watchDevice = await _db.DeviceRegistrations.FirstOrDefaultAsync(d =>
-            d.ElderProfileId == companionDevice.ElderProfileId &&
-            (d.DeviceType == "Smartwatch" || d.DeviceType == "AppleWatch" || d.DeviceType == "GalaxyWatch" || d.DeviceType == "WearOS"), ct);
+        var watchDevice = await _db.DeviceRegistrations
+            .Where(d => d.ElderProfileId == companionDevice.ElderProfileId &&
+                        d.IsActive &&
+                        (d.DeviceType == "Smartwatch" || d.DeviceType == "AppleWatch" || d.DeviceType == "GalaxyWatch" || d.DeviceType == "WearOS"))
+            .OrderByDescending(d => d.LastHeartbeat)
+            .FirstOrDefaultAsync(ct);
 
         var now = DateTime.UtcNow;
         var isConnected = request.IsConnected ?? true;
 
         if (watchDevice != null)
         {
+            // Tự động vô hiệu hóa các thiết bị đồng hồ cũ khác của Cụ nếu có
+            var staleWatches = await _db.DeviceRegistrations
+                .Where(d => d.ElderProfileId == companionDevice.ElderProfileId &&
+                            d.Id != watchDevice.Id &&
+                            d.IsActive &&
+                            (d.DeviceType == "Smartwatch" || d.DeviceType == "AppleWatch" || d.DeviceType == "GalaxyWatch" || d.DeviceType == "WearOS"))
+                .ToListAsync(ct);
+            foreach (var stale in staleWatches)
+            {
+                stale.IsActive = false;
+                stale.UpdatedAt = now;
+            }
+
             if (!string.IsNullOrWhiteSpace(request.WatchModel))
             {
                 watchDevice.DeviceModel = request.WatchModel;
@@ -327,6 +379,18 @@ public class DevicesController : ControllerBase
         }
         else if (!string.IsNullOrWhiteSpace(request.WatchModel))
         {
+            // Tự động vô hiệu hóa các thiết bị đồng hồ cũ nếu có
+            var staleWatches = await _db.DeviceRegistrations
+                .Where(d => d.ElderProfileId == companionDevice.ElderProfileId &&
+                            d.IsActive &&
+                            (d.DeviceType == "Smartwatch" || d.DeviceType == "AppleWatch" || d.DeviceType == "GalaxyWatch" || d.DeviceType == "WearOS"))
+                .ToListAsync(ct);
+            foreach (var stale in staleWatches)
+            {
+                stale.IsActive = false;
+                stale.UpdatedAt = now;
+            }
+
             watchDevice = new DeviceRegistration
             {
                 Id = $"WATCH_{companionDevice.Id.Replace("DEV_", "")}",

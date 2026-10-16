@@ -642,6 +642,81 @@ public class DashboardAndGpsTests : IDisposable
         Assert.Equal(100, response.WatchBatteryLevel);
     }
 
+    [Fact]
+    public async Task Fact_Dashboard_MultipleWatchDevices_PrioritizesFreshestAndDeactivatesZombie()
+    {
+        var now = DateTime.UtcNow;
+
+        // 1. Giả lập Cụ có 1 bản ghi đồng hồ cũ từ hôm qua (zombie record)
+        var staleWatch = new DeviceRegistration
+        {
+            Id = "WATCH_STALE_YESTERDAY",
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "stale_hash",
+            DeviceType = "AppleWatch",
+            DeviceModel = null,
+            IsActive = true,
+            LastHeartbeat = now.AddHours(-22),
+            RegisteredAt = now.AddHours(-24)
+        };
+
+        // 2. Đồng hồ mới thật vừa kết nối hôm nay
+        var freshWatch = new DeviceRegistration
+        {
+            Id = "WATCH_FRESH_TODAY",
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "fresh_hash",
+            DeviceType = "AppleWatch",
+            DeviceModel = "Apple Watch Series 9",
+            IsActive = true,
+            LastHeartbeat = now.AddSeconds(-10),
+            RegisteredAt = now.AddHours(-1)
+        };
+
+        _db.DeviceRegistrations.AddRange(staleWatch, freshWatch);
+        await _db.SaveChangesAsync();
+
+        // 3. Dashboard phải luôn chọn thiết bị mới nhất (ONLINE) thay vì bị kẹt ở thiết bị cũ (DISCONNECTED / SIGNAL_LOST)
+        var dashboardController = CreateController(_authCaregiverId);
+        var dashResult = await dashboardController.GetElderDashboard(_testElderId, CancellationToken.None);
+
+        var okDash = Assert.IsType<OkObjectResult>(dashResult);
+        var response = Assert.IsType<ElderDashboardResponse>(okDash.Value);
+
+        Assert.Equal("ONLINE", response.WatchStatus);
+        Assert.Equal("Apple Watch Series 9", response.WatchModel);
+
+        // 4. Khi SyncWatch được gọi qua trạm Companion, hệ thống tự động vô hiệu hóa bản ghi zombie cũ
+        var companionId = "DEV_COMPANION_SYNC_01";
+        _db.DeviceRegistrations.Add(new DeviceRegistration
+        {
+            Id = companionId,
+            ElderProfileId = _testElderId,
+            DeviceTokenHash = "comp_hash_01",
+            DeviceType = "CompanionPhone",
+            IsActive = true,
+            LastHeartbeat = now
+        });
+        await _db.SaveChangesAsync();
+
+        var devicesController = new DevicesController(_db, NullLogger<DevicesController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
+        devicesController.HttpContext.Items["ValidatedDeviceId"] = companionId;
+
+        await devicesController.SyncWatch(
+            new SyncWatchRequest("Apple Watch Series 9", IsConnected: true, DisconnectReason: null, IsWorn: true, IsCharging: false, BatteryLevel: 95),
+            CancellationToken.None);
+
+        var staleFromDb = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == "WATCH_STALE_YESTERDAY");
+        Assert.NotNull(staleFromDb);
+        Assert.False(staleFromDb.IsActive, "Bản ghi đồng hồ cũ (zombie) phải được tự động chuyển sang IsActive = false");
+    }
+
     public void Dispose()
     {
         _db.Dispose();

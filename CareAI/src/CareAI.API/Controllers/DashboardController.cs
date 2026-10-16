@@ -58,14 +58,17 @@ public class DashboardController : ControllerBase
         var age = now.Year - elder.DateOfBirth.Year;
         if (elder.DateOfBirth.Date > now.AddYears(-age)) age--;
 
-        // Trạng thái thiết bị
-        var activeDevices = elder.Devices.Where(d => d.IsActive).ToList();
+        // Trạng thái thiết bị (luôn sắp xếp theo LastHeartbeat giảm dần để ưu tiên thiết bị hoạt động mới nhất)
+        var activeDevices = elder.Devices
+            .Where(d => d.IsActive)
+            .OrderByDescending(d => d.LastHeartbeat)
+            .ToList();
         var isOnline = activeDevices.Any(d =>
             d.LastHeartbeat >= now.Subtract(DeviceStaleEngine.StaleAfterFor(d.DeviceType)));
         var deviceStatus = isOnline ? "ONLINE" : "OFFLINE";
         var lastSyncedAt = activeDevices.Count > 0 ? (DateTime?)activeDevices.Max(d => d.LastHeartbeat) : null;
 
-        // Xác định tên định danh cụ thể của đồng hồ đeo tay
+        // Xác định tên định danh cụ thể của đồng hồ đeo tay (luôn ưu tiên thiết bị phát tín hiệu mới nhất)
         var watchDevice = activeDevices.FirstOrDefault(d =>
             string.Equals(d.DeviceType, "Smartwatch", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(d.DeviceType, "AppleWatch", StringComparison.OrdinalIgnoreCase) ||
