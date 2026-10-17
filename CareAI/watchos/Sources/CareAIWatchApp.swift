@@ -107,6 +107,8 @@ struct ContentView: View {
                     Text("CareAI")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     Spacer()
                     Button(action: { showSettings = true }) {
                         Image(systemName: "gearshape.fill")
@@ -386,7 +388,7 @@ struct PrimaryEmergencyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 5) {
-                // Tiêu đề ứng dụng & Icon trạng thái trực tuyến / ngoại tuyến
+                // Hàng 1: Tiêu đề ứng dụng CareAI & Pin + Cài đặt (Không để chữ I bị rớt dòng)
                 HStack(spacing: 4) {
                     Button(action: {
                         let now = Date()
@@ -402,7 +404,7 @@ struct PrimaryEmergencyView: View {
                         }
                         lastSecretTapTime = now
                     }) {
-                        HStack(spacing: 3) {
+                        HStack(spacing: 4) {
                             Image("CareAILogo")
                                 .resizable()
                                 .scaledToFit()
@@ -410,20 +412,9 @@ struct PrimaryEmergencyView: View {
                             Text("CareAI")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97)) // #38BDF8
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
-                    }
-                    .buttonStyle(.plain)
-
-                    // Icon chấm tròn: Xanh (Trực tuyến) / Vàng (Ngoại tuyến) - Chạm để xem bảng chi tiết
-                    Button(action: {
-                        WKInterfaceDevice.current().play(.click)
-                        showStatusDetail = true
-                    }) {
-                        Circle()
-                            .fill(isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
-                            .frame(width: 8, height: 8)
-                            .padding(4)
-                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 
@@ -443,14 +434,14 @@ struct PrimaryEmergencyView: View {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 13))
                             .foregroundColor(Color(red: 0.22, green: 0.74, blue: 0.97))
-                            .frame(width: 30, height: 30)
+                            .frame(width: 26, height: 26)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 4)
 
-                // Chỉ hiển thị Banner khi có Báo Động Khẩn Cấp (té ngã, SOS, sinh hiệu nguy kịch)
+                // Hàng 2: Trạng thái Trực tuyến / Ngoại tuyến (hoặc Banner Cấp Cứu khi có báo động)
                 if let alertTitle = emergencyAlertTitle {
                     Button(action: {
                         WKInterfaceDevice.current().play(.click)
@@ -471,6 +462,35 @@ struct PrimaryEmergencyView: View {
                         .frame(maxWidth: .infinity)
                         .background(emergencyAlertColor)
                         .cornerRadius(12)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    // Dấu chấm trực tuyến chuyển xuống hàng 2 như cũ và hiển thị chữ Trực tuyến / Ngoại tuyến
+                    Button(action: {
+                        WKInterfaceDevice.current().play(.click)
+                        showStatusDetail = true
+                    }) {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
+                                .frame(width: 7, height: 7)
+                            Text(isOnline ? "Trực tuyến" : "Ngoại tuyến")
+                                .font(.system(size: 9.5, weight: .semibold))
+                                .foregroundColor(isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(Color(white: 0.4))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3.5)
+                        .frame(maxWidth: .infinity)
+                        .background((isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04)).opacity(0.15))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke((isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04)).opacity(0.35), lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
