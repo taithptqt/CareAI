@@ -21,7 +21,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         if session.delegate == nil {
             session.delegate = self
         }
-        if session.activationState != .activated {
+        if session.activationState == .notActivated {
             session.activate()
         }
     }
@@ -485,6 +485,10 @@ private final class FallSessionCoordinator: NSObject, WKExtendedRuntimeSessionDe
     func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
         NSLog("[CareAI-Watch] WKExtendedRuntimeSession invalidate (mã: %ld). Tự phục hồi sau 1s nếu đang đeo...", reason.rawValue)
         isRunning = false
+        if let error = error as NSError?, error.code == 8 {
+            NSLog("[CareAI-Watch] WKExtendedRuntimeSession không được cấp quyền chạy nền tự do. Duy trì cảm biến theo chu kỳ tiêu chuẩn.")
+            return
+        }
         Task { @MainActor [weak self] in
             guard let self = self, let sync = self.sync else { return }
             if sync.autoFallDetectionEnabled && sync.isWorn && !sync.isCharging {
@@ -1348,27 +1352,11 @@ final class HealthSync: ObservableObject {
             fallSessionCoordinator?.start()
         }
 
-        var isAppleFallSupported = false
-        // Bọc trong cầu nối catchException để triệt tiêu hoàn toàn nguy cơ NSInternalInconsistencyException crash
-        let safeExecution = catchException {
-            isAppleFallSupported = CMFallDetectionManager.isAvailable
-        }
-
-        if safeExecution && isAppleFallSupported {
-            // TẦNG 1: Đủ quyền Entitlement của Apple -> Sử dụng chip phần cứng Apple Coprocessor (Tiết kiệm pin tối đa)
-            let manager = CMFallDetectionManager()
-            let coordinator = FallDetectionCoordinator(sync: self)
-            manager.delegate = coordinator
-            self.fallDetectionManager = manager
-            self.fallCoordinator = coordinator
-            // Tắt cập nhật gia tốc phần mềm để nhường toàn bộ cho chip phần cứng
-            motionManager.stopAccelerometerUpdates()
-            diagnosticLog = "⚡ Apple Fall Detection sẵn sàng (Tiết kiệm pin phần cứng)"
-        } else {
-            // TẦNG 2: Bắt được ngoại lệ thiếu Entitlement hoặc máy không hỗ trợ -> Tự động chuyển đổi sang CMMotionManager
-            startMotionFallDetectionFallback()
-            diagnosticLog = batterySaverEnabled ? "🔋 Cảm biến CoreMotion Fallback (Tiết kiệm pin 10Hz)" : "⚡ Cảm biến CoreMotion Fallback (20Hz)"
-        }
+        // 🛡️ BẢO VỆ TỰ CHỦ QUA COREMOTION (CMMotionManager):
+        // Lưu ý: Không gọi CMFallDetectionManager.isAvailable vì API này kích hoạt
+        // NSAssert trong CMFallDetectionManager.mm:116 làm crash app lập tức nếu thiếu Entitlement đặc quyền của Apple.
+        startMotionFallDetectionFallback()
+        diagnosticLog = batterySaverEnabled ? "🔋 Cảm biến CoreMotion (Tiết kiệm pin 10Hz)" : "⚡ Cảm biến CoreMotion (20Hz)"
     }
 
     private func startMotionFallDetectionFallback() {
