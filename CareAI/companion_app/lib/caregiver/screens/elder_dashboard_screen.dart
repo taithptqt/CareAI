@@ -1624,8 +1624,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       spots.sort((a, b) => a.x.compareTo(b.x));
     }
 
-    final double minVal = spo2?.minSpo2 ?? 96.0;
-    final double avgVal = spo2?.avgSpo2 ?? 97.8;
+    final double minVal = spo2?.minSpo2 ?? 0.0;
+    final double avgVal = spo2?.avgSpo2 ?? 0.0;
     final int dipsCount = spo2?.dipsBelow95Count ?? 0;
 
     return Column(

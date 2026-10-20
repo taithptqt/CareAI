@@ -694,7 +694,7 @@ class Spo2Point {
   factory Spo2Point.fromJson(Map<String, dynamic> json) {
     return Spo2Point(
       timestamp: _parseUtcDateTime(json['timestamp']),
-      value: (json['value'] as num?)?.toDouble() ?? 98.0,
+      value: (json['value'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -724,12 +724,12 @@ class Spo224hData {
               ?.map((p) => Spo2Point.fromJson(p as Map<String, dynamic>))
               .toList() ??
           [],
-      minSpo2: (json['minSpo2'] as num?)?.toDouble() ?? 95.0,
-      maxSpo2: (json['maxSpo2'] as num?)?.toDouble() ?? 99.0,
-      avgSpo2: (json['avgSpo2'] as num?)?.toDouble() ?? 97.0,
-      latestSpo2: (json['latestSpo2'] as num?)?.toDouble() ?? 98.0,
+      minSpo2: (json['minSpo2'] as num?)?.toDouble() ?? 0.0,
+      maxSpo2: (json['maxSpo2'] as num?)?.toDouble() ?? 0.0,
+      avgSpo2: (json['avgSpo2'] as num?)?.toDouble() ?? 0.0,
+      latestSpo2: (json['latestSpo2'] as num?)?.toDouble() ?? 0.0,
       dipsBelow95Count: json['dipsBelow95Count'] ?? 0,
-      statusColor: json['statusColor'] ?? 'GREEN',
+      statusColor: json['statusColor'] ?? 'UNKNOWN',
     );
   }
 }
