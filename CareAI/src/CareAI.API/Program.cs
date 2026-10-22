@@ -16,14 +16,13 @@ using CareAI.Infrastructure.WeeklyReports;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Local Flutter web development only; production origins require explicit configuration.
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddCors(options => options.AddPolicy("FlutterLocal", policy =>
-        policy.WithOrigins("http://localhost:8080", "http://127.0.0.1:8080")
-            .AllowAnyHeader()
-            .AllowAnyMethod()));
-}
+// Explicit origins apply in Production too, where the Azure API serves Flutter web.
+var webOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+builder.Services.AddCors(options => options.AddPolicy("CareAiWeb", policy =>
+    policy.WithOrigins(webOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
 
 // 1. CẤU HÌNH CƠ SỞ DỮ LIỆU SQL SERVER
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
@@ -155,10 +154,7 @@ var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseRouting();
-if (app.Environment.IsDevelopment())
-{
-    app.UseCors("FlutterLocal");
-}
+app.UseCors("CareAiWeb");
 
 // 6. PIPELINE XỬ LÝ HTTP & SWAGGER
 if (app.Environment.IsDevelopment())
