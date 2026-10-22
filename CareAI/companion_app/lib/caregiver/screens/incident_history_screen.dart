@@ -1,5 +1,9 @@
+import '../../theme/careai_theme.dart';
+import '../../widgets/careai_ui.dart';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 import 'incident_detail_screen.dart';
@@ -57,7 +61,8 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoading && !_isLoadingMore && _currentPage < _totalPages) {
         _loadPage(_currentPage + 1, append: true);
       }
@@ -102,14 +107,15 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
     }
 
     try {
-      final pagedResult = await CaregiverApiService.instance.getElderIncidentHistory(
-        _selectedElderId!,
-        page: page,
-        pageSize: _pageSize,
-        emergencyType: _selectedEmergencyType,
-        severity: _selectedSeverity,
-        status: _selectedStatus,
-      );
+      final pagedResult = await CaregiverApiService.instance
+          .getElderIncidentHistory(
+            _selectedElderId!,
+            page: page,
+            pageSize: _pageSize,
+            emergencyType: _selectedEmergencyType,
+            severity: _selectedSeverity,
+            status: _selectedStatus,
+          );
 
       if (!mounted) return;
 
@@ -142,11 +148,11 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
-        title: const Text('Lịch Sử Sự Cố & Cứu Hộ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: const Color(0xFF0284C7),
-        foregroundColor: Colors.white,
+        title: const Text('Lịch sử chăm sóc'),
+        backgroundColor: CareAiColors.canvas,
+        foregroundColor: CareAiColors.ink,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -157,7 +163,12 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
       ),
       body: Column(
         children: [
-          _buildFilterBar(),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.36,
+            ),
+            child: SingleChildScrollView(child: _buildFilterBar()),
+          ),
           _buildSummaryStats(),
           Expanded(child: _buildBody()),
         ],
@@ -174,46 +185,70 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
         children: [
           // 1. Chọn Người cao tuổi (nếu có nhiều người)
           if (_elders.length > 1 || _selectedElderId != null) ...[
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.person_outline, size: 20, color: Color(0xFF0284C7)),
-                const SizedBox(width: 8),
-                const Text('Người cao tuổi:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF475569))),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 20,
+                      color: Color(0xFF4A3020),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedElderId,
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF0284C7)),
-                        items: _elders.map((elder) {
-                          return DropdownMenuItem<String>(
-                            value: elder.id,
-                            child: Text(
-                              elder.fullName,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (newId) {
-                          if (newId != null && newId != _selectedElderId) {
-                            final chosen = _elders.firstWhere((e) => e.id == newId);
-                            setState(() {
-                              _selectedElderId = newId;
-                              _selectedElderName = chosen.fullName;
-                            });
-                            _onFilterChanged();
-                          }
-                        },
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Người cao tuổi:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Color(0xFF6E6259),
+                        ),
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2ECE4),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE4DACD)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedElderId,
+                      isExpanded: true,
+                      icon: const Icon(
+                        Icons.arrow_drop_down,
+                        color: Color(0xFF4A3020),
+                      ),
+                      items: _elders.map((elder) {
+                        return DropdownMenuItem<String>(
+                          value: elder.id,
+                          child: Text(
+                            elder.fullName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (newId) {
+                        if (newId != null && newId != _selectedElderId) {
+                          final chosen = _elders.firstWhere(
+                            (e) => e.id == newId,
+                          );
+                          setState(() {
+                            _selectedElderId = newId;
+                            _selectedElderName = chosen.fullName;
+                          });
+                          _onFilterChanged();
+                        }
+                      },
                     ),
                   ),
                 ),
@@ -229,11 +264,11 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
               children: [
                 _statusFilterChip('Tất cả trạng thái', null),
                 const SizedBox(width: 8),
-                _statusFilterChip('🔴 Đang mở', 1),
+                _statusFilterChip('Đang mở', 1),
                 const SizedBox(width: 8),
-                _statusFilterChip('🟡 Đã tiếp nhận', 2),
+                _statusFilterChip('Đã tiếp nhận', 2),
                 const SizedBox(width: 8),
-                _statusFilterChip('🟢 Đã giải quyết', 3),
+                _statusFilterChip('Đã giải quyết', 3),
               ],
             ),
           ),
@@ -270,11 +305,14 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
-      selectedColor: const Color(0xFFE0F2FE),
+      selectedColor: CareAiColors.brown,
+      showCheckmark: false,
+      shape: const StadiumBorder(),
+      side: const BorderSide(color: CareAiColors.border),
       labelStyle: TextStyle(
         fontSize: 12,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        color: isSelected ? const Color(0xFF0369A1) : const Color(0xFF475569),
+        color: isSelected ? Colors.white : CareAiColors.brown,
       ),
       onSelected: (selected) {
         setState(() => _selectedStatus = statusValue);
@@ -288,10 +326,12 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
     return FilterChip(
       label: Text(label),
       selected: isSelected,
-      selectedColor: const Color(0xFFE2E8F0),
+      selectedColor: CareAiColors.sageLight,
+      shape: const StadiumBorder(),
+      side: const BorderSide(color: CareAiColors.border),
       labelStyle: TextStyle(
         fontSize: 11,
-        color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+        color: isSelected ? const Color(0xFF231811) : const Color(0xFF7D7168),
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
       onSelected: (selected) {
@@ -301,26 +341,49 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
     );
   }
 
-  Widget _buildSummaryStats() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: const Color(0xFFF1F5F9),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Tổng cộng: $_totalCount sự cố${_selectedElderName.isNotEmpty && _selectedElderName != 'Tất cả' ? ' ($_selectedElderName)' : ''}',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+  Widget _buildSummaryStats() => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          _selectedElderName.isNotEmpty && _selectedElderName != 'Tất cả'
+              ? _selectedElderName
+              : 'Các sự cố trong gia đình',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: CareAiColors.ink,
           ),
-          if (_totalPages > 1)
+        ),
+        const SizedBox(height: 7),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          spacing: 12,
+          runSpacing: 6,
+          children: [
             Text(
-              'Trang $_currentPage / $_totalPages',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              _isLoading
+                  ? 'Đang cập nhật lịch sử…'
+                  : '$_totalCount sự cố phù hợp bộ lọc',
+              style: const TextStyle(
+                fontSize: 13,
+                color: CareAiColors.secondary,
+              ),
             ),
-        ],
-      ),
-    );
-  }
+            if (_totalPages > 1)
+              Text(
+                'Trang $_currentPage / $_totalPages',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: CareAiColors.secondary,
+                ),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
 
   Widget _buildBody() {
     if (_isLoading) {
@@ -330,7 +393,10 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
           children: [
             CircularProgressIndicator(strokeWidth: 3),
             SizedBox(height: 12),
-            Text('Đang tải lịch sử sự cố...', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+            Text(
+              'Đang tải lịch sử sự cố...',
+              style: TextStyle(fontSize: 13, color: Color(0xFF7D7168)),
+            ),
           ],
         ),
       );
@@ -362,37 +428,12 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
       );
     }
 
-    if (_incidents.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF1F5F9),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.history_toggle_off, size: 48, color: Color(0xFF94A3B8)),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Không Có Sự Cố Nào',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Không tìm thấy sự cố nào phù hợp với bộ lọc đã chọn.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-              ),
-            ],
-          ),
-        ),
+    if (_incidents.isEmpty)
+      return const CareAiEmptyState(
+        icon: Icons.history_rounded,
+        title: 'Chưa có sự cố phù hợp',
+        description: 'Lịch sử đã ghi nhận sẽ xuất hiện tại đây. Bạn có thể chọn bộ lọc khác để xem lại.',
       );
-    }
 
     return RefreshIndicator(
       onRefresh: () => _loadPage(1, append: false),
@@ -439,10 +480,18 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
   IconData _emergencyIcon(String type) {
     final upper = type.toUpperCase();
     if (upper.contains('FALL')) return Icons.warning_rounded;
-    if (upper.contains('OXYGEN') || upper.contains('SPO2')) return Icons.air_rounded;
-    if (upper.contains('TACHYCARDIA') || upper.contains('BRADYCARDIA') || upper.contains('SURGE') || upper.contains('HR') || upper.contains('HEART')) return Icons.monitor_heart_rounded;
-    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) return Icons.speed_rounded;
-    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.wifi_off_rounded;
+    if (upper.contains('OXYGEN') || upper.contains('SPO2'))
+      return Icons.air_rounded;
+    if (upper.contains('TACHYCARDIA') ||
+        upper.contains('BRADYCARDIA') ||
+        upper.contains('SURGE') ||
+        upper.contains('HR') ||
+        upper.contains('HEART'))
+      return Icons.monitor_heart_rounded;
+    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE'))
+      return Icons.speed_rounded;
+    if (upper.contains('STALE') || upper.contains('OFFLINE'))
+      return Icons.wifi_off_rounded;
     if (upper.contains('SOS')) return Icons.emergency_rounded;
     return Icons.crisis_alert_rounded;
   }
@@ -450,12 +499,18 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
   String _emergencyLabel(String type) {
     final upper = type.toUpperCase();
     if (upper.contains('FALL')) return 'Té ngã';
-    if (upper.contains('LOW_OXYGEN') || upper.contains('LOWOXYGEN') || upper.contains('OXYGEN')) return 'Oxy máu thấp';
-    if (upper.contains('TACHYCARDIA') || upper.contains('CRITICAL_HIGH_HR')) return 'Nhịp tim nhanh';
-    if (upper.contains('BRADYCARDIA') || upper.contains('CRITICAL_LOW_HR')) return 'Nhịp tim chậm';
+    if (upper.contains('LOW_OXYGEN') ||
+        upper.contains('LOWOXYGEN') ||
+        upper.contains('OXYGEN'))
+      return 'Oxy máu thấp';
+    if (upper.contains('TACHYCARDIA') || upper.contains('CRITICAL_HIGH_HR'))
+      return 'Nhịp tim nhanh';
+    if (upper.contains('BRADYCARDIA') || upper.contains('CRITICAL_LOW_HR'))
+      return 'Nhịp tim chậm';
     if (upper.contains('SURGE')) return 'Nhịp tim tăng vọt';
     if (upper.contains('HYPERTENSION')) return 'Cơn tăng huyết áp';
-    if (upper.contains('STALE') || upper.contains('OFFLINE')) return 'Mất tín hiệu';
+    if (upper.contains('STALE') || upper.contains('OFFLINE'))
+      return 'Mất tín hiệu';
     if (upper.contains('SOS')) return 'Nút khẩn cấp SOS';
     return type;
   }
@@ -464,169 +519,163 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
     final isOpen = incident.isOpen;
     final isAck = incident.isAcknowledged;
     final isResolved = incident.isResolved;
-
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-
-    if (isOpen) {
-      statusColor = const Color(0xFFDC2626);
-      statusText = 'Đang Mở';
-      statusIcon = Icons.warning_amber_rounded;
-    } else if (isAck) {
-      statusColor = const Color(0xFFD97706);
-      statusText = 'Đã Tiếp Nhận';
-      statusIcon = Icons.check_circle_outline;
-    } else {
-      statusColor = const Color(0xFF16A34A);
-      statusText = 'Đã Giải Quyết';
-      statusIcon = Icons.task_alt;
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: isOpen ? 2 : 1,
-      color: isOpen ? const Color(0xFFFEF2F2) : Colors.white,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => IncidentDetailScreen(incident: incident)),
-          );
-          _loadPage(_currentPage, append: false);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header: Loại khẩn cấp, Mức độ, Huy hiệu trạng thái
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: statusColor.withValues(alpha: 0.12),
-                    child: Icon(
-                      _emergencyIcon(incident.emergencyType),
-                      color: statusColor,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${_emergencyLabel(incident.emergencyType)} · ${incident.elderName}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          DateFormat('HH:mm:ss dd/MM/yyyy').format(incident.triggeredAt.toLocal()),
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(statusIcon, size: 12, color: statusColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          statusText,
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+    final color = isOpen
+        ? CareAiColors.danger
+        : isAck
+        ? CareAiColors.amber
+        : CareAiColors.greenInk;
+    final status = isOpen
+        ? 'Chưa tiếp nhận'
+        : isAck
+        ? 'Đã tiếp nhận'
+        : 'Đã giải quyết';
+    final statusIcon = isOpen
+        ? Icons.notification_important_outlined
+        : isAck
+        ? Icons.check_circle_outline_rounded
+        : Icons.task_alt_rounded;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => IncidentDetailScreen(incident: incident),
               ),
-              const Divider(height: 20),
-
-              // Thông tin tiếp nhận hoặc giải quyết
-              if (isAck && incident.acknowledgedAt != null) ...[
-                Row(
-                  children: [
-                    const Icon(Icons.person_pin, size: 14, color: Color(0xFFD97706)),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Tiếp nhận lúc: ${DateFormat('HH:mm:ss dd/MM').format(incident.acknowledgedAt!.toLocal())}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF78350F), fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              if (isResolved && incident.resolvedAt != null) ...[
+            );
+            _loadPage(_currentPage, append: false);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.verified, size: 14, color: Color(0xFF16A34A)),
-                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _emergencyIcon(incident.emergencyType),
+                        size: 22,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Giải quyết lúc: ${DateFormat('HH:mm:ss dd/MM').format(incident.resolvedAt!.toLocal())}',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF14532D), fontWeight: FontWeight.w600),
-                          ),
-                          if (incident.resolutionNotes?.isNotEmpty == true) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              'Ghi chú: "${incident.resolutionNotes}"',
-                              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Color(0xFF475569)),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            incident.elderName,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: CareAiColors.ink,
                             ),
-                          ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            _emergencyLabel(incident.emergencyType),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: CareAiColors.brown,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            DateFormat('HH:mm · dd/MM/yyyy')
+                                .format(incident.triggeredAt.toLocal()),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: CareAiColors.secondary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: CareAiColors.secondary,
+                    ),
                   ],
                 ),
-              ],
-
-              // Sinh hiệu tóm tắt nếu có snapshot
-              if (incident.snapshot != null) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children: [
-                    if (incident.snapshot?.heartRateBpm != null)
-                      _miniVital('Nhịp tim', '${incident.snapshot!.heartRateBpm!.toStringAsFixed(0)} bpm', Icons.favorite),
-                    if (incident.snapshot?.spO2Percent != null)
-                      _miniVital('SpO₂', '${incident.snapshot!.spO2Percent!.toStringAsFixed(0)}%', Icons.air),
-                    if (incident.snapshot?.bpSystolic != null && incident.snapshot?.bpDiastolic != null)
-                      _miniVital('Huyết áp', '${incident.snapshot!.bpSystolic!.toInt()}/${incident.snapshot!.bpDiastolic!.toInt()}', Icons.speed),
-                  ],
+                const SizedBox(height: 16),
+                CareAiStatusLabel(
+                  label: status,
+                  icon: statusIcon,
+                  color: color,
                 ),
-              ],
-
-              const SizedBox(height: 10),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text('Xem chi tiết & biểu đồ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
-                  SizedBox(width: 4),
-                  Icon(Icons.arrow_forward, size: 14, color: Color(0xFF0284C7)),
+                if (isAck && incident.acknowledgedAt != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Tiếp nhận lúc ${DateFormat('HH:mm · dd/MM').format(incident.acknowledgedAt!.toLocal())}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: CareAiColors.secondary,
+                    ),
+                  ),
                 ],
-              ),
-            ],
+                if (isResolved && incident.resolvedAt != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Hoàn tất lúc ${DateFormat('HH:mm · dd/MM').format(incident.resolvedAt!.toLocal())}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: CareAiColors.greenInk,
+                    ),
+                  ),
+                  if (incident.resolutionNotes?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      incident.resolutionNotes!,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: CareAiColors.secondary,
+                      ),
+                    ),
+                  ],
+                ],
+                if (incident.snapshot != null) ...[
+                  const Divider(),
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 10,
+                    children: [
+                      if (incident.snapshot?.heartRateBpm != null)
+                        _miniVital(
+                          'Nhịp tim',
+                          '${incident.snapshot!.heartRateBpm!.toStringAsFixed(0)} bpm',
+                          Icons.favorite_outline_rounded,
+                        ),
+                      if (incident.snapshot?.spO2Percent != null)
+                        _miniVital(
+                          'SpO₂',
+                          '${incident.snapshot!.spO2Percent!.toStringAsFixed(0)}%',
+                          Icons.air_rounded,
+                        ),
+                      if (incident.snapshot?.bpSystolic != null &&
+                          incident.snapshot?.bpDiastolic != null)
+                        _miniVital(
+                          'Huyết áp',
+                          '${incident.snapshot!.bpSystolic!.toInt()}/${incident.snapshot!.bpDiastolic!.toInt()}',
+                          Icons.speed_rounded,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -637,10 +686,20 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: const Color(0xFF64748B)),
+        Icon(icon, size: 12, color: const Color(0xFF7D7168)),
         const SizedBox(width: 4),
-        Text('$label: ', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-        Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+        Text(
+          '$label: ',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF7D7168)),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF231811),
+          ),
+        ),
       ],
     );
   }

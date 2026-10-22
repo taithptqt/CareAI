@@ -90,17 +90,17 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
         _goBackToRoleSelection();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: const Color(0xFFFAF7F2),
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF4A3020)),
             tooltip: 'Quay lại Chọn vai trò',
             onPressed: _goBackToRoleSelection,
           ),
-          title: const Text('Ghép Nối Thiết Bị CareAI', style: TextStyle(fontWeight: FontWeight.bold)),
-          centerTitle: true,
-          backgroundColor: const Color(0xFF1E293B),
-          foregroundColor: Colors.white,
+          title: const Text('Kết nối gia đình'),
+          centerTitle: false,
+          backgroundColor: const Color(0xFFFAF7F2),
+          foregroundColor: const Color(0xFF231811),
           elevation: 0,
         ),
       body: SafeArea(
@@ -116,23 +116,24 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                   const Icon(
                     Icons.phonelink_setup_rounded,
                     size: 80,
-                    color: Color(0xFF2563EB),
+                    color: Color(0xFF4A3020),
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Kích Hoạt Thiết Bị Giám Sát',
+                    'Gần nhau hơn,\ntừ một kết nối.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      fontSize: 28,
+                      height: 1.3,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF231811),
                     ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Nhập mã PIN 6 số do người chăm sóc tạo trên ứng dụng quản lý gia đình.',
+                    'Nhờ người thân mở hồ sơ của bạn, chọn ghép thiết bị rồi nhập mã PIN 6 số bên dưới.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                    style: TextStyle(fontSize: 16, height: 1.6, color: Color(0xFF7D7168)),
                   ),
                   const SizedBox(height: 32),
 
@@ -169,7 +170,7 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                       labelText: 'Mã PIN ghép nối (6 chữ số)',
                       hintText: 'VD: 123456',
                       prefixIcon: const Icon(Icons.pin_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
                       filled: true,
                       fillColor: Colors.white,
                     ),
@@ -190,11 +191,11 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handlePairing,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
+                      backgroundColor: const Color(0xFF4A3020),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
+                      shape: const StadiumBorder(),
+                      elevation: 0,
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -203,20 +204,20 @@ class _DevicePairingScreenState extends State<DevicePairingScreen> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                           )
                         : const Text(
-                            'KẾT NỐI VÀ GHÉP ĐÔI',
+                            'Kết nối thiết bị',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
                   const SizedBox(height: 16),
                   TextButton.icon(
                     onPressed: _isLoading ? null : _goBackToRoleSelection,
-                    icon: const Icon(Icons.swap_horiz_rounded, size: 20, color: Color(0xFF64748B)),
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 20, color: Color(0xFF7D7168)),
                     label: const Text(
                       'Quay lại: Tôi là Người thân chăm sóc (Con cái)',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF7D7168),
                       ),
                     ),
                   ),

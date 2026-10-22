@@ -1,7 +1,10 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+
 import '../models/models.dart';
+import '../../theme/careai_theme.dart';
 
 /// Widget trực quan hóa chuỗi nhịp tim trong cửa sổ T - 15 phút ... T + 15 phút
 /// quanh mốc xảy ra sự cố (UC-08 & 2.5 Lịch sử và dấu vết pháp y)
@@ -24,12 +27,12 @@ class HeartRateChartWidget extends StatelessWidget {
     if (samples.isEmpty) {
       return Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: const Color(0xFFF8FAFC),
+        color: const Color(0xFFFAF7F2),
         elevation: 0,
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: const Color(0xFFEFE8DF)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: Column(
@@ -38,10 +41,14 @@ class HeartRateChartWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFF1F5F9),
+                  color: Color(0xFFF2ECE4),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.monitor_heart_outlined, color: Color(0xFF94A3B8), size: 36),
+                child: const Icon(
+                  Icons.monitor_heart_outlined,
+                  color: Color(0xFF8C7A6B),
+                  size: 36,
+                ),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -49,7 +56,7 @@ class HeartRateChartWidget extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
-                  color: Color(0xFF334155),
+                  color: Color(0xFF5C493B),
                 ),
               ),
               const SizedBox(height: 6),
@@ -58,23 +65,30 @@ class HeartRateChartWidget extends StatelessWidget {
                 '${DateFormat('HH:mm').format(incidentTriggeredAt.subtract(const Duration(minutes: 15)).toLocal())} — '
                 '${DateFormat('HH:mm').format(incidentTriggeredAt.add(const Duration(minutes: 15)).toLocal())}.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF7D7168),
+                  height: 1.4,
+                ),
               ),
               if (snapshotHeartRate != null) ...[
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: const Color(0xFFF0F4E4),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                    border: Border.all(color: const Color(0xFFD5E2BE)),
                   ),
                   child: Text(
                     'Nhịp tim tức thời tại mốc T: ${snapshotHeartRate!.toStringAsFixed(0)} bpm',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1D4ED8),
+                      color: CareAiColors.greenInk,
                     ),
                   ),
                 ),
@@ -90,6 +104,22 @@ class HeartRateChartWidget extends StatelessWidget {
     final minBpm = bpms.reduce(math.min);
     final maxBpm = bpms.reduce(math.max);
     final avgBpm = bpms.reduce((a, b) => a + b) / bpms.length;
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
+    final countBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: CareAiColors.greenSurface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '${samples.length} mẫu',
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: CareAiColors.greenInk,
+        ),
+      ),
+    );
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -101,45 +131,57 @@ class HeartRateChartWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.show_chart, color: Color(0xFF0284C7), size: 22),
+                const Icon(
+                  Icons.show_chart,
+                  color: Color(0xFF4A3020),
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Biểu Đồ Nhịp Tim (T - 15 đến T + 15 phút)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Color(0xFF231811),
+                    ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${samples.length} mẫu',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
-                  ),
-                ),
+                if (!largeText) countBadge,
               ],
             ),
+            if (largeText) ...[const SizedBox(height: 8), countBadge],
             const SizedBox(height: 12),
 
             // Thẻ tóm tắt chỉ số nhanh
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: const Color(0xFFFAF7F2),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: const Color(0xFFEFE8DF)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                spacing: 12,
+                runSpacing: 12,
                 children: [
-                  _statItem('Thấp nhất', '${minBpm.toStringAsFixed(0)} bpm', minBpm <= 35 ? Colors.red : const Color(0xFF0F172A)),
-                  _divider(),
-                  _statItem('Trung bình', '${avgBpm.toStringAsFixed(0)} bpm', const Color(0xFF0F172A)),
-                  _divider(),
-                  _statItem('Cao nhất', '${maxBpm.toStringAsFixed(0)} bpm', maxBpm >= 180 ? Colors.red : const Color(0xFF0F172A)),
+                  _statItem(
+                    'Thấp nhất',
+                    '${minBpm.toStringAsFixed(0)} bpm',
+                    minBpm <= 35 ? Colors.red : const Color(0xFF231811),
+                  ),
+                  _statItem(
+                    'Trung bình',
+                    '${avgBpm.toStringAsFixed(0)} bpm',
+                    const Color(0xFF231811),
+                  ),
+                  _statItem(
+                    'Cao nhất',
+                    '${maxBpm.toStringAsFixed(0)} bpm',
+                    maxBpm >= 180 ? Colors.red : const Color(0xFF231811),
+                  ),
                 ],
               ),
             ),
@@ -153,8 +195,12 @@ class HeartRateChartWidget extends StatelessWidget {
                 painter: _HeartRatePainter(
                   samples: samples,
                   incidentTime: incidentTriggeredAt,
-                  windowStart: window?.windowStart ?? incidentTriggeredAt.subtract(const Duration(minutes: 15)),
-                  windowEnd: window?.windowEnd ?? incidentTriggeredAt.add(const Duration(minutes: 15)),
+                  windowStart:
+                      window?.windowStart ??
+                      incidentTriggeredAt.subtract(const Duration(minutes: 15)),
+                  windowEnd:
+                      window?.windowEnd ??
+                      incidentTriggeredAt.add(const Duration(minutes: 15)),
                 ),
               ),
             ),
@@ -165,10 +211,27 @@ class HeartRateChartWidget extends StatelessWidget {
               spacing: 16,
               runSpacing: 6,
               children: [
-                _legendItem(const Color(0xFFDC2626), 'Mốc sự cố (T)', isDashed: false, isVertical: true),
-                _legendItem(Colors.red.shade400, 'Ngưỡng nguy kịch (≥180 hoặc ≤35)', isDashed: true),
-                _legendItem(Colors.green.shade600, 'Nhịp an toàn (60-100)', isDashed: false),
-                _legendItem(const Color(0xFF0284C7), 'Nhịp tim đo được', isDashed: false),
+                _legendItem(
+                  const Color(0xFFDC2626),
+                  'Mốc sự cố (T)',
+                  isDashed: false,
+                  isVertical: true,
+                ),
+                _legendItem(
+                  Colors.red.shade400,
+                  'Ngưỡng nguy kịch (≥180 hoặc ≤35)',
+                  isDashed: true,
+                ),
+                _legendItem(
+                  Colors.green.shade600,
+                  'Nhịp an toàn (60-100)',
+                  isDashed: false,
+                ),
+                _legendItem(
+                  const Color(0xFF4A3020),
+                  'Nhịp tim đo được',
+                  isDashed: false,
+                ),
               ],
             ),
           ],
@@ -180,21 +243,29 @@ class HeartRateChartWidget extends StatelessWidget {
   Widget _statItem(String label, String value, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF7D7168)),
+        ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
       ],
     );
   }
 
-  Widget _divider() {
-    return Container(width: 1, height: 24, color: const Color(0xFFE2E8F0));
-  }
-
-  Widget _legendItem(Color color, String text, {bool isDashed = false, bool isVertical = false}) {
+  Widget _legendItem(
+    Color color,
+    String text, {
+    bool isDashed = false,
+    bool isVertical = false,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -217,7 +288,12 @@ class HeartRateChartWidget extends StatelessWidget {
             decoration: BoxDecoration(shape: BoxShape.circle, color: color),
           ),
         const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+        Flexible(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: CareAiColors.secondary),
+          ),
+        ),
       ],
     );
   }
@@ -271,10 +347,14 @@ class _HeartRatePainter extends CustomPainter {
     }
 
     final gridPaint = Paint()
-      ..color = const Color(0xFFF1F5F9)
+      ..color = const Color(0xFFF2ECE4)
       ..strokeWidth = 1.0;
 
-    final textStyle = const TextStyle(color: Color(0xFF94A3B8), fontSize: 10);
+    final textStyle = const TextStyle(
+      fontFamily: 'BeVietnamPro',
+      color: Color(0xFF8C7A6B),
+      fontSize: 10,
+    );
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     // 1. Vẽ dải an toàn nhịp tim bình thường (60-100 bpm)
@@ -291,11 +371,18 @@ class _HeartRatePainter extends CustomPainter {
     for (final tick in yTicks) {
       if (tick < minY || tick > maxY) continue;
       final y = bpmToY(tick);
-      canvas.drawLine(Offset(leftMargin, y), Offset(leftMargin + plotWidth, y), gridPaint);
+      canvas.drawLine(
+        Offset(leftMargin, y),
+        Offset(leftMargin + plotWidth, y),
+        gridPaint,
+      );
 
       textPainter.text = TextSpan(text: '${tick.toInt()}', style: textStyle);
       textPainter.layout();
-      textPainter.paint(canvas, Offset(leftMargin - textPainter.width - 6, y - textPainter.height / 2));
+      textPainter.paint(
+        canvas,
+        Offset(leftMargin - textPainter.width - 6, y - textPainter.height / 2),
+      );
     }
 
     // 3. Vẽ đường ngưỡng nguy kịch 180 bpm và 35 bpm (Dashed red line)
@@ -330,10 +417,21 @@ class _HeartRatePainter extends CustomPainter {
     // Nhãn chữ mốc T trên đỉnh
     textPainter.text = const TextSpan(
       text: '⚡ T',
-      style: TextStyle(color: Color(0xFFDC2626), fontSize: 11, fontWeight: FontWeight.bold),
+      style: TextStyle(
+        fontFamily: 'BeVietnamPro',
+        color: Color(0xFFDC2626),
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+      ),
     );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(incidentX - textPainter.width / 2, topMargin - textPainter.height - 1));
+    textPainter.paint(
+      canvas,
+      Offset(
+        incidentX - textPainter.width / 2,
+        topMargin - textPainter.height - 1,
+      ),
+    );
 
     // 5. Vẽ lưới trục X (Mốc T-15m, T-10m, T-5m, T, T+5m, T+10m, T+15m)
     final xMinuteOffsets = [-15, -10, -5, 0, 5, 10, 15];
@@ -343,29 +441,40 @@ class _HeartRatePainter extends CustomPainter {
       if (x < leftMargin - 1 || x > leftMargin + plotWidth + 1) continue;
 
       if (m != 0) {
-        canvas.drawLine(Offset(x, topMargin), Offset(x, topMargin + plotHeight), gridPaint);
+        canvas.drawLine(
+          Offset(x, topMargin),
+          Offset(x, topMargin + plotHeight),
+          gridPaint,
+        );
       }
 
       final label = m == 0 ? 'T' : (m > 0 ? '+$m\'' : '$m\'');
       textPainter.text = TextSpan(
         text: label,
         style: TextStyle(
-          color: m == 0 ? const Color(0xFFDC2626) : const Color(0xFF64748B),
+          fontFamily: 'BeVietnamPro',
+          color: m == 0 ? const Color(0xFFDC2626) : const Color(0xFF7D7168),
           fontSize: 10,
           fontWeight: m == 0 ? FontWeight.bold : FontWeight.normal,
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(x - textPainter.width / 2, topMargin + plotHeight + 5));
+      textPainter.paint(
+        canvas,
+        Offset(x - textPainter.width / 2, topMargin + plotHeight + 5),
+      );
     }
 
     // 6. Sắp xếp mẫu đo theo thời gian
-    final sorted = List<HeartRateSample>.from(samples)..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final sorted = List<HeartRateSample>.from(samples)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     if (sorted.length == 1) {
       final x = timeToX(sorted.first.timestamp);
       final y = bpmToY(sorted.first.bpm);
-      final pointPaint = Paint()..color = const Color(0xFF0284C7)..style = PaintingStyle.fill;
+      final pointPaint = Paint()
+        ..color = const Color(0xFF4A3020)
+        ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(x, y), 5, pointPaint);
       return;
     }
@@ -397,19 +506,24 @@ class _HeartRatePainter extends CustomPainter {
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: [
-        const Color(0xFF0284C7).withValues(alpha: 0.25),
-        const Color(0xFF0284C7).withValues(alpha: 0.0),
+        const Color(0xFF4A3020).withValues(alpha: 0.25),
+        const Color(0xFF4A3020).withValues(alpha: 0.0),
       ],
     );
     final fillPaint = Paint()
       ..shader = fillGradient.createShader(
-        Rect.fromLTRB(leftMargin, topMargin, leftMargin + plotWidth, topMargin + plotHeight),
+        Rect.fromLTRB(
+          leftMargin,
+          topMargin,
+          leftMargin + plotWidth,
+          topMargin + plotHeight,
+        ),
       );
     canvas.drawPath(fillPath, fillPaint);
 
     // Vẽ đường chính
     final linePaint = Paint()
-      ..color = const Color(0xFF0284C7)
+      ..color = const Color(0xFF4A3020)
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -417,9 +531,17 @@ class _HeartRatePainter extends CustomPainter {
     canvas.drawPath(path, linePaint);
 
     // Vẽ các chấm điểm đo (Dot markers)
-    final dotPaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
-    final dotBorderPaint = Paint()..color = const Color(0xFF0284C7)..strokeWidth = 2.0..style = PaintingStyle.stroke;
-    final alertDotBorderPaint = Paint()..color = const Color(0xFFDC2626)..strokeWidth = 2.0..style = PaintingStyle.stroke;
+    final dotPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final dotBorderPaint = Paint()
+      ..color = const Color(0xFF4A3020)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    final alertDotBorderPaint = Paint()
+      ..color = const Color(0xFFDC2626)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
 
     for (final s in sorted) {
       final x = timeToX(s.timestamp);
@@ -427,11 +549,22 @@ class _HeartRatePainter extends CustomPainter {
       final isCritical = s.bpm >= 180 || s.bpm <= 35;
 
       canvas.drawCircle(Offset(x, y), isCritical ? 5.0 : 3.5, dotPaint);
-      canvas.drawCircle(Offset(x, y), isCritical ? 5.0 : 3.5, isCritical ? alertDotBorderPaint : dotBorderPaint);
+      canvas.drawCircle(
+        Offset(x, y),
+        isCritical ? 5.0 : 3.5,
+        isCritical ? alertDotBorderPaint : dotBorderPaint,
+      );
     }
   }
 
-  void _drawDashedLine(Canvas canvas, Offset p1, Offset p2, Color color, double width, List<double> dashPattern) {
+  void _drawDashedLine(
+    Canvas canvas,
+    Offset p1,
+    Offset p2,
+    Color color,
+    double width,
+    List<double> dashPattern,
+  ) {
     final paint = Paint()
       ..color = color
       ..strokeWidth = width;

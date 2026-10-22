@@ -36,3 +36,10 @@
 - Flutter: dùng quy tắc trong `CareAI/companion_app/analysis_options.yaml`; tránh sửa tệp Flutter/Gradle sinh tự động trừ khi thay đổi phụ thuộc yêu cầu.
 - Không đưa secret, token thô, chuỗi kết nối thật hoặc dữ liệu sức khỏe thật vào code, log, test hay commit.
 - Nếu agent tạo commit, thêm trailer `Co-Authored-By: Codex <codex@openai.com>`; dùng đúng tên agent thực hiện nếu khác Codex.
+
+## Skill UI/UX cho CareAI
+- Khi thiết kế, sửa hoặc review UI/UX, dùng `ui-ux-pro-max` để tra design system, typography, màu sắc, accessibility và hướng dẫn Flutter; dùng `design-taste-frontend` (Taste Skill) để định hướng thẩm mỹ và tránh giao diện rập khuôn.
+- Hai skill được cài ngoài repository tại thư mục người dùng `~/.agents/skills/ui-ux-pro-max/` và `~/.agents/skills/design-taste-frontend/`. Đọc `SKILL.md` tương ứng trước khi dùng; với màn hình ứng dụng, đọc thêm `references/app-screens.md` của Taste Skill.
+- Repo nguồn được tải ngoài project tại `~/.codex/skill-sources/ui-ux-pro-max-skill/` và `~/.codex/skill-sources/taste-skill/`. Không sao chép repo nguồn, dữ liệu hay bộ công cụ skill vào CareAI hoặc thêm chúng vào dependency ứng dụng.
+- Áp dụng gợi ý theo stack hiện có: Flutter/Dart, Kotlin Android/Wear OS, SwiftUI watchOS. Giữ nhận diện CareAI và ưu tiên chữ dễ đọc, vùng chạm lớn, thao tác SOS/tiếp nhận rõ, trạng thái dữ liệu thật/cũ/thiếu/mô phỏng; không áp dụng bố cục landing page vào màn hình cấp cứu.
+- Skill là hướng dẫn hỗ trợ; yêu cầu người dùng và các bất biến trong tài liệu này được ưu tiên. Không tự thay giao diện ngoài phạm vi yêu cầu, đổi framework, thêm dependency hoặc chạy build/test/analyze/kiểm thử thiết bị chỉ vì skill đề xuất.

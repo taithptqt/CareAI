@@ -1,6 +1,10 @@
+import '../../theme/careai_theme.dart';
+import '../../widgets/careai_ui.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 
@@ -42,7 +46,9 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     });
 
     try {
-      final members = await CaregiverApiService.instance.getFamilyMembers(widget.elderId);
+      final members = await CaregiverApiService.instance.getFamilyMembers(
+        widget.elderId,
+      );
       if (mounted) {
         setState(() {
           _members = members;
@@ -60,14 +66,18 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   }
 
   bool get _isCurrentUserPrimary {
-    final current = _members.where((m) => m.caregiverId == _currentCaregiverId).toList();
+    final current = _members
+        .where((m) => m.caregiverId == _currentCaregiverId)
+        .toList();
     if (current.isEmpty) return false;
     return current.first.isPrimary;
   }
 
   Future<void> _generateInviteCode() async {
     try {
-      final res = await CaregiverApiService.instance.createFamilyInvitation(widget.elderId);
+      final res = await CaregiverApiService.instance.createFamilyInvitation(
+        widget.elderId,
+      );
       if (!mounted) return;
 
       showModalBottomSheet(
@@ -77,7 +87,7 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
         backgroundColor: Colors.transparent,
         builder: (ctx) => Container(
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: CareAiColors.canvas,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SafeArea(
@@ -96,85 +106,138 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                   Container(
                     width: 40,
                     height: 4,
-                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  const Icon(Icons.mark_email_read_outlined, size: 48, color: Color(0xFF0284C7)),
+                  const Icon(
+                    Icons.mark_email_read_outlined,
+                    size: 48,
+                    color: Color(0xFF4A3020),
+                  ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Mã Mời Gia Đình 24 Giờ',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    'Mời gia đình cùng chăm sóc',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF231811),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Gửi mã 6 ký tự này cho người thân để cùng chăm sóc ${widget.elderName}:',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF7D7168),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE0F2FE),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF0284C7), width: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
                     ),
-                    child: Text(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F4E4),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFF4A3020),
+                        width: 2,
+                      ),
+                    ),
+                    child: SelectableText(
                       res.invitationCode,
-                      style: const TextStyle(
-                        fontSize: 32,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 8,
-                        color: Color(0xFF0284C7),
+                        letterSpacing:
+                            MediaQuery.textScalerOf(ctx).scale(28) > 42 ? 0 : 4,
+                        color: Color(0xFF4A3020),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF94A3B8)),
+                      const Icon(
+                        Icons.timer_outlined,
+                        size: 14,
+                        color: Color(0xFF8C7A6B),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Hết hạn lúc: ${DateFormat('HH:mm - dd/MM/yyyy').format(res.expiresAt.toLocal())}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8C7A6B),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked =
+                          MediaQuery.textScalerOf(context).scale(14) > 20;
+                      final buttonWidth = stacked
+                          ? constraints.maxWidth
+                          : (constraints.maxWidth - 12) / 2;
+                      return Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          SizedBox(
+                            width: buttonWidth,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: const StadiumBorder(),
+                              ),
+                              icon: const Icon(Icons.copy, size: 18),
+                              label: const Text('Sao chép mã'),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: res.invitationCode),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Đã sao chép mã mời vào bộ nhớ tạm!',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                          icon: const Icon(Icons.copy, size: 18),
-                          label: const Text('Sao Chép Mã'),
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: res.invitationCode));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Đã sao chép mã mời vào bộ nhớ tạm!'), backgroundColor: Colors.green),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0284C7),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          SizedBox(
+                            width: buttonWidth,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4A3020),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: const StadiumBorder(),
+                              ),
+                              icon: const Icon(Icons.check, size: 18),
+                              label: const Text('Xong'),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
                           ),
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Xong'),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -199,9 +262,15 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
           'Bạn có chắc chắn muốn thu hồi quyền của "${member.fullName}" khỏi nhóm chăm sóc ${widget.elderName}?\nThành viên này sẽ không thể theo dõi chỉ số hay nhận cảnh báo nữa.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Thu Hồi Quyền'),
           ),
@@ -211,11 +280,17 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
 
     if (confirmed == true) {
       try {
-        await CaregiverApiService.instance.revokeFamilyMember(widget.elderId, member.caregiverId);
+        await CaregiverApiService.instance.revokeFamilyMember(
+          widget.elderId,
+          member.caregiverId,
+        );
         _loadMembers();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Đã thu hồi quyền của ${member.fullName}!'), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text('Đã thu hồi quyền của ${member.fullName}!'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } catch (e) {
@@ -229,189 +304,239 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text('Nhóm Gia Đình - ${widget.elderName}'),
-        backgroundColor: const Color(0xFF0284C7),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadMembers,
-          ),
-        ],
-      ),
-      body: SafeArea(child: _buildBody()),
-      floatingActionButton: _isCurrentUserPrimary
-          ? FloatingActionButton.extended(
-              backgroundColor: const Color(0xFF0284C7),
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.person_add),
-              label: const Text('Mời Thành Viên (24h)'),
-              onPressed: _generateInviteCode,
-            )
-          : null,
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Color(0xFFDC2626)),
-              const SizedBox(height: 12),
-              Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFDC2626))),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: _loadMembers, child: const Text('Thử Lại')),
-            ],
-          ),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Gia đình cùng chăm sóc'),
+      actions: [
+        IconButton(
+          onPressed: _loadMembers,
+          tooltip: 'Làm mới danh sách',
+          icon: const Icon(Icons.refresh_rounded),
         ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-      children: [
-        // Role Info Banner
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                _isCurrentUserPrimary ? Icons.admin_panel_settings : Icons.supervised_user_circle,
-                color: const Color(0xFF0284C7),
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _isCurrentUserPrimary
-                          ? 'Bạn là Người Bảo Hộ Chính (Primary)'
-                          : 'Bạn là Người Bảo Hộ Phụ (Secondary)',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E3A8A)),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _isCurrentUserPrimary
-                          ? 'Bạn có toàn quyền chỉnh sửa hồ sơ, mời hoặc xóa thành viên, hủy ghép nối và xóa hồ sơ.'
-                          : 'Bạn có quyền xem chỉ số, nhận cảnh báo cứu hộ khẩn cấp và tiếp nhận cứu trợ.',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        Text(
-          'Thành Viên Trong Nhóm (${_members.length})',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
-        ),
-        const SizedBox(height: 8),
-
-        ..._members.map((member) {
-          final isPrimary = member.isPrimary;
-          final isMe = member.caregiverId == _currentCaregiverId;
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            elevation: 1,
+      ],
+    ),
+    body: SafeArea(top: false, child: _buildBody()),
+    bottomNavigationBar: _isCurrentUserPrimary
+        ? SafeArea(
+            top: false,
             child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: isPrimary ? const Color(0xFFFEF3C7) : const Color(0xFFE0F2FE),
-                    child: Icon(
-                      isPrimary ? Icons.star : Icons.person,
-                      color: isPrimary ? const Color(0xFFD97706) : const Color(0xFF0284C7),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                member.fullName + (isMe ? ' (Bạn)' : ''),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isPrimary ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: isPrimary ? const Color(0xFFFDE68A) : const Color(0xFFCBD5E1),
-                                ),
-                              ),
-                              child: Text(
-                                isPrimary ? 'Primary' : 'Secondary',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: isPrimary ? const Color(0xFFB45309) : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${member.email} • ${member.phoneNumber}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Tham gia: ${DateFormat('dd/MM/yyyy').format(member.assignedAt.toLocal())}',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Nút xóa (chỉ Primary được xóa và không xóa chính mình)
-                  if (_isCurrentUserPrimary && !isPrimary && !isMe)
-                    IconButton(
-                      icon: const Icon(Icons.person_remove_outlined, color: Color(0xFFDC2626)),
-                      tooltip: 'Thu hồi quyền thành viên',
-                      onPressed: () => _confirmRevokeMember(member),
-                    ),
-                ],
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: FilledButton.icon(
+                onPressed: _generateInviteCode,
+                icon: const Icon(Icons.person_add_outlined),
+                label: const Text('Mời người thân cùng chăm sóc'),
               ),
             ),
-          );
-        }),
-      ],
+          )
+        : null,
+  );
+
+  Widget _buildBody() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_errorMessage != null)
+      return CareAiEmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: 'Chưa tải được gia đình',
+        description: _errorMessage!,
+        action: FilledButton.icon(
+          onPressed: _loadMembers,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Thử lại'),
+        ),
+      );
+    return RefreshIndicator(
+      onRefresh: _loadMembers,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: CareAiColors.peach,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.family_restroom_rounded,
+                  color: CareAiColors.brown,
+                  size: 32,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Bên nhau chăm sóc',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.elderName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: CareAiColors.brown,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_members.length} người thân trong nhóm',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: CareAiColors.brown,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: CareAiColors.greenSurface,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CareAiStatusLabel(
+                  label: _isCurrentUserPrimary
+                      ? 'Bạn là người chăm sóc chính'
+                      : 'Bạn là người chăm sóc',
+                  icon: _isCurrentUserPrimary
+                      ? Icons.verified_user_outlined
+                      : Icons.person_outline_rounded,
+                  color: CareAiColors.greenInk,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _isCurrentUserPrimary
+                      ? 'Bạn có thể quản lý hồ sơ và mời người thân cùng theo dõi. Các thay đổi quyền vẫn cần xác nhận.'
+                      : 'Bạn có thể xem thông tin sức khỏe, nhận cảnh báo và tiếp nhận sự cố của người cao tuổi.',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: CareAiColors.brown,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          const CareAiSectionHeading('Những người đồng hành'),
+          const SizedBox(height: 14),
+          if (_members.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                'Chưa có thành viên để hiển thị.',
+                style: TextStyle(color: CareAiColors.secondary),
+              ),
+            ),
+          ..._members.map((member) {
+            final isPrimary = member.isPrimary;
+            final isMe = member.caregiverId == _currentCaregiverId;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: isPrimary
+                                ? CareAiColors.sageLight
+                                : CareAiColors.lavender,
+                            child: Text(
+                              member.fullName.isEmpty
+                                  ? '?'
+                                  : member.fullName[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: CareAiColors.brown,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  member.fullName + (isMe ? ' (Bạn)' : ''),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: CareAiColors.ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                CareAiStatusLabel(
+                                  label: isPrimary
+                                      ? 'Chăm sóc chính'
+                                      : 'Cùng chăm sóc',
+                                  icon: isPrimary
+                                      ? Icons.verified_outlined
+                                      : Icons.people_outline_rounded,
+                                  color: isPrimary
+                                      ? CareAiColors.greenInk
+                                      : CareAiColors.lavenderInk,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_isCurrentUserPrimary && !isPrimary && !isMe)
+                            IconButton(
+                              tooltip: 'Thu hồi quyền thành viên',
+                              onPressed: () => _confirmRevokeMember(member),
+                              icon: const Icon(
+                                Icons.person_remove_outlined,
+                                color: CareAiColors.danger,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        member.email,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: CareAiColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        member.phoneNumber,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: CareAiColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Tham gia ${DateFormat('dd/MM/yyyy').format(member.assignedAt.toLocal())}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CareAiColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 
@@ -31,8 +32,12 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.elder.fullName);
-    _notesController = TextEditingController(text: widget.elder.medicalNotes ?? '');
-    _phoneController = TextEditingController(text: widget.elder.emergencyContact ?? '');
+    _notesController = TextEditingController(
+      text: widget.elder.medicalNotes ?? '',
+    );
+    _phoneController = TextEditingController(
+      text: widget.elder.emergencyContact ?? '',
+    );
     _selectedDob = widget.elder.dateOfBirth;
   }
 
@@ -68,7 +73,10 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
         Navigator.pop(context);
         widget.onUpdated();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã cập nhật hồ sơ Người cao tuổi thành công!'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Đã cập nhật hồ sơ Người cao tuổi thành công!'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
@@ -93,7 +101,10 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
             children: [
               Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
               SizedBox(width: 8),
-              Text('XÓA HỒ SƠ NGƯỜI CAO TUỔI', style: TextStyle(color: Color(0xFFDC2626), fontSize: 16)),
+              Text(
+                'XÓA HỒ SƠ NGƯỜI CAO TUỔI',
+                style: TextStyle(color: Color(0xFFDC2626), fontSize: 16),
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -103,7 +114,10 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
               children: [
                 Text(
                   'CẢNH BÁO AN TOÀN:\nHành động này sẽ xóa mềm hồ sơ người cao tuổi "${widget.elder.fullName}", ẩn danh hóa toàn bộ thông tin cá nhân (PII), ngắt kết nối mọi thiết bị và giải tán nhóm chăm sóc gia đình.',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6E6259),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -122,13 +136,22 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
                 ),
                 if (dialogError != null) ...[
                   const SizedBox(height: 8),
-                  Text(dialogError!, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                  Text(
+                    dialogError!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFFDC2626),
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy'),
+            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFDC2626),
@@ -158,7 +181,10 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
           Navigator.pop(context);
           widget.onDeleted();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Hồ sơ đã được xóa mềm và ẩn danh hóa an toàn.'), backgroundColor: Colors.green),
+            const SnackBar(
+              content: Text('Hồ sơ đã được xóa mềm và ẩn danh hóa an toàn.'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } catch (e) {
@@ -175,7 +201,7 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
         child: Padding(
@@ -188,11 +214,18 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Chỉnh Sửa Hồ Sơ Người Cao Tuổi',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    const Expanded(
+                      child: Text(
+                        'Chỉnh sửa hồ sơ',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF231811),
+                        ),
+                      ),
                     ),
                     IconButton(
+                      tooltip: 'Đóng',
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.pop(context),
                     ),
@@ -210,26 +243,41 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFFECACA)),
                     ),
-                    child: Text(_errorMessage!, style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626))),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
                   ),
 
                 TextField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Họ và tên Người cao tuổi *', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Họ và tên người cao tuổi *',
+                  ),
                 ),
                 const SizedBox(height: 12),
 
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    borderRadius: BorderRadius.circular(18),
+                    side: const BorderSide(color: Color(0xFFE4DACD)),
                   ),
                   title: Text(
                     'Ngày sinh: ${DateFormat('dd/MM/yyyy').format(_selectedDob)}',
                     style: const TextStyle(fontSize: 14),
                   ),
-                  trailing: const Icon(Icons.calendar_today, size: 20, color: Color(0xFF0284C7)),
+                  trailing: const Icon(
+                    Icons.calendar_today,
+                    size: 20,
+                    color: Color(0xFF4A3020),
+                  ),
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: context,
@@ -247,14 +295,18 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
                 TextField(
                   controller: _notesController,
                   maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Tiền sử bệnh lý', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Tiền sử bệnh lý',
+                  ),
                 ),
                 const SizedBox(height: 12),
 
                 TextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'SĐT khẩn cấp', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Số điện thoại khẩn cấp',
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -263,15 +315,25 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0284C7),
+                      backgroundColor: const Color(0xFF4A3020),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: const StadiumBorder(),
                     ),
                     onPressed: _isLoading ? null : _saveChanges,
                     child: _isLoading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('LƯU THAY ĐỔI', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Lưu thay đổi',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
 
@@ -281,19 +343,28 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
 
                 // Danger Zone
                 const Text(
-                  'VÙNG NGUY HIỂM (PRIMARY CAREGIVER)',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626), letterSpacing: 0.5),
+                  'Xóa hồ sơ',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFDC2626),
+                  ),
                 ),
                 const SizedBox(height: 8),
+                const Text(
+                  'Dành cho người chăm sóc chính. Thông tin định danh sẽ được ẩn danh hóa khi xóa.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF7D7168)),
+                ),
+                const SizedBox(height: 12),
 
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFDC2626),
                     side: const BorderSide(color: Color(0xFFFCA5A5)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: const StadiumBorder(),
                   ),
                   icon: const Icon(Icons.delete_forever, size: 18),
-                  label: const Text('Xóa mềm hồ sơ & Ẩn danh hóa PII'),
+                  label: const Text('Xóa và ẩn danh hóa hồ sơ'),
                   onPressed: _isLoading ? null : _confirmDeleteElder,
                 ),
               ],

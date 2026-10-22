@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../services/place_search_service.dart';
 import '../services/map_sovereignty_helper.dart';
+import '../../theme/careai_theme.dart';
 
 class HomeLocationMapScreen extends StatefulWidget {
   const HomeLocationMapScreen({super.key, this.initialPlace});
@@ -28,9 +29,11 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.initialPlace?.latitude != null &&
+    _selected =
+        widget.initialPlace?.latitude != null &&
             widget.initialPlace?.longitude != null
-        ? widget.initialPlace : null;
+        ? widget.initialPlace
+        : null;
   }
 
   @override
@@ -81,14 +84,17 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
     setState(() {
       _selected = PlaceSuggestion(
         '${point.latitude.toStringAsFixed(6)}, ${point.longitude.toStringAsFixed(6)}',
-        latitude: point.latitude, longitude: point.longitude,
+        latitude: point.latitude,
+        longitude: point.longitude,
       );
       _suggestions = const [];
       _resolving = true;
     });
     try {
       final place = await PlaceSearchService.reverse(
-        point.latitude, point.longitude);
+        point.latitude,
+        point.longitude,
+      );
       if (mounted && version == _requestVersion) {
         setState(() {
           _selected = place;
@@ -109,7 +115,7 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
         ? LatLng(initial!.latitude!, initial.longitude!)
         : const LatLng(16.0544, 108.2022);
     return Scaffold(
-      appBar: AppBar(title: const Text('Chọn vị trí nhà trên bản đồ')),
+      appBar: AppBar(title: const Text('Vị trí nhà')),
       body: Stack(
         children: [
           FlutterMap(
@@ -123,17 +129,34 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
             children: [
               MapSovereigntyHelper.buildTileLayer(),
               if (_selected?.latitude != null && _selected?.longitude != null)
-                MarkerLayer(markers: [Marker(
-                  point: LatLng(_selected!.latitude!, _selected!.longitude!),
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.bottomCenter,
-                  child: const Icon(Icons.location_pin, size: 48, color: Colors.red),
-                )]),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: LatLng(
+                        _selected!.latitude!,
+                        _selected!.longitude!,
+                      ),
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.bottomCenter,
+                      child: const Icon(
+                        Icons.location_pin,
+                        size: 48,
+                        color: CareAiColors.danger,
+                      ),
+                    ),
+                  ],
+                ),
               if (!MapSovereigntyHelper.hasVietmapKey)
-                MarkerLayer(markers: MapSovereigntyHelper.buildSovereigntyMarkers()),
+                MarkerLayer(
+                  markers: MapSovereigntyHelper.buildSovereigntyMarkers(),
+                ),
               SimpleAttributionWidget(
-                source: Text(MapSovereigntyHelper.hasVietmapKey ? 'VIETMAP' : 'OpenStreetMap'),
+                source: Text(
+                  MapSovereigntyHelper.hasVietmapKey
+                      ? 'VIETMAP'
+                      : 'OpenStreetMap',
+                ),
               ),
             ],
           ),
@@ -142,8 +165,10 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
             left: 12,
             right: 12,
             child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(12),
+              elevation: 1,
+              color: CareAiColors.surface,
+              clipBehavior: Clip.antiAlias,
+              borderRadius: BorderRadius.circular(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -159,49 +184,72 @@ class _HomeLocationMapScreenState extends State<HomeLocationMapScreen> {
                   ),
                   if (_suggestions.isNotEmpty)
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 250),
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.28,
+                      ),
                       child: ListView(
                         shrinkWrap: true,
-                        children: _suggestions.map((place) => ListTile(
-                          dense: true,
-                          leading: const Icon(Icons.place_outlined),
-                          title: Text(place.address, maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
-                          onTap: () => _chooseSuggestion(place),
-                        )).toList(),
+                        children: _suggestions
+                            .map(
+                              (place) => ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                leading: const Icon(Icons.place_outlined),
+                                title: Text(
+                                  place.address,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () => _chooseSuggestion(place),
+                              ),
+                            )
+                            .toList(),
                       ),
                     ),
                 ],
               ),
             ),
           ),
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 24,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(_selected?.address ?? 'Chạm bản đồ để đặt ghim nhà',
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
-                    if (_resolving) const LinearProgressIndicator(),
-                    const SizedBox(height: 8),
-                    FilledButton.icon(
-                      onPressed: _selected == null || _resolving
-                          ? null : () => Navigator.pop(context, _selected),
-                      icon: const Icon(Icons.check),
-                      label: const Text('Chọn vị trí này'),
-                    ),
-                  ],
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.35,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _selected?.address ?? 'Chạm bản đồ để đặt ghim nhà',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                  ),
                 ),
-              ),
+                if (_resolving) ...[
+                  const SizedBox(height: 8),
+                  const LinearProgressIndicator(),
+                ],
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _selected == null || _resolving
+                      ? null
+                      : () => Navigator.pop(context, _selected),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Chọn vị trí này'),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
