@@ -30,7 +30,7 @@ public record SyncWatchRequest(
 public record PairDeviceResponse(string DeviceId, string DeviceToken, string ElderProfileId, string FullName);
 public record CreateElderRequest(string FullName, DateTime DateOfBirth, string? MedicalNotes, string? EmergencyContact, string? HomeAddress = null, double? HomeLatitude = null, double? HomeLongitude = null);
 public record UpdateElderHomeAddressRequest(string? HomeAddress, double? HomeLatitude = null, double? HomeLongitude = null);
-public record ElderItemDto(string Id, string FullName, DateTime DateOfBirth, string? MedicalNotes, string? EmergencyContact, string? PairingPin, DateTime? PinExpiresAt, int DeviceCount, string DeviceStatus, string? HomeAddress = null, double? HomeLatitude = null, double? HomeLongitude = null, ElderHealthOverviewDto? HealthOverview = null);
+public record ElderItemDto(string Id, string FullName, DateTime DateOfBirth, string? MedicalNotes, string? EmergencyContact, string? PairingPin, DateTime? PinExpiresAt, int DeviceCount, string DeviceStatus, string? HomeAddress = null, double? HomeLatitude = null, double? HomeLongitude = null);
 public record DeviceActiveIncidentResponse(
     bool HasActiveIncident,
     string? IncidentId,

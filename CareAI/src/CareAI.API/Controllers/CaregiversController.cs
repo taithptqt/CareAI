@@ -7,7 +7,6 @@ using CareAI.Core.Entities;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
 using CareAI.Infrastructure.Engines;
-using CareAI.Infrastructure.Services;
 
 namespace CareAI.API.Controllers;
 
@@ -112,10 +111,6 @@ public class CaregiversController : ControllerBase
             .ToListAsync(ct);
 
         var now = DateTime.UtcNow;
-        var authorizedElderIds = elderCaregivers.Where(ec => ec.ElderProfile != null)
-            .Select(ec => ec.ElderProfileId).Distinct().ToArray();
-        var healthOverviews = await new ElderOverviewReader(_db)
-            .LoadAsync(authorizedElderIds, now, ct);
         var result = elderCaregivers
             .Where(ec => ec.ElderProfile != null)
             .Select(ec =>
@@ -137,12 +132,7 @@ public class CaregiversController : ControllerBase
                     deviceStatus,
                     elder.HomeAddress,
                     elder.HomeLatitude,
-                    elder.HomeLongitude,
-                    healthOverviews[elder.Id] with
-                    {
-                        LastSyncedAt = activeDevices.Count == 0 ? null :
-                            DateTime.SpecifyKind(activeDevices.Max(d => d.LastHeartbeat), DateTimeKind.Utc)
-                    }
+                    elder.HomeLongitude
                 );
             })
             .ToList();
