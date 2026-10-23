@@ -14,7 +14,10 @@ public sealed class AdminFeedbackController(FeedbackService feedback) : Controll
 {
     [HttpGet]
     public async Task<IActionResult> Inbox([FromQuery, MaxLength(120)] string? search,
-        [FromQuery, RegularExpression("^(Bug|Suggestion|Other)$")] string? category,
+        [FromQuery, RegularExpression("^(Bug|Suggestion|Other)?$")] string? category,
         [FromQuery, Range(1, int.MaxValue)] int page = 1, CancellationToken ct = default)
-        => Ok(await feedback.InboxAsync(search?.Trim(), category, page, ct));
+    {
+        Response.Headers.CacheControl = "no-store";
+        return Ok(await feedback.InboxAsync(search?.Trim(), string.IsNullOrWhiteSpace(category) ? null : category, page, ct));
+    }
 }

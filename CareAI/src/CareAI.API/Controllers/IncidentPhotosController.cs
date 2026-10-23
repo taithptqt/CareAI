@@ -69,7 +69,7 @@ public class IncidentPhotosController(CareAiDbContext db) : ControllerBase
             EventType = "PHOTO_ATTACHED", Description = "Thiết bị đã gửi ảnh hiện trường sự cố.",
             RecordedAt = now
         });
-        var recipients = await db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive)
+        var recipients = await db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive && !db.Set<CareAI.Core.Entities.Admin.CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(db.CaregiverPushTokens.Where(t => t.IsActive), ec => ec.CaregiverId,
                 t => t.CaregiverId, (ec, t) => new { ec.CaregiverId, t.PushToken }).ToListAsync(ct);
         foreach (var recipient in recipients)

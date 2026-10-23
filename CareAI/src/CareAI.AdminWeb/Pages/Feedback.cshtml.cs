@@ -16,6 +16,7 @@ public sealed class FeedbackModel(AdminDataSource data) : PageModel
         if ((Search?.Length ?? 0) > 120 || Category is not (null or "" or "Bug" or "Suggestion" or "Other")) return BadRequest("Bộ lọc không hợp lệ.");
         Search = Search?.Trim();
         Data = await data.FeedbackAsync(Search, Category, PageNumber, ct);
+        PageNumber = Data.Page;
         return Page();
     }
     public static string CategoryLabel(string category) => category switch

@@ -4,6 +4,7 @@ using CareAI.Core.DTOs;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
+using CareAI.Core.Entities.Admin;
 
 namespace CareAI.Infrastructure.Engines;
 
@@ -222,7 +223,8 @@ public class TelemetryEngine
 
         // 5. [BẤT BIẾN FACT 34]: KÍCH HOẠT CÒI HÚ QUORUM ĐA NGƯỜI THÂN (CHỈ GỬI CHO CAREGIVER ĐANG ACTIVE)
         var activeCaregiverTokens = await _db.ElderCaregivers
-            .Where(ec => ec.ElderProfileId == elderId && ec.IsActive)
+            .Where(ec => ec.ElderProfileId == elderId && ec.IsActive
+                && !_db.Set<CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(_db.CaregiverPushTokens.Where(t => t.IsActive),
                 ec => ec.CaregiverId,
                 t => t.CaregiverId,

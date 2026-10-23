@@ -115,7 +115,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Góp ý & phản hồi')),
     body: SafeArea(
-      child: ListView(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: RefreshIndicator(
+        onRefresh: () => _load(_history?.page ?? 1),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(20),
         children: [
           Text(
@@ -316,5 +322,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         ],
       ),
     ),
-  );
+  ),
+      ),
+);
 }

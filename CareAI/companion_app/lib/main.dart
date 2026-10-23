@@ -10,6 +10,8 @@ import 'caregiver/services/caregiver_push_service.dart';
 import 'screens/device_pairing_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/sos_button_screen.dart';
+
+import 'screens/splash_screen.dart';
 import 'services/api_service.dart';
 import 'services/local_offline_store.dart';
 import 'services/sync_service.dart';
@@ -98,7 +100,7 @@ void main() async {
     initialScreen = const RoleSelectionScreen();
   }
 
-  runApp(CareAiUnifiedApp(initialScreen: initialScreen));
+  runApp(CareAiUnifiedApp(initialScreen: SplashScreen(nextScreen: initialScreen)));
   WidgetsBinding.instance.addPostFrameCallback((_) {
     CaregiverPushService.instance.initialize();
   });

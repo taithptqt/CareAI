@@ -1,3 +1,4 @@
+using CareAI.Core.Entities.Admin;
 using System.Text.Json;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
@@ -186,7 +187,7 @@ public class DeviceStaleEngine
     private async Task QueueOutboxAsync(Incident incident, string eventType,
         string title, string body, DateTime now, CancellationToken ct)
     {
-        var recipients = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive)
+        var recipients = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive && !_db.Set<CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(_db.CaregiverPushTokens.Where(t => t.IsActive), ec => ec.CaregiverId,
                 t => t.CaregiverId, (ec, t) => new { ec.CaregiverId, t.PushToken }).ToListAsync(ct);
         foreach (var recipient in recipients)

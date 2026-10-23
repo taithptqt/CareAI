@@ -221,5 +221,10 @@ public class WeeklyReportTests
         Assert.IsType<NotFoundResult>(await controller.Report("elder", report.Id + 10, CancellationToken.None));
         Assert.IsType<OkObjectResult>(await controller.Reports("elder", CancellationToken.None));
         Assert.IsType<OkObjectResult>(await controller.Insights("elder", CancellationToken.None));
+        db.Set<CareAI.Core.Entities.Admin.CaregiverAdminState>().Add(new() { CaregiverId = "caregiver", IsSuspended = true });
+        await db.SaveChangesAsync();
+        Assert.IsType<ForbidResult>(await controller.Report("elder", report.Id, CancellationToken.None));
+        Assert.IsType<ForbidResult>(await controller.Reports("elder", CancellationToken.None));
+        Assert.IsType<ForbidResult>(await controller.Insights("elder", CancellationToken.None));
     }
 }

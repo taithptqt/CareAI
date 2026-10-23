@@ -15,7 +15,7 @@ public sealed record AdminCommandOptions(string FingerprintKey, bool CaregiverAp
 public sealed class AdminBusinessException(string message, int status = 409) : Exception(message)
 { public int Status { get; } = status; }
 
-public sealed class AdminCommandService(CareAiDbContext db, AdminCommandOptions options)
+public sealed class AdminCommandService(CareAiDbContext db, AdminCommandOptions options, Microsoft.Extensions.Caching.Memory.IMemoryCache? cache = null)
 {
     public async Task<AdminCommandResult> ExecuteAsync(string actorId, string sessionId, AdminCommandRequest request, string traceId, CancellationToken ct)
     {
@@ -28,7 +28,10 @@ public sealed class AdminCommandService(CareAiDbContext db, AdminCommandOptions 
         {
             db.ChangeTracker.Clear();
             await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-            await db.Database.ExecuteSqlRawAsync("DECLARE @r int; EXEC @r=sp_getapplock @Resource=N'CareAI.AdminCommands', @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=10000; IF @r<0 THROW 51000,'Admin command lock unavailable',1;", ct);
+            if (db.Database.IsSqlServer())
+            {
+                await db.Database.ExecuteSqlRawAsync("DECLARE @r int; EXEC @r=sp_getapplock @Resource=N'CareAI.AdminCommands', @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=10000; IF @r<0 THROW 51000,'Admin command lock unavailable',1;", ct);
+            }
             var now = DateTime.UtcNow;
             var session = await db.Set<AdminSession>().Include(x => x.AdminUser).SingleOrDefaultAsync(x => x.Id == sessionId && x.AdminUserId == actorId, ct);
             if (session is null || session.RevokedAtUtc != null || session.ExpiresAtUtc <= now || session.LastSeenAtUtc <= now.AddMinutes(-30)
@@ -85,6 +88,7 @@ public sealed class AdminCommandService(CareAiDbContext db, AdminCommandOptions 
                         if (request.Action != "account.revoke") state.IsSuspended = request.Action == "account.suspend";
                         state.SecurityVersion++; state.Reason = request.Reason.Trim(); state.UpdatedAtUtc = now;
                     }
+                    cache?.Remove($"auth:caregiver:{target}");
                     break;
                 case "device.revoke":
                     var device = await db.DeviceRegistrations.SingleOrDefaultAsync(x => x.Id == target && !x.ElderProfile.IsDeleted, ct) ?? throw Missing();
@@ -93,6 +97,7 @@ public sealed class AdminCommandService(CareAiDbContext db, AdminCommandOptions 
                     if (await db.DeviceRegistrations.CountAsync(x => x.ElderProfileId == device.ElderProfileId && x.IsActive, ct) <= 1 && device.IsActive)
                         throw new AdminBusinessException("Đây là thiết bị còn hiệu lực cuối cùng. Ghép thiết bị thay thế trước khi thu hồi.");
                     device.IsActive = false; device.UpdatedAt = now;
+                    cache?.Remove($"auth:dev:{target}");
                     break;
                 case "link.primary":
                 case "link.deactivate":
@@ -166,7 +171,7 @@ public sealed class AdminCommandService(CareAiDbContext db, AdminCommandOptions 
             db.Set<AdminCommandRecord>().Add(new() { ActorId = actorId, RequestId = request.RequestId, PayloadFingerprint = fingerprint, TargetId = target });
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            return new AdminCommandResult(target, request.Action == "device.revoke" ? "Đã thu hồi tại database. API khác có thể giữ cache xác thực tối đa 5 phút." : "Đã cập nhật và ghi nhật ký thành công.");
+            return new AdminCommandResult(target, request.Action == "device.revoke" ? "Đã thu hồi quyền thiết bị thành công (Cache xác thực đã được giải phóng tức thì)." : "Đã cập nhật và ghi nhật ký thành công.");
         });
     }
     private Task<bool> ActiveIncident(string elderId, CancellationToken ct) => db.Incidents.AnyAsync(x => x.ElderProfileId == elderId && (x.Status == IncidentStatus.Open || x.Status == IncidentStatus.Acknowledged), ct);

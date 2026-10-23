@@ -18,14 +18,32 @@ if (mode.Live)
 {
     var sessionConnection = builder.Configuration.GetConnectionString("AdminWebSessionStore");
     var keyDirectory = builder.Configuration["AdminWeb:DataProtectionKeyDirectory"];
-    if (string.IsNullOrWhiteSpace(sessionConnection) || string.IsNullOrWhiteSpace(keyDirectory))
-        throw new InvalidOperationException("Live admin requires an explicit SQL session store and protected Data Protection key directory.");
-    builder.Services.AddDistributedSqlServerCache(options =>
+    if (string.IsNullOrWhiteSpace(keyDirectory))
     {
-        options.ConnectionString = sessionConnection;
-        options.SchemaName = "dbo";
-        options.TableName = "AdminWebTickets";
-    });
+        keyDirectory = builder.Environment.IsDevelopment()
+            ? Path.Combine(builder.Environment.ContentRootPath, "keys")
+            : throw new InvalidOperationException("Live admin requires a protected Data Protection key directory.");
+    }
+    if (string.IsNullOrWhiteSpace(sessionConnection))
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            builder.Services.AddDistributedMemoryCache();
+        }
+        else
+        {
+            throw new InvalidOperationException("Live admin requires an explicit SQL session store in production.");
+        }
+    }
+    else
+    {
+        builder.Services.AddDistributedSqlServerCache(options =>
+        {
+            options.ConnectionString = sessionConnection;
+            options.SchemaName = "dbo";
+            options.TableName = "AdminWebTickets";
+        });
+    }
     var protection = builder.Services.AddDataProtection().SetApplicationName("CareAI.AdminWeb")
         .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
     if (!builder.Environment.IsDevelopment())

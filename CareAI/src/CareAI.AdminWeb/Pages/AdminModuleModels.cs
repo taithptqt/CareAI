@@ -9,6 +9,7 @@ public abstract class AdminModulePageModel(AdminApiClient api, AdminWebMode mode
 {
     public string Kind => kind;
     public bool Preview => mode.Preview;
+    public string PageRoute => Kind switch { "staff" => "/Staff", "elders" => "/Elders", "care-links" => "/CareLinks", _ => "" };
     [BindProperty(SupportsGet = true)] public string? Search { get; set; }
     [BindProperty(SupportsGet = true)] public int PageNumber { get; set; } = 1;
     public AdminListResponse<AdminRecord> Data { get; private set; } = null!;
@@ -17,6 +18,7 @@ public abstract class AdminModulePageModel(AdminApiClient api, AdminWebMode mode
         if ((Search?.Length ?? 0) > 120) return BadRequest();
         Data = mode.Preview ? new([], 0, 1, 25, DateTimeOffset.UtcNow)
             : await api.GetAsync<AdminListResponse<AdminRecord>>($"operations/{kind}?search={Uri.EscapeDataString(Search?.Trim() ?? "")}&page={Math.Max(1, PageNumber)}", ct);
+        PageNumber = Data.Page;
         return Page();
     }
 }

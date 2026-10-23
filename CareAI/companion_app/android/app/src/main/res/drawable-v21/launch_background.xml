@@ -3,12 +3,12 @@
     <item android:drawable="@color/splash_bg" />
     <item>
         <bitmap
+            android:gravity="fill"
+            android:src="@drawable/splash_wave_bg" />
+    </item>
+    <item>
+        <bitmap
             android:gravity="center"
             android:src="@drawable/splash_icon" />
-    </item>
-    <item android:bottom="48dp">
-        <bitmap
-            android:gravity="bottom|center_horizontal"
-            android:src="@drawable/splash_branding" />
     </item>
 </layer-list>

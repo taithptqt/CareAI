@@ -253,6 +253,56 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
     }
   }
 
+  Future<void> _confirmSelfLeave(FamilyMember member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rời Nhóm Chăm Sóc'),
+        content: Text(
+          'Bạn có chắc chắn muốn rời khỏi nhóm chăm sóc ${widget.elderName}?\nBạn sẽ không còn nhận được các cảnh báo cấp cứu và không thể theo dõi sức khỏe của Cụ nữa.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CareAiColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Rời Nhóm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await CaregiverApiService.instance.revokeFamilyMember(
+          widget.elderId,
+          member.caregiverId,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bạn đã rời khỏi nhóm chăm sóc thành công.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _confirmRevokeMember(FamilyMember member) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -499,6 +549,15 @@ class _FamilyManagementScreenState extends State<FamilyManagementScreen> {
                               onPressed: () => _confirmRevokeMember(member),
                               icon: const Icon(
                                 Icons.person_remove_outlined,
+                                color: CareAiColors.danger,
+                              ),
+                            )
+                          else if (isMe && !isPrimary)
+                            IconButton(
+                              tooltip: 'Rời nhóm chăm sóc',
+                              onPressed: () => _confirmSelfLeave(member),
+                              icon: const Icon(
+                                Icons.logout_rounded,
                                 color: CareAiColors.danger,
                               ),
                             ),

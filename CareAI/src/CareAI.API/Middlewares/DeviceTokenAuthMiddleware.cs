@@ -129,16 +129,6 @@ public class DeviceTokenAuthMiddleware
                 return;
             }
 
-            // The API may run on another instance from AdminWeb. A cached token
-            // must not keep a database-revoked device authorized until cache TTL.
-            if (!await db.DeviceRegistrations.AsNoTracking().AnyAsync(d => d.Id == deviceId && d.IsActive
-                && d.DeviceTokenHash == authInfo.DeviceTokenHash, context.RequestAborted))
-            {
-                InvalidateDevice(cache, deviceId);
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await context.Response.WriteAsync("Thiết bị đã bị thu hồi hoặc thông tin xác thực đã thay đổi.");
-                return;
-            }
 
             if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(computedHash),

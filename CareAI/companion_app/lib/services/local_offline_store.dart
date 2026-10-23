@@ -203,4 +203,13 @@ class LocalOfflineStore {
   /// Alias tương thích ngược
   Future<int> pruneOldSyncedPackets({int retentionDays = 7}) =>
       purgeOldSyncedPackets(retentionDays: retentionDays);
+
+  /// Xóa sạch toàn bộ gói tin đang chờ gửi hoặc đã lưu trong hàng đợi ngoại tuyến.
+  /// Dùng khi hủy ghép nối hoặc chuyển giao thiết bị cho Người cao tuổi khác nhằm triệt tiêu ô nhiễm dữ liệu sinh hiệu chéo.
+  Future<int> clearPendingPackets() async {
+    final db = await database;
+    await db.delete('sync_metadata');
+    return await db.delete('client_packets');
+  }
 }
+

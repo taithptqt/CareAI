@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
@@ -9,6 +9,8 @@ import '../models/models.dart';
 class CaregiverApiService {
   static final CaregiverApiService instance = CaregiverApiService._init();
   CaregiverApiService._init();
+
+  final sessionExpiredNotifier = ValueNotifier<bool>(false);
 
   static const String defaultInternetUrl = ApiService.internetTunnelUrl;
   static const String defaultUsbUrl = ApiService.usbServerUrl;
@@ -148,6 +150,10 @@ class CaregiverApiService {
           _currentServerUrl = url;
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('caregiver_server_url', url);
+        }
+        if (res.statusCode == 401 && !url.contains('/api/v1/auth/login')) {
+          await logout();
+          sessionExpiredNotifier.value = true;
         }
         return res;
       } catch (_) {
@@ -471,6 +477,9 @@ class CaregiverApiService {
       throw Exception(err.isNotEmpty ? err : 'Mật khẩu xác nhận cấp 2 không chính xác.');
     } else if (response.statusCode == 403) {
       throw Exception('Chỉ người bảo hộ chính (Primary) mới có quyền xóa hồ sơ người cao tuổi.');
+    } else if (response.statusCode == 409) {
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err.isNotEmpty ? err : 'Không thể xóa hồ sơ khi đang có sự cố cấp cứu chưa giải quyết. Vui lòng đóng sự cố trước.');
     } else {
       final err = _extractError(response.body, response.statusCode);
       throw Exception(err);

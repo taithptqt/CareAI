@@ -2,6 +2,7 @@ using System.Text.Json;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
+using CareAI.Core.Entities.Admin;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -163,7 +164,7 @@ public class AlertSlaEngine
 
     private async Task QueueStableVitalsReminderAsync(Incident incident, string elderName, DateTime nowUtc, CancellationToken ct)
     {
-        var recipients = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive)
+        var recipients = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive && !_db.Set<CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(_db.CaregiverPushTokens.Where(t => t.IsActive), ec => ec.CaregiverId,
                 t => t.CaregiverId, (ec, t) => new { ec.CaregiverId, t.PushToken }).ToListAsync(ct);
 
@@ -193,7 +194,7 @@ public class AlertSlaEngine
 
     private async Task QueueReminderAsync(Incident incident, DateTime nowUtc, CancellationToken ct)
     {
-        var recipients = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive)
+        var recipients = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive && !_db.Set<CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(_db.CaregiverPushTokens.Where(t => t.IsActive), ec => ec.CaregiverId,
                 t => t.CaregiverId, (ec, t) => new { ec.CaregiverId, t.PushToken }).ToListAsync(ct);
         foreach (var recipient in recipients)

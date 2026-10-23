@@ -70,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadElders();
     _loadActiveIncidents();
     _startAlertPolling();
+    CaregiverApiService.instance.sessionExpiredNotifier.addListener(_handleSessionExpired);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       CaregiverPushService.instance.registerCurrentToken();
       CaregiverPushService.instance.openPendingIncident();
@@ -81,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _alertPollingTimer?.cancel();
+    CaregiverApiService.instance.sessionExpiredNotifier.removeListener(_handleSessionExpired);
     super.dispose();
   }
 
@@ -92,6 +94,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!_isRequestingPermissions && !_isPermissionDialogShowing) {
         unawaited(_checkCriticalPermissionsRealtime(showPopupIfMissing: false));
       }
+    }
+  }
+
+  void _handleSessionExpired() {
+    if (CaregiverApiService.instance.sessionExpiredNotifier.value && mounted) {
+      CaregiverApiService.instance.sessionExpiredNotifier.value = false;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Tài khoản của bạn đã bị tạm ngưng hoặc phiên đăng nhập đã hết hạn.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

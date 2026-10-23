@@ -54,7 +54,7 @@ public sealed class AnomalyDetectionWorker(
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CareAiDbContext>();
         var detector = scope.ServiceProvider.GetRequiredService<TimeSeriesAnomalyDetector>();
-        var elders = await db.ElderProfiles.AsNoTracking().Select(e => e.Id).ToListAsync(ct);
+        var elders = await db.ElderProfiles.AsNoTracking().Where(e => !e.IsDeleted).Select(e => e.Id).ToListAsync(ct);
         logger.LogInformation("Starting 14-day anomaly analysis for {Count} elders", elders.Count);
         foreach (var elderId in elders)
         {

@@ -513,7 +513,8 @@ public class IncidentsController : ControllerBase
         string actorName, string status, DateTime now, CancellationToken ct)
     {
         var recipients = await _db.ElderCaregivers
-            .Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive)
+            .Where(ec => ec.ElderProfileId == incident.ElderProfileId && ec.IsActive &&
+                         !_db.Set<CareAI.Core.Entities.Admin.CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(_db.CaregiverPushTokens.Where(t => t.IsActive),
                 ec => ec.CaregiverId, t => t.CaregiverId,
                 (ec, t) => new { ec.CaregiverId, t.PushToken })

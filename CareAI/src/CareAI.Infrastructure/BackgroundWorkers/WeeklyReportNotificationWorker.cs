@@ -50,7 +50,8 @@ public sealed class WeeklyReportNotificationWorker(IServiceScopeFactory scopes, 
             var token = await db.CaregiverPushTokens.AsNoTracking().FirstOrDefaultAsync(t =>
                 t.Id == item.CaregiverPushTokenId && t.IsActive, ct);
             var allowed = token is not null && await db.ElderCaregivers.AnyAsync(ec => ec.IsActive
-                && ec.CaregiverId == token.CaregiverId && ec.ElderProfileId == item.WeeklyHealthReport.ElderProfileId, ct);
+                && ec.CaregiverId == token.CaregiverId && ec.ElderProfileId == item.WeeklyHealthReport.ElderProfileId, ct)
+                && !await db.Set<CareAI.Core.Entities.Admin.CaregiverAdminState>().AnyAsync(s => s.CaregiverId == token.CaregiverId && s.IsSuspended, ct);
             if (!allowed) item.Status = "CANCELLED";
             else
             {

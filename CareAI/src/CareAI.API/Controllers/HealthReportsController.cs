@@ -9,10 +9,13 @@ namespace CareAI.API.Controllers;
 [ApiController, Authorize, Route("api/v1/elders/{elderId}/health")]
 public sealed class HealthReportsController(CareAiDbContext db) : ControllerBase
 {
-    private Task<bool> Allowed(string elderId, CancellationToken ct)
+    private async Task<bool> Allowed(string elderId, CancellationToken ct)
     {
         var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return db.ElderCaregivers.AnyAsync(ec => ec.ElderProfileId == elderId && ec.CaregiverId == id && ec.IsActive, ct);
+        if (string.IsNullOrEmpty(id)) return false;
+        if (await db.Set<CareAI.Core.Entities.Admin.CaregiverAdminState>().AnyAsync(s => s.CaregiverId == id && s.IsSuspended, ct))
+            return false;
+        return await db.ElderCaregivers.AnyAsync(ec => ec.ElderProfileId == elderId && ec.CaregiverId == id && ec.IsActive, ct);
     }
 
     [HttpGet("insights")]

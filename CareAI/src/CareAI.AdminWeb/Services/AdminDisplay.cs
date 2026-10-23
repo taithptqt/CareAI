@@ -15,6 +15,7 @@ public static class AdminDisplay
         "Online" => "Có heartbeat mới", "Offline" => "Mất heartbeat", "Unknown" => "Chưa xác định",
         "NotSupported" => "Chưa hỗ trợ đình chỉ", "Revoked" => "Đã thu hồi",
         "Critical" => "Khẩn cấp", "MANUAL_SOS" => "SOS thủ công", "FALL" => "Phát hiện ngã",
+        "InProgress" => "Đang xử lý", "New" => "Mới nhận",
         _ => value
     };
 }

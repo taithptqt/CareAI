@@ -248,13 +248,17 @@ public class FamilyController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền quản lý nhóm gia đình này." });
         }
 
+        var isSelfLeave = caregiverId == targetCaregiverId;
+
         if (callerRelation.Role != CaregiverRole.Primary)
         {
-            _logger.LogWarning("[FAMILY-REVOKE-FORBIDDEN] Secondary Caregiver {CaregiverId} cố xóa thành viên {TargetId}", caregiverId, targetCaregiverId);
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Chỉ người bảo hộ chính (Primary) mới có quyền thu hồi quyền thành viên." });
+            if (!isSelfLeave)
+            {
+                _logger.LogWarning("[FAMILY-REVOKE-FORBIDDEN] Secondary Caregiver {CaregiverId} cố xóa thành viên {TargetId}", caregiverId, targetCaregiverId);
+                return StatusCode(StatusCodes.Status403Forbidden, new { error = "Chỉ người bảo hộ chính (Primary) mới có quyền thu hồi quyền thành viên." });
+            }
         }
-
-        if (caregiverId == targetCaregiverId)
+        else if (isSelfLeave)
         {
             return BadRequest(new { error = "Người bảo hộ chính không thể tự xóa quyền của chính mình khỏi nhóm." });
         }
@@ -269,6 +273,13 @@ public class FamilyController : ControllerBase
 
         targetRelation.IsActive = false;
         await _db.SaveChangesAsync(ct);
+
+        if (isSelfLeave)
+        {
+            _logger.LogInformation("[FAMILY-SELF-LEAVE] Secondary Caregiver {CaregiverId} đã tự rút khỏi nhóm chăm sóc Elder {ElderId}",
+                caregiverId, elderId);
+            return Ok(new { message = "Bạn đã rời khỏi nhóm chăm sóc người cao tuổi thành công.", targetCaregiverId });
+        }
 
         _logger.LogInformation("[FAMILY-REVOKED] Primary Caregiver {CaregiverId} đã thu hồi quyền thành viên của {TargetId} khỏi Elder {ElderId}",
             caregiverId, targetCaregiverId, elderId);

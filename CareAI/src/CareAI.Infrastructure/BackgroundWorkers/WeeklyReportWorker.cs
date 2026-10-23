@@ -13,7 +13,7 @@ public sealed class WeeklyReportWorker(IServiceScopeFactory scopes, IOptions<Wee
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var zone = TimeZoneInfo.FindSystemTimeZoneById(options.Value.TimeZoneId);
+        var zone = CareAI.Infrastructure.Services.AdaptiveThresholdService.ResolveTimeZone(options.Value.TimeZoneId);
         logger.LogInformation("Weekly reports scheduled Sunday 07:00 in {Zone}; latest missed week recovered on startup", zone.Id);
         try
         {
@@ -40,7 +40,7 @@ public sealed class WeeklyReportWorker(IServiceScopeFactory scopes, IOptions<Wee
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CareAiDbContext>();
-        var ids = await db.ElderProfiles.AsNoTracking().Select(e => e.Id).ToListAsync(ct);
+        var ids = await db.ElderProfiles.AsNoTracking().Where(e => !e.IsDeleted).Select(e => e.Id).ToListAsync(ct);
         foreach (var id in ids)
         {
             ct.ThrowIfCancellationRequested();

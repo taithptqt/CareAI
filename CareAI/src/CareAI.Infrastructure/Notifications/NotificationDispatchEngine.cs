@@ -2,6 +2,7 @@ using System.Text.Json;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
+using CareAI.Core.Entities.Admin;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -133,7 +134,8 @@ public class NotificationDispatchEngine
         return await _db.CaregiverPushTokens.AnyAsync(t => t.IsActive &&
             t.CaregiverId == caregiverId && t.PushToken == item.PushToken, ct) &&
             await _db.ElderCaregivers.AnyAsync(ec => ec.IsActive &&
-                ec.CaregiverId == caregiverId && ec.ElderProfileId == item.Incident.ElderProfileId, ct);
+                ec.CaregiverId == caregiverId && ec.ElderProfileId == item.Incident.ElderProfileId, ct) &&
+            !await _db.Set<CaregiverAdminState>().AnyAsync(s => s.CaregiverId == caregiverId && s.IsSuspended, ct);
     }
 
     private static bool IsObsoleteSiren(NotificationOutbox item)

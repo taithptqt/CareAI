@@ -42,7 +42,7 @@
 @if (Model.Kind == "feedback")
 {
     <label for="reply">Nội dung trả lời khách hàng</label><textarea id="reply" name="Values[Reply]" rows="6" required minlength="5" maxlength="3000">@Model.Input("Reply", Model.Existing("Trả lời hiện tại"))</textarea>
-    <label for="feedbackstatus">Trạng thái</label><select id="feedbackstatus" name="Values[Status]"><option value="InProgress">Đang xử lý</option><option value="Resolved">Đã phản hồi</option></select>
+    <label for="feedbackstatus">Trạng thái</label><select id="feedbackstatus" name="Values[Status]"><option value="InProgress" selected="@(Model.Input("Status", Model.Record.Status) != "Resolved")">Đang xử lý</option><option value="Resolved" selected="@(Model.Input("Status", Model.Record.Status) == "Resolved")">Đã phản hồi</option></select>
     <p>Người thân đọc trả lời trong lịch sử feedback trên app; không tự gửi email hoặc push.</p>
 }
 @if (Model.Kind == "devices") { <p class="notice">Thu hồi ngắt quyền gửi dữ liệu của thiết bị. Cần thiết bị thay thế; chặn khi hồ sơ có incident chưa giải quyết. Cache ở API khác có thể cần tối đa 5 phút để hết hiệu lực.</p> }

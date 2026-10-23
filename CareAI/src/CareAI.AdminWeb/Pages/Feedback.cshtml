@@ -16,7 +16,7 @@
         <summary><strong>@item.Subject</strong><span>@FeedbackModel.CategoryLabel(item.Category) · @item.SenderName · @AdminDisplay.Time(item.CreatedAtUtc)</span></summary>
         <p class="feedback-message">@item.Message</p>
         <small>ID phản hồi: @item.Id · ID người gửi: @item.CaregiverId</small>
-        <p>Trạng thái: @(item.Status == "Resolved" ? "Đã phản hồi" : item.Status == "InProgress" ? "Đang xử lý" : "Mới nhận")</p>
+        <p>Trạng thái: <span class="status @(item.Status == "Resolved" ? "neutral" : item.Status == "InProgress" ? "warning" : "danger")">@(item.Status == "Resolved" ? "Đã phản hồi" : item.Status == "InProgress" ? "Đang xử lý" : "Mới nhận")</span></p>
         @if (item.AdminReply is not null) { <p class="feedback-message">Trả lời: @item.AdminReply</p> }
         @if (!WebMode.Preview && User.HasClaim("admin_permission", AdminPermissions.Manage)) { <a class="button" asp-page="/Manage" asp-route-kind="feedback" asp-route-id="@item.Id">Xử lý / trả lời khách hàng</a> }
     </details>
@@ -24,7 +24,7 @@
 @if (Model.Data.Items.Count == 0) { <p class="empty-state">Chưa có phản hồi phù hợp. Thử xóa bộ lọc hoặc tải lại sau.</p> }
 </section>
 <nav class="pagination" aria-label="Phân trang phản hồi"><span>Trang @Model.Data.Page · Tối đa 25 phản hồi mỗi trang</span><div>
-@if (Model.Data.Page > 1) { <a class="button" asp-route-PageNumber="@(Model.Data.Page - 1)" asp-route-Search="@Model.Search" asp-route-Category="@Model.Category">← Trước</a> }
-@if (Model.Data.Page * Model.Data.PageSize < Model.Data.TotalCount) { <a class="button" asp-route-PageNumber="@(Model.Data.Page + 1)" asp-route-Search="@Model.Search" asp-route-Category="@Model.Category">Sau →</a> }
+@if (Model.Data.Page > 1) { <a class="button" asp-page="/Feedback" asp-route-PageNumber="@(Model.Data.Page - 1)" asp-route-Search="@Model.Search" asp-route-Category="@Model.Category">← Trước</a> }
+@if (Model.Data.Page * Model.Data.PageSize < Model.Data.TotalCount) { <a class="button" asp-page="/Feedback" asp-route-PageNumber="@(Model.Data.Page + 1)" asp-route-Search="@Model.Search" asp-route-Category="@Model.Category">Sau →</a> }
 </div></nav>
 <p class="panel-footnote">Đây là hộp thư góp ý, không phải kênh tiếp nhận SOS. Trả lời được lưu vào lịch sử feedback trên app; không tự gửi email hoặc push.</p>

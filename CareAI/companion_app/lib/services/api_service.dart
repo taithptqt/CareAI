@@ -1,7 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,10 +10,13 @@ import '../models/device_models.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
 import 'fall_service.dart';
+import 'local_offline_store.dart';
 
 class ApiService {
   static final ApiService instance = ApiService._init();
   ApiService._init();
+
+  final deviceUnpairedNotifier = ValueNotifier<bool>(false);
 
   static const String internetTunnelUrl = 'https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net';
   static const String usbServerUrl = 'http://127.0.0.1:5097';
@@ -108,6 +111,11 @@ class ApiService {
 
       _activeServerUrl = normalizedUrl;
 
+      // Xóa sạch hàng đợi ngoại tuyến cũ để tránh ô nhiễm dữ liệu sinh hiệu sang Cụ mới
+      try {
+        await LocalOfflineStore.instance.clearPendingPackets();
+      } catch (_) {}
+
       // Tự động đẩy thông tin xác thực sang đồng hồ Wear OS (Galaxy Watch) / watchOS (Apple Watch)
       try {
         unawaited(FallService.instance.syncWatchCredentials(
@@ -194,6 +202,11 @@ class ApiService {
     await prefs.remove('elder_profile_id');
     await prefs.remove('elder_name');
     await prefs.remove('last_paired_watch_name');
+
+    // Dọn sạch hàng đợi ngoại tuyến khi hủy ghép nối
+    try {
+      await LocalOfflineStore.instance.clearPendingPackets();
+    } catch (_) {}
 
     // Đồng bộ hủy thông tin xác thực trên đồng hồ
     try {
@@ -545,7 +558,31 @@ class ApiService {
         ).timeout(const Duration(seconds: 5));
         if (response.statusCode == 200) {
           _activeServerUrl = url;
+          try {
+            final data = jsonDecode(response.body);
+            if (data is Map && data['elderName'] != null) {
+              final newName = data['elderName'].toString().trim();
+              if (newName.isNotEmpty) {
+                final prefs = await SharedPreferences.getInstance();
+                final currentName = prefs.getString('elder_name');
+                if (currentName != newName) {
+                  await prefs.setString('elder_name', newName);
+                  unawaited(FallService.instance.syncWatchCredentials(
+                    backendUrl: url,
+                    deviceId: deviceId,
+                    deviceToken: deviceToken,
+                    elderName: newName,
+                  ));
+                }
+              }
+            }
+          } catch (_) {}
           return true;
+        } else if (response.statusCode == 401 || response.statusCode == 403) {
+          // Thiết bị đã bị vô hiệu hóa hoặc hủy ghép nối từ xa
+          await unpair();
+          deviceUnpairedNotifier.value = true;
+          return false;
         }
         if (response.statusCode >= 400 && response.statusCode < 500) return false;
       } catch (_) {}

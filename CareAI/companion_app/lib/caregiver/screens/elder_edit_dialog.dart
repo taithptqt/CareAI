@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
+import 'incident_history_screen.dart';
 
 class ElderEditDialog extends StatefulWidget {
   final ElderItem elder;
@@ -243,12 +244,45 @@ class _ElderEditDialogState extends State<ElderEditDialog> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFFECACA)),
                     ),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFFDC2626),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFDC2626),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (_errorMessage!.contains('sự cố cấp cứu')) ...[
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFFDC2626),
+                                side: const BorderSide(color: Color(0xFFDC2626)),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                              icon: const Icon(Icons.history_rounded, size: 16),
+                              label: const Text('Xem lịch sử sự cố để xử lý', style: TextStyle(fontSize: 12)),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => IncidentHistoryScreen(
+                                      initialElderProfileId: widget.elder.id,
+                                      initialElderName: widget.elder.fullName,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
 

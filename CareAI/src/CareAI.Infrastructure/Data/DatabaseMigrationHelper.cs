@@ -550,6 +550,152 @@ public static class DatabaseMigrationHelper
         CREATE INDEX IX_WeeklyReportNotifications_Status_NextAttemptUtc
             ON dbo.WeeklyReportNotifications(Status, NextAttemptUtc);
     END;
+
+    -- 18. AdminUsers
+    IF OBJECT_ID(N'dbo.AdminUsers', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.AdminUsers (
+            Id NVARCHAR(36) NOT NULL CONSTRAINT PK_AdminUsers PRIMARY KEY,
+            FullName NVARCHAR(100) NOT NULL,
+            NormalizedEmail NVARCHAR(254) NOT NULL,
+            PasswordHash NVARCHAR(256) NOT NULL,
+            Role NVARCHAR(30) NOT NULL,
+            IsActive BIT NOT NULL,
+            SecurityVersion INT NOT NULL,
+            FailedLoginAttempts INT NOT NULL,
+            LockoutEndUtc DATETIME2 NULL,
+            LastLoginAtUtc DATETIME2 NULL,
+            RowVersion ROWVERSION NOT NULL,
+            MfaEnabled BIT NOT NULL CONSTRAINT DF_AdminUsers_MfaEnabled DEFAULT 0,
+            MfaSecretProtected NVARCHAR(2000) NULL,
+            PendingMfaSecretProtected NVARCHAR(2000) NULL,
+            LastTotpCounter BIGINT NOT NULL CONSTRAINT DF_AdminUsers_LastTotpCounter DEFAULT -1,
+            CONSTRAINT CK_AdminUsers_Role CHECK (Role IN ('Owner','Operations','Support','Auditor'))
+        );
+        CREATE UNIQUE INDEX IX_AdminUsers_NormalizedEmail ON dbo.AdminUsers(NormalizedEmail);
+    END;
+
+    IF COL_LENGTH(N'dbo.AdminUsers',N'MfaEnabled') IS NULL
+        ALTER TABLE dbo.AdminUsers ADD MfaEnabled BIT NOT NULL CONSTRAINT DF_AdminUsers_MfaEnabled DEFAULT 0;
+    IF COL_LENGTH(N'dbo.AdminUsers',N'MfaSecretProtected') IS NULL
+        ALTER TABLE dbo.AdminUsers ADD MfaSecretProtected NVARCHAR(2000) NULL;
+    IF COL_LENGTH(N'dbo.AdminUsers',N'PendingMfaSecretProtected') IS NULL
+        ALTER TABLE dbo.AdminUsers ADD PendingMfaSecretProtected NVARCHAR(2000) NULL;
+    IF COL_LENGTH(N'dbo.AdminUsers',N'LastTotpCounter') IS NULL
+        ALTER TABLE dbo.AdminUsers ADD LastTotpCounter BIGINT NOT NULL CONSTRAINT DF_AdminUsers_LastTotpCounter DEFAULT -1;
+
+    -- 19. AdminSessions
+    IF OBJECT_ID(N'dbo.AdminSessions', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.AdminSessions (
+            Id NVARCHAR(36) NOT NULL CONSTRAINT PK_AdminSessions PRIMARY KEY,
+            AdminUserId NVARCHAR(36) NOT NULL,
+            SecurityVersion INT NOT NULL,
+            CreatedAtUtc DATETIME2 NOT NULL,
+            LastSeenAtUtc DATETIME2 NOT NULL,
+            ExpiresAtUtc DATETIME2 NOT NULL,
+            RevokedAtUtc DATETIME2 NULL,
+            IsEnrollmentOnly BIT NOT NULL CONSTRAINT DF_AdminSessions_IsEnrollmentOnly DEFAULT 0,
+            CONSTRAINT FK_AdminSessions_AdminUsers FOREIGN KEY(AdminUserId) REFERENCES dbo.AdminUsers(Id)
+        );
+        CREATE INDEX IX_AdminSessions_AdminUserId ON dbo.AdminSessions(AdminUserId);
+        CREATE INDEX IX_AdminSessions_ExpiresAtUtc ON dbo.AdminSessions(ExpiresAtUtc);
+    END;
+
+    IF COL_LENGTH(N'dbo.AdminSessions',N'IsEnrollmentOnly') IS NULL
+        ALTER TABLE dbo.AdminSessions ADD IsEnrollmentOnly BIT NOT NULL CONSTRAINT DF_AdminSessions_IsEnrollmentOnly DEFAULT 0;
+
+    -- 20. AdminAuditEvents
+    IF OBJECT_ID(N'dbo.AdminAuditEvents', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.AdminAuditEvents (
+            Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AdminAuditEvents PRIMARY KEY,
+            ActorId NVARCHAR(36) NOT NULL,
+            Action NVARCHAR(50) NOT NULL,
+            TargetId NVARCHAR(50) NULL,
+            Reason NVARCHAR(500) NOT NULL,
+            Result NVARCHAR(20) NOT NULL,
+            TraceId NVARCHAR(64) NOT NULL,
+            OccurredAtUtc DATETIME2 NOT NULL,
+            ChangesJson NVARCHAR(2000) NULL
+        );
+        CREATE INDEX IX_AdminAuditEvents_ActorId ON dbo.AdminAuditEvents(ActorId);
+        CREATE INDEX IX_AdminAuditEvents_TargetId ON dbo.AdminAuditEvents(TargetId);
+        CREATE INDEX IX_AdminAuditEvents_OccurredAtUtc ON dbo.AdminAuditEvents(OccurredAtUtc);
+    END;
+
+    IF COL_LENGTH(N'dbo.AdminAuditEvents',N'ChangesJson') IS NULL
+        ALTER TABLE dbo.AdminAuditEvents ADD ChangesJson NVARCHAR(2000) NULL;
+
+    -- 21. AdminCommandRecords
+    IF OBJECT_ID(N'dbo.AdminCommandRecords', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.AdminCommandRecords (
+            Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AdminCommandRecords PRIMARY KEY,
+            ActorId NVARCHAR(36) NOT NULL,
+            RequestId NVARCHAR(36) NOT NULL,
+            PayloadFingerprint NVARCHAR(64) NOT NULL,
+            TargetId NVARCHAR(50) NOT NULL,
+            ExecutedAtUtc DATETIME2 NOT NULL
+        );
+        CREATE UNIQUE INDEX IX_AdminCommandRecords_ActorId_RequestId ON dbo.AdminCommandRecords(ActorId, RequestId);
+        CREATE INDEX IX_AdminCommandRecords_TargetId ON dbo.AdminCommandRecords(TargetId);
+    END;
+
+    -- 22. CaregiverAdminStates
+    IF OBJECT_ID(N'dbo.CaregiverAdminStates', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.CaregiverAdminStates (
+            CaregiverId NVARCHAR(50) NOT NULL PRIMARY KEY,
+            IsSuspended BIT NOT NULL,
+            SecurityVersion INT NOT NULL,
+            Reason NVARCHAR(500) NOT NULL,
+            UpdatedAtUtc DATETIME2 NOT NULL,
+            RowVersion ROWVERSION NOT NULL
+        );
+    END;
+
+    -- 23. CustomerFeedback
+    IF OBJECT_ID(N'dbo.CustomerFeedback', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.CustomerFeedback (
+            Id NVARCHAR(36) NOT NULL CONSTRAINT PK_CustomerFeedback PRIMARY KEY,
+            CaregiverId NVARCHAR(50) NOT NULL,
+            RequestId NVARCHAR(32) NOT NULL,
+            Category NVARCHAR(20) NOT NULL,
+            Subject NVARCHAR(120) NOT NULL,
+            Message NVARCHAR(3000) NOT NULL,
+            Status NVARCHAR(20) NOT NULL CONSTRAINT DF_CustomerFeedback_Status DEFAULT N'New',
+            AdminReply NVARCHAR(3000) NULL,
+            RepliedAtUtc DATETIME2 NULL,
+            CreatedAtUtc DATETIME2 NOT NULL,
+            CONSTRAINT FK_CustomerFeedback_Caregivers FOREIGN KEY(CaregiverId) REFERENCES dbo.Caregivers(Id),
+            CONSTRAINT CK_CustomerFeedback_Category CHECK (Category IN ('Bug', 'Suggestion', 'Other'))
+        );
+        CREATE UNIQUE INDEX IX_CustomerFeedback_CaregiverId_RequestId ON dbo.CustomerFeedback(CaregiverId, RequestId);
+        CREATE INDEX IX_CustomerFeedback_CaregiverId_CreatedAtUtc ON dbo.CustomerFeedback(CaregiverId, CreatedAtUtc);
+        CREATE INDEX IX_CustomerFeedback_CreatedAtUtc ON dbo.CustomerFeedback(CreatedAtUtc);
+    END;
+
+    IF COL_LENGTH(N'dbo.CustomerFeedback',N'Status') IS NULL
+        ALTER TABLE dbo.CustomerFeedback ADD Status NVARCHAR(20) NOT NULL CONSTRAINT DF_CustomerFeedback_Status DEFAULT N'New';
+    IF COL_LENGTH(N'dbo.CustomerFeedback',N'AdminReply') IS NULL
+        ALTER TABLE dbo.CustomerFeedback ADD AdminReply NVARCHAR(3000) NULL;
+    IF COL_LENGTH(N'dbo.CustomerFeedback',N'RepliedAtUtc') IS NULL
+        ALTER TABLE dbo.CustomerFeedback ADD RepliedAtUtc DATETIME2 NULL;
+
+    -- 24. AdminWebTickets (Distributed SQL Server Session Cache)
+    IF OBJECT_ID(N'dbo.AdminWebTickets', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.AdminWebTickets (
+            Id NVARCHAR(449) COLLATE SQL_Latin1_General_CP1_CS_AS NOT NULL CONSTRAINT PK_AdminWebTickets PRIMARY KEY,
+            Value VARBINARY(MAX) NOT NULL,
+            ExpiresAtTime DATETIMEOFFSET NOT NULL,
+            SlidingExpirationInSeconds BIGINT NULL,
+            AbsoluteExpiration DATETIMEOFFSET NULL
+        );
+        CREATE INDEX Index_ExpiresAtTime ON dbo.AdminWebTickets(ExpiresAtTime);
+    END;
     """;
 
     public static async Task InitializeDatabaseAsync(string connectionString, ILogger? logger = null, CancellationToken ct = default)

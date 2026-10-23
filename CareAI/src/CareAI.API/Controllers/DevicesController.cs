@@ -94,7 +94,10 @@ public class DevicesController : ControllerBase
     [ProducesResponseType(typeof(PairDeviceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> PairDevice([FromBody] PairDeviceRequest request, CancellationToken ct)
+    public async Task<IActionResult> PairDevice(
+        [FromBody] PairDeviceRequest request,
+        CancellationToken ct = default,
+        [FromServices] IMemoryCache? cache = null)
     {
         if (string.IsNullOrWhiteSpace(request.DeviceId) || string.IsNullOrWhiteSpace(request.PairingPin))
         {
@@ -176,6 +179,7 @@ public class DevicesController : ControllerBase
             {
                 w.IsActive = false;
                 w.UpdatedAt = now;
+                if (cache != null) DeviceTokenAuthMiddleware.InvalidateDevice(cache, w.Id);
             }
         }
         else if (isPhone)
@@ -190,8 +194,12 @@ public class DevicesController : ControllerBase
             {
                 p.IsActive = false;
                 p.UpdatedAt = now;
+                if (cache != null) DeviceTokenAuthMiddleware.InvalidateDevice(cache, p.Id);
             }
         }
+
+        // Xóa cache của chính thiết bị này (nếu đã từng lưu cache token cũ trước khi re-pair)
+        if (cache != null) DeviceTokenAuthMiddleware.InvalidateDevice(cache, request.DeviceId);
 
         // Vô hiệu hóa PIN sau khi sử dụng thành công (One-Time PIN)
         elder.PairingPin = null;
@@ -314,12 +322,18 @@ public class DevicesController : ControllerBase
 
         var device = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == authenticatedDeviceId, ct);
         object? activeIncidentInfo = null;
+        string? elderFullName = null;
 
         if (device != null)
         {
             device.LastHeartbeat = DateTime.UtcNow;
             device.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
+
+            elderFullName = await _db.ElderProfiles.AsNoTracking()
+                .Where(e => e.Id == device.ElderProfileId && !e.IsDeleted)
+                .Select(e => e.FullName)
+                .FirstOrDefaultAsync(ct);
 
             // Truy vấn sự cố đang mở hoặc đã tiếp nhận của người cao tuổi này
             var active = await _db.Incidents
@@ -353,6 +367,7 @@ public class DevicesController : ControllerBase
         {
             status = "ALIVE",
             deviceId = authenticatedDeviceId,
+            elderName = elderFullName,
             serverTime = DateTime.UtcNow,
             activeIncident = activeIncidentInfo
         });

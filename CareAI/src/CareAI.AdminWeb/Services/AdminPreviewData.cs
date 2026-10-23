@@ -1,3 +1,4 @@
+using CareAI.Core.DTOs;
 using CareAI.Core.DTOs.Admin;
 
 namespace CareAI.AdminWeb.Services;
@@ -9,6 +10,7 @@ public sealed class AdminPreviewData
     public IReadOnlyList<AdminAccountSummary> Accounts { get; }
     public IReadOnlyList<AdminIncidentSummary> Incidents { get; }
     public IReadOnlyList<AdminDeviceSummary> Devices { get; }
+    public IReadOnlyList<AdminFeedbackDto> Feedbacks { get; }
     public IReadOnlyList<string> Elders { get; } = ["Hồ sơ mẫu A", "Hồ sơ mẫu B", "Hồ sơ mẫu C"];
 
     public AdminPreviewData()
@@ -25,6 +27,11 @@ public sealed class AdminPreviewData
             new("demo-device-01", "Điện thoại mẫu A", Elders[0], true, AsOfUtc.AddMinutes(-1), "Online", null),
             new("demo-device-02", "Đồng hồ mẫu B", Elders[1], true, AsOfUtc.AddMinutes(-18), "Offline", 24),
             new("demo-device-03", "Điện thoại mẫu C", Elders[2], true, null, "Unknown", null)
+        ];
+        Feedbacks = [
+            new("demo-fb-01", "demo-account-01", "Người thân mẫu 01", "Suggestion", "Đề xuất phóng to biểu đồ SpO2", "Giao diện hiện tại rất tốt nhưng nếu có thể phóng to biểu đồ SpO2 khi xoay ngang thì trực quan hơn.", AsOfUtc.AddMinutes(-30), "New", null, "demo-version-fb-01"),
+            new("demo-fb-02", "demo-account-02", "Người thân mẫu 02", "Bug", "Lỗi mất kết nối Bluetooth ban đêm", "Đồng hồ thỉnh thoảng báo ngắt kết nối vào ban đêm dù vẫn đeo trên tay.", AsOfUtc.AddHours(-3), "InProgress", "Đội ngũ kỹ thuật đang kiểm tra nhật ký kết nối của thiết bị.", "demo-version-fb-02"),
+            new("demo-fb-03", "demo-account-03", "Người thân mẫu 03", "Other", "Cảm ơn đội ngũ CareAI", "Hệ thống đã giúp tôi kịp thời phát hiện nhịp tim bất thường của mẹ tuần trước.", AsOfUtc.AddDays(-1), "Resolved", "Cảm ơn gia đình đã tin tưởng và đồng hành cùng CareAI.", "demo-version-fb-03")
         ];
     }
 

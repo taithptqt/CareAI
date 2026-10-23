@@ -58,7 +58,7 @@ public sealed class FeedbackService(CareAiDbContext db)
         page = ClampPage(page, count);
         var rows = await query.OrderByDescending(x => x.CreatedAtUtc).ThenBy(x => x.Id).Skip((page - 1) * 25).Take(25)
             .Select(x => new { x.Id, x.CaregiverId, x.Caregiver.FullName, x.Category, x.Subject, x.Message, x.CreatedAtUtc, x.Status, x.AdminReply, x.RepliedAtUtc }).ToArrayAsync(ct);
-        return new(rows.Select(x => new AdminFeedbackDto(x.Id, x.CaregiverId, x.FullName, x.Category, x.Subject, x.Message,
+        return new(rows.Select(x => new AdminFeedbackDto(x.Id, x.CaregiverId, x.FullName ?? "N/A", x.Category, x.Subject, x.Message,
             new DateTimeOffset(DateTime.SpecifyKind(x.CreatedAtUtc, DateTimeKind.Utc)), x.Status, x.AdminReply,
             CareAI.Infrastructure.Admin.AdminOperationsReadService.Version(new { x.Status, x.AdminReply, x.RepliedAtUtc }))).ToArray(), count, page, 25, DateTimeOffset.UtcNow);
     }

@@ -21,17 +21,25 @@ public sealed class ManageModel(AdminApiClient api, AdminWebMode mode) : PageMod
     public string BackPage => Kind switch { "staff" => "/Staff", "elders" => "/Elders", "care-links" => "/CareLinks", "feedback" => "/Feedback", "devices" => "/Devices", _ => "/Accounts/Index" };
     public string Existing(string label) => Record.Fields.FirstOrDefault(f => f.Label == label)?.Value ?? "";
     public string Input(string key, string fallback = "") => Values.GetValueOrDefault(key) ?? fallback;
-    private Task<AdminRecord> Load(CancellationToken ct) => api.GetAsync<AdminRecord>($"operations/{Uri.EscapeDataString(Kind)}/{Uri.EscapeDataString(Id)}", ct);
+    private async Task<AdminRecord?> Load(CancellationToken ct)
+    {
+        try { return await api.GetAsync<AdminRecord>($"operations/{Uri.EscapeDataString(Kind)}/{Uri.EscapeDataString(Id)}", ct); }
+        catch (AdminApiException ex) when (ex.StatusCode == 404) { return null; }
+    }
     public async Task<IActionResult> OnGetAsync(CancellationToken ct)
     {
         if (mode.Preview) return RedirectToPage("/Overview");
-        Record = await Load(ct); ExpectedVersion = Record.Version;
+        var record = await Load(ct);
+        if (record is null) return NotFound();
+        Record = record; ExpectedVersion = Record.Version;
         return Page();
     }
     public async Task<IActionResult> OnPostAsync(CancellationToken ct)
     {
         if (!mode.Live || Kind == "elders") return Forbid();
-        Record = await Load(ct);
+        var record = await Load(ct);
+        if (record is null) return NotFound();
+        Record = record;
         var allowed = Kind switch
         {
             "accounts" => new[] { "account.update", "account.unlock", "account.suspend", "account.restore", "account.revoke" }, "devices" => ["device.revoke"],

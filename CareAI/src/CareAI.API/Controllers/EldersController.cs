@@ -197,6 +197,7 @@ public class EldersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DeleteElder(
         string id,
         [FromBody] DeleteElderRequest request,
@@ -239,6 +240,16 @@ public class EldersController : ControllerBase
         if (elder == null)
         {
             return NotFound(new { error = "Không tìm thấy hồ sơ người cao tuổi hoặc hồ sơ đã bị xóa trước đó." });
+        }
+
+        // Bất biến an toàn y tế: Không thể xóa hồ sơ khi đang có sự cố cấp cứu mở hoặc đã tiếp nhận chưa giải quyết
+        var hasActiveIncident = await _db.Incidents
+            .AnyAsync(i => i.ElderProfileId == id && (i.Status == IncidentStatus.Open || i.Status == IncidentStatus.Acknowledged), ct);
+
+        if (hasActiveIncident)
+        {
+            _logger.LogWarning("[ELDER-DELETE-CONFLICT] Từ chối xóa Elder {ElderId} do đang có sự cố cấp cứu chưa giải quyết.", id);
+            return StatusCode(StatusCodes.Status409Conflict, new { error = "Không thể xóa hồ sơ người cao tuổi khi đang có sự cố cấp cứu chưa giải quyết. Vui lòng tiếp nhận hoặc đóng sự cố trước." });
         }
 
         var now = DateTime.UtcNow;

@@ -44,6 +44,14 @@ public class CaregiversController : ControllerBase
             return BadRequest(new { error = "PushToken không được để trống." });
         }
 
+        var isSuspended = await _db.Set<CareAI.Core.Entities.Admin.CaregiverAdminState>()
+            .AnyAsync(s => s.CaregiverId == caregiverId && s.IsSuspended, ct);
+        if (isSuspended)
+        {
+            _logger.LogWarning("[PUSH-TOKEN-REJECTED] Caregiver {CaregiverId} đang bị đình chỉ, từ chối đăng ký Push Token.", caregiverId);
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Tài khoản của bạn đang bị tạm ngưng hoạt động." });
+        }
+
         var existingToken = await _db.CaregiverPushTokens
             .FirstOrDefaultAsync(t => t.PushToken == request.PushToken, ct);
 

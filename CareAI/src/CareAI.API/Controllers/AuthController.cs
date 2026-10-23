@@ -30,11 +30,14 @@ public class AuthController : ControllerBase
     /// </summary>
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
-    public AuthController(CareAiDbContext db, IConfiguration config, ILogger<AuthController> logger)
+    private readonly CareAI.Core.Interfaces.IEmailSender? _emailSender;
+
+    public AuthController(CareAiDbContext db, IConfiguration config, ILogger<AuthController> logger, CareAI.Core.Interfaces.IEmailSender? emailSender = null)
     {
         _db = db;
         _config = config;
         _logger = logger;
+        _emailSender = emailSender;
     }
 
     /// <summary>
@@ -217,8 +220,23 @@ public class AuthController : ControllerBase
             _db.PasswordResetTokens.Add(resetToken);
             await _db.SaveChangesAsync(ct);
 
-            // TODO: Tích hợp gửi Email thực tế (SMTP / SendGrid / Azure Communication Services)
-            _logger.LogInformation("[AUTH-OTP] Đã sinh mã OTP cho {Email}: {OTP} (Hết hạn: 10 phút)", caregiver.Email, otpCode);
+            if (_emailSender != null)
+            {
+                var subject = "[CareAI] Mã xác thực đặt lại mật khẩu của bạn";
+                var body = $"""
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;'>
+                        <h2 style='color: #0D9488;'>CareAI - Chăm sóc từ xa, yêu thương gần hơn</h2>
+                        <p>Xin chào <strong>{caregiver.FullName}</strong>,</p>
+                        <p>Hệ thống nhận được yêu cầu đặt lại mật khẩu cho tài khoản người thân của bạn.</p>
+                        <p>Mã OTP xác thực của bạn là:</p>
+                        <div style='font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #0F172A; background-color: #F1F5F9; padding: 12px; text-align: center; border-radius: 6px;'>{otpCode}</div>
+                        <p style='color: #64748B; margin-top: 16px;'>Mã xác thực này có hiệu lực trong vòng <strong>10 phút</strong>. Tuyệt đối không chia sẻ mã này cho bất kỳ ai.</p>
+                        <p style='color: #94A3B8; font-size: 12px;'>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua thư này hoặc liên hệ quản trị viên.</p>
+                    </div>
+                """;
+                await _emailSender.SendEmailAsync(caregiver.Email, subject, body, ct);
+            }
+            _logger.LogInformation("[AUTH-OTP] Đã xử lý phát hành mã OTP cho {Email} (Hết hạn: 10 phút)", caregiver.Email);
         }
 
         return Ok(new ForgotPasswordResponse("Nếu email tồn tại trong hệ thống, mã OTP đã được gửi đến hộp thư của bạn."));

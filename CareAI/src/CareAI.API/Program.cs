@@ -126,7 +126,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 OnTokenValidated = async context =>
                 {
                     var db = context.HttpContext.RequestServices.GetRequiredService<CareAiDbContext>();
-                    if (!await CareAI.Infrastructure.Admin.CaregiverSessionValidator.IsValidAsync(db, context.Principal!, context.HttpContext.RequestAborted))
+                    var cache = context.HttpContext.RequestServices.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+                    if (!await CareAI.Infrastructure.Admin.CaregiverSessionValidator.IsValidAsync(db, context.Principal!, context.HttpContext.RequestAborted, cache))
                         context.Fail("Caregiver session revoked or suspended.");
                 }
             };
@@ -136,6 +137,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddCareAiAdmin(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<CareAI.Infrastructure.Feedback.FeedbackService>();
+builder.Services.AddSingleton<CareAI.Core.Interfaces.IEmailSender, CareAI.Infrastructure.Services.SmtpEmailSender>();
 
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("sqlserver");

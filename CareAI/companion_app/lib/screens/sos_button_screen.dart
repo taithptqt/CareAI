@@ -167,6 +167,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       _checkWatchStatus();
     });
 
+    // Lắng nghe tín hiệu thiết bị bị hủy ghép nối từ xa (UC-12)
+    ApiService.instance.deviceUnpairedNotifier.addListener(_onRemoteDeviceUnpaired);
+
     // Kích hoạt chu kỳ đồng bộ ngoại tuyến định kỳ
     SyncService.instance.startPeriodicSync();
   }
@@ -263,8 +266,26 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     _watchStatusSubscription?.cancel();
     _rippleController.dispose();
     FallService.instance.stopPhoneAccelerometerDetector();
+    ApiService.instance.deviceUnpairedNotifier.removeListener(_onRemoteDeviceUnpaired);
     SyncService.instance.stopPeriodicSync();
     super.dispose();
+  }
+
+  void _onRemoteDeviceUnpaired() {
+    if (!mounted) return;
+    if (ApiService.instance.deviceUnpairedNotifier.value) {
+      ApiService.instance.deviceUnpairedNotifier.value = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thiết bị này đã được người bảo hộ chính hủy ghép nối từ xa.'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DevicePairingScreen()),
+      );
+    }
   }
 
   void _startIncidentPolling() {

@@ -35,6 +35,11 @@ public class DataRetentionBackgroundWorker : BackgroundService
             {
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<CareAiDbContext>();
+                if (!db.Database.IsSqlServer())
+                {
+                    await Task.Delay(_runInterval, stoppingToken);
+                    continue;
+                }
                 var cutoff = DateTime.UtcNow.AddDays(-RetentionDays);
 
                 // 1. DỌN BẢNG HealthMeasurements THEO MẺ (TOP 1000) CHỐNG LOCK ESCALATION

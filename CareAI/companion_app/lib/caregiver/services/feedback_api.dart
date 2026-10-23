@@ -29,7 +29,11 @@ class FeedbackApi {
       );
     }
     final base = _auth.currentServerUrl.replaceAll(RegExp(r'/+$'), '');
-    final uri = Uri.parse('$base/api/v1/caregivers/feedback?page=$page');
+    final uri = Uri.parse(
+      body == null
+          ? '$base/api/v1/caregivers/feedback?page=$page'
+          : '$base/api/v1/caregivers/feedback',
+    );
     final headers = {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json; charset=utf-8',
@@ -43,6 +47,8 @@ class FeedbackApi {
                   : _client.post(uri, headers: headers, body: jsonEncode(body)))
               .timeout(const Duration(seconds: 20));
       if (response.statusCode == 401 || response.statusCode == 403) {
+        unawaited(_auth.logout());
+        _auth.sessionExpiredNotifier.value = true;
         throw const FeedbackApiException(
           'Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.',
         );

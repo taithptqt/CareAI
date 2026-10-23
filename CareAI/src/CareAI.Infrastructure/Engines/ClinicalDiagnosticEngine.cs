@@ -1,3 +1,4 @@
+using CareAI.Core.Entities.Admin;
 using System.Text.Json;
 using CareAI.Core.Entities;
 using CareAI.Core.Enums;
@@ -253,7 +254,7 @@ public class ClinicalDiagnosticEngine
             Description = reason, RecordedAt = now
         });
 
-        var tokens = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == elderProfileId && ec.IsActive)
+        var tokens = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == elderProfileId && ec.IsActive && !_db.Set<CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(_db.CaregiverPushTokens.Where(t => t.IsActive), ec => ec.CaregiverId,
                 t => t.CaregiverId, (ec, t) => new { ec.CaregiverId, t.PushToken }).ToListAsync(ct);
         foreach (var token in tokens)
@@ -319,7 +320,7 @@ public class ClinicalDiagnosticEngine
         string emergencyType, string reason, int alertCycleNumber, DateTime now,
         bool critical, CancellationToken ct)
     {
-        var tokens = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == elderId && ec.IsActive)
+        var tokens = await _db.ElderCaregivers.Where(ec => ec.ElderProfileId == elderId && ec.IsActive && !_db.Set<CaregiverAdminState>().Any(s => s.CaregiverId == ec.CaregiverId && s.IsSuspended))
             .Join(_db.CaregiverPushTokens.Where(t => t.IsActive), ec => ec.CaregiverId,
                 t => t.CaregiverId, (ec, t) => new { ec.CaregiverId, t.PushToken }).ToListAsync(ct);
         foreach (var token in tokens)

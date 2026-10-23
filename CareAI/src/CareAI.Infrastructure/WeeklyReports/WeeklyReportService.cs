@@ -22,10 +22,11 @@ public sealed class WeeklyReportService(CareAiDbContext db, PiiAnonymizerService
 
     public async Task GenerateForElderAsync(string elderId, DateTime utcNow, CancellationToken ct)
     {
-        var zone = TimeZoneInfo.FindSystemTimeZoneById(options.Value.TimeZoneId);
+        var zone = CareAI.Infrastructure.Services.AdaptiveThresholdService.ResolveTimeZone(options.Value.TimeZoneId);
         var endLocal = LatestDueSunday(utcNow, zone);
         var startUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal.AddDays(-7), zone);
         var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal, zone);
+        if (await db.ElderProfiles.AnyAsync(e => e.Id == elderId && e.IsDeleted, ct)) return;
         if (await db.WeeklyHealthReports.AnyAsync(r => r.ElderProfileId == elderId && r.WeekEndUtc == endUtc, ct)) return;
         var rows = await db.HealthMeasurements.AsNoTracking()
             .Where(m => m.ElderProfileId == elderId && m.Timestamp >= startUtc && m.Timestamp < endUtc

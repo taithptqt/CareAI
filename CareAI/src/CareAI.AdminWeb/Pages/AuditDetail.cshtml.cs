@@ -1,9 +1,10 @@
 using CareAI.AdminWeb.Services;
 using CareAI.Core.DTOs.Admin;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace CareAI.AdminWeb.Pages;
-public sealed class AuditDetailModel(AdminApiClient api) : PageModel
+public sealed class AuditDetailModel(AdminDataSource data) : PageModel
 {
     public AdminAuditDetail Data { get; private set; } = null!;
     public string Changes
@@ -17,5 +18,11 @@ public sealed class AuditDetailModel(AdminApiClient api) : PageModel
             { "FullName" => "Họ tên", "PhoneNumber" => "Số điện thoại", "Role" => "Vai trò", "IsActive" => "Trạng thái hoạt động", "Reply" => "Nội dung trả lời", "Status" => "Trạng thái xử lý", _ => "Trường nghiệp vụ" }));
         }
     }
-    public async Task OnGetAsync(string id, CancellationToken ct) => Data = await api.GetAsync<AdminAuditDetail>($"audit/{Uri.EscapeDataString(id)}", ct);
+    public async Task<IActionResult> OnGetAsync(string id, CancellationToken ct)
+    {
+        var detail = await data.AuditDetailAsync(id, ct);
+        if (detail is null) return NotFound();
+        Data = detail;
+        return Page();
+    }
 }

@@ -95,9 +95,9 @@ public sealed class AdminOperationsReadService(CareAiDbContext db, AdminCommandO
         }
         if (kind == "feedback")
         {
-            var f = await db.Set<CustomerFeedback>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
+            var f = await db.Set<CustomerFeedback>().Include(x => x.Caregiver).AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
             return f is null ? null : new(f.Id, f.Subject, f.Category, f.Status, Version(new { f.Status, f.AdminReply, f.RepliedAtUtc }),
-                [new("Nội dung khách hàng", f.Message), new("Trả lời hiện tại", f.AdminReply ?? ""), new("Thời điểm gửi", Time(f.CreatedAtUtc))]);
+                [new("Người gửi", $"{f.Caregiver?.FullName ?? "N/A"} ({f.CaregiverId})"), new("Nội dung khách hàng", f.Message), new("Trả lời hiện tại", f.AdminReply ?? ""), new("Thời điểm gửi", Time(f.CreatedAtUtc))]);
         }
         if (kind == "elders")
         {

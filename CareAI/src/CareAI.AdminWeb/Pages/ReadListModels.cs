@@ -10,7 +10,11 @@ public sealed class DevicesModel(AdminDataSource data) : PageModel
     [BindProperty(SupportsGet = true)] public string? Status { get; set; }
     [BindProperty(SupportsGet = true)] public int PageNumber { get; set; } = 1;
     public AdminListResponse<AdminDeviceSummary> Data { get; private set; } = null!;
-    public async Task OnGetAsync(CancellationToken ct) => Data = await data.DevicesAsync(PageNumber, ct, Search, Status);
+    public async Task OnGetAsync(CancellationToken ct)
+    {
+        Data = await data.DevicesAsync(PageNumber, ct, Search, Status);
+        PageNumber = Data.Page;
+    }
 }
 public sealed class IncidentsModel(AdminDataSource data) : PageModel
 {
@@ -21,7 +25,11 @@ public sealed class IncidentsModel(AdminDataSource data) : PageModel
     [BindProperty(SupportsGet = true)] public string? Severity { get; set; }
     [BindProperty(SupportsGet = true)] public int PageNumber { get; set; } = 1;
     public AdminListResponse<AdminIncidentSummary> Data { get; private set; } = null!;
-    public async Task OnGetAsync(CancellationToken ct) => Data = await data.IncidentsAsync(PageNumber, ct, Search, Status, Severity, FromDate, BeforeDate);
+    public async Task OnGetAsync(CancellationToken ct)
+    {
+        Data = await data.IncidentsAsync(PageNumber, ct, Search, Status, Severity, FromDate, BeforeDate);
+        PageNumber = Data.Page;
+    }
 }
 public sealed class AuditModel(AdminDataSource data) : PageModel
 {
@@ -29,5 +37,9 @@ public sealed class AuditModel(AdminDataSource data) : PageModel
     [BindProperty(SupportsGet = true)] public string? Result { get; set; }
     [BindProperty(SupportsGet = true)] public int PageNumber { get; set; } = 1;
     public AdminListResponse<AdminAuditSummary> Data { get; private set; } = null!;
-    public async Task OnGetAsync(CancellationToken ct) => Data = await data.AuditAsync(PageNumber, ct, Search, Result);
+    public async Task OnGetAsync(CancellationToken ct)
+    {
+        Data = await data.AuditAsync(PageNumber, ct, Search, Result);
+        PageNumber = Data.Page;
+    }
 }

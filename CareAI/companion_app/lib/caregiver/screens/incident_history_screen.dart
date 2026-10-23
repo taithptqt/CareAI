@@ -75,9 +75,13 @@ class _IncidentHistoryScreenState extends State<IncidentHistoryScreen> {
       if (!mounted) return;
       setState(() {
         _elders = elders;
-        if (_selectedElderId == null && elders.isNotEmpty) {
+        final stillExists = elders.any((e) => e.id == _selectedElderId);
+        if ((_selectedElderId == null || !stillExists) && elders.isNotEmpty) {
           _selectedElderId = elders.first.id;
           _selectedElderName = elders.first.fullName;
+        } else if (elders.isEmpty) {
+          _selectedElderId = null;
+          _selectedElderName = 'Tất cả';
         }
       });
     } catch (_) {}
