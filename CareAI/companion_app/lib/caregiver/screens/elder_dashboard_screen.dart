@@ -2470,23 +2470,29 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.location_on_rounded,
-                    color: Color(0xFF456624),
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Vị Trí Định Vị Trực Tiếp (GPS)',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: CareAiColors.ink,
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_rounded,
+                      color: Color(0xFF456624),
+                      size: 20,
                     ),
-                  ),
-                ],
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Vị Trí Định Vị Trực Tiếp (GPS)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: CareAiColors.ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

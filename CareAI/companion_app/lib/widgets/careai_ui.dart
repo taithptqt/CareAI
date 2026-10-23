@@ -14,13 +14,29 @@ class CareAiBrand extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-          color: CareAiColors.brown,
-          borderRadius: BorderRadius.circular(11),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: CareAiColors.muted,
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
-        child: const Icon(
-          Icons.favorite_rounded,
-          color: CareAiColors.peach,
-          size: 18,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.all(2.5),
+            child: Image.asset(
+              'assets/images/logo.png',
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
       ),
       const SizedBox(width: 10),

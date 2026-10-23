@@ -111,15 +111,18 @@ class _SplashScreenState extends State<SplashScreen>
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ).createShader(bounds),
-                            child: const Text(
-                              'CareAI',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 46,
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white, // Dùng màu trắng để dải gradient hiển thị rực rỡ
-                                letterSpacing: 1.2,
+                            child: const Padding(
+                              padding: EdgeInsets.only(right: 14.0, top: 4.0, bottom: 4.0, left: 4.0),
+                              child: Text(
+                                'CareAI',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 46,
+                                  fontStyle: FontStyle.italic,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white, // Dùng màu trắng để dải gradient hiển thị rực rỡ
+                                  letterSpacing: 1.2,
+                                ),
                               ),
                             ),
                           ),
