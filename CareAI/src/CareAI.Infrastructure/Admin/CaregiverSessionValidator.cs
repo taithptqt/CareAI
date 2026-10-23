@@ -36,7 +36,11 @@ public static class CaregiverSessionValidator
                 ? CaregiverCachedState.None
                 : new CaregiverCachedState(true, dbState.IsSuspended, dbState.SecurityVersion);
 
-            cache?.Set(cacheKey, state, TimeSpan.FromSeconds(30));
+            cache?.Set(cacheKey, state, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30),
+                Size = 1
+            });
         }
 
         if (!state.Exists) return true; // Existing tokens remain valid until an explicit revocation.

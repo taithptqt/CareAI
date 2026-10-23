@@ -43,7 +43,7 @@ public sealed class CaregiverAdminSessionTests
     public async Task CaregiverSessionValidator_CachesResultInMemory()
     {
         await using var db = new CareAiDbContext(new DbContextOptionsBuilder<CareAiDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
-        using var cache = new MemoryCache(new MemoryCacheOptions());
+        using var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50_000 });
         const string caregiverId = "CG_CACHE_TEST";
 
         db.Set<CaregiverAdminState>().Add(new() { CaregiverId = caregiverId, IsSuspended = false, SecurityVersion = 1 });
@@ -81,7 +81,7 @@ public sealed class CaregiverAdminSessionTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
             .Options);
-        using var cache = new MemoryCache(new MemoryCacheOptions());
+        using var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50_000 });
 
         const string caregiverId = "CG_REVOKE_TARGET";
         cache.Set($"auth:caregiver:{caregiverId}", new CaregiverCachedState(true, false, 1));

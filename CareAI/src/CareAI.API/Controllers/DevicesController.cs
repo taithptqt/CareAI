@@ -293,7 +293,11 @@ public class DevicesController : ControllerBase
 
         // Xóa cache và ghi nhận vào Blacklist 30 ngày
         DeviceTokenAuthMiddleware.InvalidateDevice(cache, deviceId);
-        cache.Set($"blacklist:dev:{deviceId}", true, TimeSpan.FromDays(30));
+        cache.Set($"blacklist:dev:{deviceId}", true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30),
+            Size = 1
+        });
 
         await _db.SaveChangesAsync(ct);
         _logger.LogWarning("[DEVICE-UNPAIR] Thiết bị {DeviceId} của Cụ {ElderId} đã bị hủy ghép nối bởi Primary Caregiver {CaregiverId}. Phát tín hiệu WIPE_DEVICE_CREDENTIALS.",

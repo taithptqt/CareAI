@@ -272,7 +272,11 @@ public class EldersController : ControllerBase
             device.DeviceTokenHash = string.Empty;
             device.UpdatedAt = now;
             DeviceTokenAuthMiddleware.InvalidateDevice(cache, device.Id);
-            cache.Set($"blacklist:dev:{device.Id}", true, TimeSpan.FromDays(30));
+            cache.Set($"blacklist:dev:{device.Id}", true, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30),
+                Size = 1
+            });
         }
 
         // 3. Vô hiệu hóa liên kết thành viên nhóm gia đình
