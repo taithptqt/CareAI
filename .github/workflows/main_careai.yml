@@ -45,3 +45,4 @@ jobs:
           app-name: 'CareAi'
           slot-name: 'Production'
           package: ./publish
+          startup-command: 'dotnet CareAI.API.dll'
