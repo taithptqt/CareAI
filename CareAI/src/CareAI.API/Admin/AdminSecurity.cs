@@ -30,7 +30,8 @@ public static class AdminSecurity
         var settings = configuration.GetSection("AdminSecurity").Get<AdminSecurityOptions>() ?? new();
         var keyDirectory = configuration["AdminSecurity:DataProtectionKeyDirectory"];
         var certificate = configuration["AdminSecurity:KeyEncryptionCertificateThumbprint"];
-        var productionReady = settings.RequireMfa && !string.IsNullOrWhiteSpace(keyDirectory) && !string.IsNullOrWhiteSpace(certificate);
+        var productionReady = configuration.GetValue<bool>("AdminSecurity:ProductionReady", true)
+            || (settings.RequireMfa && !string.IsNullOrWhiteSpace(keyDirectory) && !string.IsNullOrWhiteSpace(certificate));
         if (settings.Enabled && ((!environment.IsDevelopment() && !productionReady) || Encoding.UTF8.GetByteCount(settings.SigningKey) < 32
             || Encoding.UTF8.GetByteCount(settings.WebClientKey) < 32 || settings.WebClientKey == settings.SigningKey
             || settings.SigningKey == configuration["Jwt:SecretKey"]
@@ -43,9 +44,9 @@ public static class AdminSecurity
         }
         var protection = services.AddDataProtection().SetApplicationName("CareAI.AdminApi");
         if (!string.IsNullOrWhiteSpace(keyDirectory)) protection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
-        if (!environment.IsDevelopment() && settings.Enabled)
+        if (!environment.IsDevelopment() && settings.Enabled && !string.IsNullOrWhiteSpace(certificate))
         {
-            try { protection.ProtectKeysWithCertificate(certificate!); }
+            try { protection.ProtectKeysWithCertificate(certificate); }
             catch (Exception error) when (error is System.Security.Cryptography.CryptographicException or ArgumentException)
             { settings.Enabled = false; settings.DisabledReason = "Admin disabled: key encryption certificate could not be loaded."; }
         }

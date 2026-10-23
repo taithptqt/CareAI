@@ -1,4 +1,5 @@
 using System.Text;
+using CareAI.AdminWeb.Services;
 using CareAI.API.Admin;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -138,6 +139,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddCareAiAdmin(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<CareAI.Infrastructure.Feedback.FeedbackService>();
 builder.Services.AddSingleton<CareAI.Core.Interfaces.IEmailSender, CareAI.Infrastructure.Services.SmtpEmailSender>();
+builder.Services.AddCareAiAdminWeb(builder.Configuration, builder.Environment);
 
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("sqlserver");
@@ -217,6 +219,8 @@ if (adminOnlyHost)
 app.UseRouting();
 app.UseRateLimiter();
 app.UseCors("CareAiWeb");
+app.UseStaticFiles();
+app.UseCareAiAdminWeb(builder.Configuration, builder.Environment);
 
 // 6. PIPELINE XỬ LÝ HTTP & SWAGGER
 if (app.Environment.IsDevelopment())
@@ -245,6 +249,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapRazorPages();
 
 // 7. TỰ ĐỘNG KHỞI TẠO CƠ SỞ DỮ LIỆU & SCHEMA IDEMPOTENT KHI KHỞI ĐỘNG
 if (!adminOnlyHost)

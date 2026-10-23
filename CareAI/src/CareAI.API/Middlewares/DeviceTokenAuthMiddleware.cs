@@ -37,6 +37,7 @@ public class DeviceTokenAuthMiddleware
         if (path.StartsWith("/healthz", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/admin", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/caregivers", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/elders", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/v1/invitations", StringComparison.OrdinalIgnoreCase) ||

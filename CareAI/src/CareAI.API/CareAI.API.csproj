@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CareAI.Infrastructure\CareAI.Infrastructure.csproj" />
+    <ProjectReference Include="..\CareAI.AdminWeb\CareAI.AdminWeb.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +18,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
   </PropertyGroup>
 
 </Project>
