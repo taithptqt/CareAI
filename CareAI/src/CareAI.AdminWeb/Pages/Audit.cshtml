@@ -1,0 +1,19 @@
+@page
+@model CareAI.AdminWeb.Pages.AuditModel
+@{ ViewData["Title"] = "Nhật ký quản trị"; }
+<div class="title-row"><div><h1>Nhật ký quản trị</h1><p>Hoạt động trong 7 ngày gần nhất · Chỉ đọc.</p></div></div>
+<partial name="_PreviewNotice" />
+<form method="get" class="filters" role="search"><div class="search-field"><label asp-for="Search">Nhân sự, thao tác, đối tượng hoặc mã đối chiếu</label><input asp-for="Search" type="search" maxlength="120" /></div><div><label asp-for="Result">Kết quả</label><select asp-for="Result"><option value="">Tất cả</option><option value="Success">Thành công</option><option value="Denied">Bị từ chối</option></select></div><button class="button primary">Áp dụng</button><a asp-page="/Audit">Xóa lọc</a></form>
+<div class="result-meta"><strong>@Model.Data.TotalCount sự kiện</strong><span>Thời điểm dữ liệu: @AdminDisplay.Time(Model.Data.AsOfUtc)</span></div>
+<div class="table-frame" tabindex="0" role="region" aria-label="Nhật ký quản trị"><table>
+<caption class="sr-only">Nhật ký quản trị 7 ngày gần nhất</caption>
+<thead><tr><th scope="col">Thời gian</th><th scope="col">ID nhân sự</th><th scope="col">Thao tác</th><th scope="col">ID đối tượng</th><th scope="col">Kết quả</th><th scope="col">Mã đối chiếu</th></tr></thead>
+<tbody>
+@foreach (var entry in Model.Data.Items)
+{<tr><td>@AdminDisplay.Time(entry.OccurredAtUtc)</td><td>@entry.ActorId</td><td><a asp-page="/AuditDetail" asp-route-id="@entry.Id">@entry.Action</a></td><td>@entry.TargetId</td><td>@entry.Result</td><td>@entry.TraceId</td></tr>}
+@if (Model.Data.TotalCount == 0) { <tr><td colspan="6" class="empty-state">Không có sự kiện quản trị trong phạm vi này.</td></tr> }
+</tbody></table></div>
+<nav class="pagination" aria-label="Phân trang nhật ký"><span>Trang @Model.Data.Page</span><div>
+@if (Model.Data.Page > 1) { <a class="button" asp-route-PageNumber="@(Model.Data.Page - 1)" asp-route-Search="@Model.Search" asp-route-Result="@Model.Result">← Trước</a> }
+@if (Model.Data.Page * Model.Data.PageSize < Model.Data.TotalCount) { <a class="button" asp-route-PageNumber="@(Model.Data.Page + 1)" asp-route-Search="@Model.Search" asp-route-Result="@Model.Result">Sau →</a> }
+</div></nav>

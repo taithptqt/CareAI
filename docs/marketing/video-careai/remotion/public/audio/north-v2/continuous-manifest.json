@@ -1,0 +1,61 @@
+{
+  "file": "audio/north-v2/narration-continuous.wav",
+  "durationInFrames": 1119,
+  "duration": 37.3,
+  "fps": 30,
+  "sampleRate": 48000,
+  "channels": 1,
+  "voice": "vi-VN-NamMinhNeural",
+  "rate": "+18%",
+  "pitch": "-3Hz",
+  "locale": "vi-VN",
+  "deliveryTarget": "Male Vietnamese delivery targeting Northern tone; provider publishes vi-VN locale only.",
+  "initialSpeechDelayMs": 60.0,
+  "finalLogoHoldMs": 473.417,
+  "interSceneGaps": [
+    {
+      "from": "Opening",
+      "to": "Connection",
+      "speechGapMs": 84.499
+    },
+    {
+      "from": "Connection",
+      "to": "Monitoring",
+      "speechGapMs": 88.668
+    },
+    {
+      "from": "Monitoring",
+      "to": "Sos",
+      "speechGapMs": 94.458
+    },
+    {
+      "from": "Sos",
+      "to": "Confirmation",
+      "speechGapMs": 70.917
+    },
+    {
+      "from": "Confirmation",
+      "to": "FallAlert",
+      "speechGapMs": 71.625
+    },
+    {
+      "from": "FallAlert",
+      "to": "Incident",
+      "speechGapMs": 73.293
+    },
+    {
+      "from": "Incident",
+      "to": "Acknowledged",
+      "speechGapMs": 82.084
+    },
+    {
+      "from": "Acknowledged",
+      "to": "Closing",
+      "speechGapMs": 67.5
+    }
+  ],
+  "maxSpeechGapMs": 94.458,
+  "sceneCount": 9,
+  "captionTokenCount": 168,
+  "source": "One TTS paragraph, trimmed at real word boundaries and assembled into a single frame-aligned PCM stream."
+}

@@ -1,0 +1,16 @@
+@page
+@model CareAI.AdminWeb.Pages.SecurityModel
+@{ ViewData["Title"] = "Bảo mật quản trị"; }
+<div class="title-row"><div><h1>Bảo mật quản trị</h1><p>Thiết lập xác thực hai bước cho tài khoản hiện tại.</p></div></div>
+<a asp-page="/Login">Mở trang đăng nhập với mã TOTP</a>
+<section class="panel">
+@if (Model.Message is not null) { <p role="status">@Model.Message</p> }
+@if (Model.Error is not null) { <p role="alert" class="form-error">@Model.Error</p> }
+@if (Model.Secret is not null) { <p>Khóa thiết lập TOTP (issuer: CareAI, 6 chữ số, mỗi 30 giây):</p><p class="feedback-message">@Model.Secret</p><p>Chỉ nhập khóa vào ứng dụng xác thực của bạn. Không gửi cho người khác hoặc dịch vụ tạo QR trực tuyến.</p> }
+<form method="post" class="manage-form">
+<div asp-validation-summary="All" role="alert"></div>
+<label for="password">Mật khẩu hiện tại để xác thực lại</label><input id="password" name="Password" type="password" autocomplete="current-password" required maxlength="256" />
+<label for="code">Mã TOTP khi xác nhận thiết lập</label><input id="code" name="Code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" />
+<div class="form-actions"><button class="button" asp-page-handler="Begin">Tạo khóa thiết lập</button><button class="button primary" asp-page-handler="Confirm">Xác nhận và bật MFA</button></div>
+</form><p class="panel-footnote">Không tự bật MFA cho người khác. Hệ thống chưa có luồng tự khôi phục khi mất ứng dụng xác thực; cần giữ an toàn quyền truy cập và Data Protection keys trước khi triển khai production.</p>
+</section>

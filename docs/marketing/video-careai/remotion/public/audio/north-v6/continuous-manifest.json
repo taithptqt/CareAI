@@ -1,0 +1,148 @@
+{
+  "file": "audio/north-v6/narration-continuous.wav",
+  "durationInFrames": 1066,
+  "duration": 35.53333333333333,
+  "fps": 30,
+  "sampleRate": 48000,
+  "channels": 1,
+  "voice": "vi-VN-NamMinhNeural",
+  "rate": "+18%",
+  "pitch": "-3Hz",
+  "locale": "vi-VN",
+  "deliveryTarget": "Male Vietnamese delivery targeting Northern tone; provider publishes vi-VN locale only.",
+  "initialSpeechDelayMs": 60.0,
+  "finalLogoHoldMs": 482.583,
+  "interSceneGaps": [
+    {
+      "from": "Opening",
+      "to": "Connection",
+      "speechGapMs": 84.499
+    },
+    {
+      "from": "Connection",
+      "to": "Monitoring",
+      "speechGapMs": 88.668
+    },
+    {
+      "from": "Monitoring",
+      "to": "Sos",
+      "speechGapMs": 74.041
+    },
+    {
+      "from": "Sos",
+      "to": "Confirmation",
+      "speechGapMs": 70.917
+    },
+    {
+      "from": "Confirmation",
+      "to": "FallAlert",
+      "speechGapMs": 71.625
+    },
+    {
+      "from": "FallAlert",
+      "to": "Incident",
+      "speechGapMs": 73.293
+    },
+    {
+      "from": "Incident",
+      "to": "Acknowledged",
+      "speechGapMs": 82.084
+    },
+    {
+      "from": "Acknowledged",
+      "to": "Closing",
+      "speechGapMs": 68.917
+    }
+  ],
+  "maxSpeechGapMs": 88.668,
+  "sceneCount": 9,
+  "captionTokenCount": 174,
+  "source": "The north-v5 frame-aligned scene clips with only Closing revoiced to the short slogan. All other eight scene clips, including Monitoring and the corrected acknowledgement, are byte-for-byte preserved.",
+  "baseMaster": "audio/north-v5/narration-continuous.wav",
+  "editHistory": [
+    {
+      "scene": "Acknowledged",
+      "text": "Người thân có thể tiếp nhận sự cố. Gia đình cùng phối hợp hỗ trợ.",
+      "voice": "vi-VN-NamMinhNeural",
+      "rate": "+18%",
+      "pitch": "-3Hz",
+      "otherEightScenePcmIdentical": true
+    },
+    {
+      "scene": "Monitoring",
+      "text": "CareAI phân tích dữ liệu nhịp tim và độ bão hòa oxy trong máu, giúp người thân theo dõi sức khỏe mỗi ngày. Biểu đồ thể hiện thay đổi theo thời gian, kèm cảnh báo khi chỉ số vượt ngưỡng. Nhận định xu hướng và báo cáo tuần giúp gia đình chủ động hỏi thăm, phối hợp chăm sóc.",
+      "spokenText": "Ke Ai phân tích dữ liệu nhịp tim và độ bão hòa oxy trong máu, giúp người thân theo dõi sức khỏe mỗi ngày. Biểu đồ thể hiện thay đổi theo thời gian, kèm cảnh báo khi chỉ số vượt ngưỡng. Nhận định xu hướng và báo cáo tuần giúp gia đình chủ động hỏi thăm, phối hợp chăm sóc.",
+      "voice": "vi-VN-NamMinhNeural",
+      "rate": "+18%",
+      "pitch": "-3Hz",
+      "preservedSceneIds": [
+        "Opening",
+        "Connection",
+        "Sos",
+        "Confirmation",
+        "FallAlert",
+        "Incident",
+        "Acknowledged",
+        "Closing"
+      ],
+      "otherEightSceneFilesIdentical": true,
+      "sentenceGapEdits": [
+        {
+          "nextWord": "Biểu",
+          "originalGapMs": 702.125,
+          "removedPauseMs": 552.125,
+          "finalGapMs": 150.0
+        },
+        {
+          "nextWord": "Nhận",
+          "originalGapMs": 709.75,
+          "removedPauseMs": 559.75,
+          "finalGapMs": 150.0
+        }
+      ]
+    },
+    {
+      "scenes": [
+        "Monitoring",
+        "Closing"
+      ],
+      "texts": {
+        "Monitoring": "CareAI giúp gia đình theo dõi nhịp tim và độ bão hòa oxy trong máu qua biểu đồ sức khỏe cùng cảnh báo vượt ngưỡng và nhận định xu hướng kèm báo cáo tuần để nắm bắt thay đổi và chủ động chăm sóc người thân mỗi ngày.",
+        "Closing": "CareAI kết nối cả gia đình để dù ở xa bạn vẫn có thể quan tâm và chăm sóc người thân mỗi ngày."
+      },
+      "voice": "vi-VN-NamMinhNeural",
+      "rate": "+18%",
+      "pitch": "-3Hz",
+      "preservedSceneIds": [
+        "Opening",
+        "Connection",
+        "Sos",
+        "Confirmation",
+        "FallAlert",
+        "Incident",
+        "Acknowledged"
+      ],
+      "otherSevenSceneFilesIdentical": true,
+      "silentGapPolicy": "Provider word gaps above 130ms shortened to 55ms using fades strictly outside word bounds; phoneme durations untouched."
+    }
+  ],
+  "audioEdit": {
+    "scene": "Closing",
+    "text": "CareAI – Một kết nối, triệu yêu thương",
+    "spokenText": "Ke Ai một kết nối triệu yêu thương",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "preservedSceneIds": [
+      "Opening",
+      "Connection",
+      "Monitoring",
+      "Sos",
+      "Confirmation",
+      "FallAlert",
+      "Incident",
+      "Acknowledged"
+    ],
+    "otherEightSceneFilesIdentical": true
+  }
+}

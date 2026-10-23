@@ -13,6 +13,7 @@ import 'screens/sos_button_screen.dart';
 import 'services/api_service.dart';
 import 'services/local_offline_store.dart';
 import 'services/sync_service.dart';
+import 'theme/careai_theme.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -114,16 +115,7 @@ class CareAiUnifiedApp extends StatelessWidget {
       navigatorKey: CaregiverPushService.instance.navigatorKey,
       title: 'CareAI',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0284C7),
-          primary: const Color(0xFF0284C7),
-          secondary: const Color(0xFF0EA5E9),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
+      theme: CareAiTheme.light,
       home: initialScreen,
     );
   }

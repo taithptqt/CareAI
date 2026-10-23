@@ -1,0 +1,6 @@
+@page
+@model CareAI.AdminWeb.Pages.StaffModel
+@{ ViewData["Title"] = "Nhân sự và quyền"; }
+<div class="title-row"><div><h1>Nhân sự và quyền</h1><p>Quản lý nhân sự và phạm vi quyền truy cập.</p></div></div>
+@if (!Model.Preview) { <a class="button" asp-page="/Manage" asp-route-kind="staff" asp-route-id="new">Thêm nhân sự</a> }
+<partial name="_ModuleList" model="Model" />

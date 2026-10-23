@@ -1,0 +1,70 @@
+{
+  "file": "audio/north-v3/narration-continuous.wav",
+  "durationInFrames": 1046,
+  "duration": 34.86666666666667,
+  "fps": 30,
+  "sampleRate": 48000,
+  "channels": 1,
+  "voice": "vi-VN-NamMinhNeural",
+  "rate": "+18%",
+  "pitch": "-3Hz",
+  "locale": "vi-VN",
+  "deliveryTarget": "Male Vietnamese delivery targeting Northern tone; provider publishes vi-VN locale only.",
+  "initialSpeechDelayMs": 60.0,
+  "finalLogoHoldMs": 473.418,
+  "interSceneGaps": [
+    {
+      "from": "Opening",
+      "to": "Connection",
+      "speechGapMs": 84.499
+    },
+    {
+      "from": "Connection",
+      "to": "Monitoring",
+      "speechGapMs": 88.668
+    },
+    {
+      "from": "Monitoring",
+      "to": "Sos",
+      "speechGapMs": 94.458
+    },
+    {
+      "from": "Sos",
+      "to": "Confirmation",
+      "speechGapMs": 70.917
+    },
+    {
+      "from": "Confirmation",
+      "to": "FallAlert",
+      "speechGapMs": 71.625
+    },
+    {
+      "from": "FallAlert",
+      "to": "Incident",
+      "speechGapMs": 73.293
+    },
+    {
+      "from": "Incident",
+      "to": "Acknowledged",
+      "speechGapMs": 82.084
+    },
+    {
+      "from": "Acknowledged",
+      "to": "Closing",
+      "speechGapMs": 68.916
+    }
+  ],
+  "maxSpeechGapMs": 94.458,
+  "sceneCount": 9,
+  "captionTokenCount": 158,
+  "source": "The north-v2 frame-aligned scene clips with only the acknowledgement scene revoiced and shortened, then reassembled into one continuous PCM stream. All other eight scene clips are byte-for-byte preserved.",
+  "baseMaster": "audio/north-v2/narration-continuous.wav",
+  "audioEdit": {
+    "scene": "Acknowledged",
+    "text": "Người thân có thể tiếp nhận sự cố. Gia đình cùng phối hợp hỗ trợ.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "otherEightScenePcmIdentical": true
+  }
+}

@@ -1,0 +1,22 @@
+@page
+@model CareAI.AdminWeb.Pages.DevicesModel
+@{ ViewData["Title"] = "Thiết bị"; }
+<div class="title-row"><div><h1>Thiết bị</h1><p>Kiểm tra hiệu lực đăng ký và độ mới của heartbeat.</p></div></div>
+<partial name="_PreviewNotice" />
+<form method="get" class="filters" role="search"><div class="search-field"><label asp-for="Search">Tên, model hoặc ID thiết bị</label><input asp-for="Search" type="search" maxlength="120" /></div><div><label asp-for="Status">Kết nối</label><select asp-for="Status"><option value="">Tất cả</option><option value="Online">Có heartbeat mới</option><option value="Offline">Mất heartbeat</option><option value="Unknown">Chưa xác định</option><option value="Revoked">Đã thu hồi</option></select></div><button class="button primary">Áp dụng</button><a asp-page="/Devices">Xóa lọc</a></form>
+<div class="result-meta"><strong>@Model.Data.TotalCount thiết bị</strong><span>Thời điểm dữ liệu: @AdminDisplay.Time(Model.Data.AsOfUtc)</span></div>
+<div class="table-frame" tabindex="0" role="region" aria-label="Thiết bị"><table>
+<caption class="sr-only">Danh sách thiết bị</caption>
+<thead><tr><th scope="col">Thiết bị / ID</th><th scope="col">Hồ sơ</th><th scope="col">Đăng ký</th><th scope="col">Kết nối</th><th scope="col">Heartbeat cuối</th><th scope="col" class="number">Pin</th></tr></thead>
+<tbody>@foreach (var device in Model.Data.Items)
+{<tr><td><strong>@device.Model</strong><small>@device.Id</small>
+@if (!WebMode.Preview && User.HasClaim("admin_permission", AdminPermissions.Manage)) { <a asp-page="/Manage" asp-route-kind="devices" asp-route-id="@device.Id">Chi tiết / thu hồi</a> }
+</td><td>@device.ElderDisplayName</td><td>@(device.IsActive ? "Còn hiệu lực" : "Đã thu hồi")</td><td><span class="status @(device.ConnectionStatus == "Offline" ? "warning" : "neutral")">@AdminDisplay.Status(device.ConnectionStatus)</span></td><td>@AdminDisplay.Time(device.LastHeartbeatUtc)</td><td class="number">@(device.BatteryPercent is int battery ? $"{battery}%" : "Chưa có dữ liệu")</td></tr>}
+</tbody></table></div>
+<p class="panel-footnote">Không suy luận trạng thái đeo hoặc pin khi thiếu dữ liệu. Ghép lại dùng luồng PIN có xác minh trên app người thân, không sửa gán hồ sơ trực tiếp.</p>
+
+<nav class="pagination" aria-label="Phân trang"><span>Trang @Model.Data.Page · @Model.Data.TotalCount kết quả</span><div>
+@if (Model.Data.Page > 1) { <a class="button" asp-route-PageNumber="@(Model.Data.Page - 1)" asp-route-Search="@Model.Search" asp-route-Status="@Model.Status">← Trước</a> }
+@if (Model.Data.Page * Model.Data.PageSize < Model.Data.TotalCount) { <a class="button" asp-route-PageNumber="@(Model.Data.Page + 1)" asp-route-Search="@Model.Search" asp-route-Status="@Model.Status">Sau →</a> }
+</div></nav>
+@if (Model.Data.TotalCount == 0) { <p class="empty-state">Không có kết quả tại thời điểm tải.</p> }

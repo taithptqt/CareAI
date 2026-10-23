@@ -1,0 +1,12 @@
+@page "/Audit/{id}"
+@model CareAI.AdminWeb.Pages.AuditDetailModel
+@{ ViewData["Title"] = "Chi tiết nhật ký"; }
+<a asp-page="/Audit">← Nhật ký quản trị</a>
+<div class="title-row"><div><h1>Chi tiết nhật ký</h1><p>@Model.Data.Action · @Model.Data.Result</p></div></div>
+<section class="panel"><dl class="detail-list">
+<div><dt>Nhân sự</dt><dd>@Model.Data.ActorId</dd></div><div><dt>Đối tượng</dt><dd>@Model.Data.TargetId</dd></div>
+<div><dt>Thời điểm</dt><dd>@AdminDisplay.Time(Model.Data.OccurredAtUtc)</dd></div>
+<div><dt>Lý do</dt><dd class="feedback-message">@Model.Data.Reason</dd></div>
+<div><dt>Mã đối chiếu</dt><dd>@Model.Data.TraceId</dd></div>
+<div><dt>Trường thay đổi</dt><dd class="feedback-message">@Model.Changes</dd></div>
+</dl><p class="panel-footnote">Nhật ký chỉ đọc. Không lưu mật khẩu, token, nội dung phản hồi hoặc toàn bộ dữ liệu sức khỏe.</p></section>

@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-quality-gate:
-    name: Backend .NET 9 LTS (176 Facts)
+    name: Backend .NET 9
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -25,7 +25,7 @@ jobs:
       - name: Build Backend (0 Warnings, 0 Errors)
         run: dotnet build CareAI/CareAI.slnx --no-restore --nologo -warnaserror
 
-      - name: Execute xUnit Tests (176 Facts)
+      - name: Execute xUnit Tests
         run: dotnet test CareAI/CareAI.slnx --no-build --nologo
 
   flutter-quality-gate:
@@ -45,6 +45,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          flutter-version: '3.47.5'
           cache: true
 
       - name: Install Flutter Dependencies
@@ -55,7 +56,7 @@ jobs:
         working-directory: CareAI/companion_app
         run: flutter analyze
 
-      - name: Run Flutter Unit Tests (33 Tests)
+      - name: Run Flutter Unit Tests
         working-directory: CareAI/companion_app
         run: flutter test
 

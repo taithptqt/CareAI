@@ -1,0 +1,24 @@
+@page
+@model CareAI.AdminWeb.Pages.LoginModel
+@inject IWebHostEnvironment HostEnvironment
+@inject IConfiguration Configuration
+@{ Layout = "_AuthLayout"; ViewData["Title"] = "Đăng nhập quản trị"; }
+@if (Model.Live)
+{
+<section class="panel login-panel"><h1>Đăng nhập quản trị</h1><p>Đăng nhập bằng tài khoản nhân sự CareAI.</p>
+@if (Model.Error is not null) { <p role="alert">@Model.Error</p> }
+<form method="post" class="login-form">
+<div asp-validation-summary="All" role="alert"></div>
+<label asp-for="Email">Tên đăng nhập hoặc email</label><input asp-for="Email" type="text" autocomplete="username" required maxlength="254" />
+<label asp-for="Password">Mật khẩu</label><input id="Password" name="Password" type="password" autocomplete="current-password" required maxlength="256" />
+<details class="login-mfa" open="@(Model.OtpCode is not null)"><summary>Tài khoản đã bật xác thực hai bước?</summary><label asp-for="OtpCode">Mã xác thực 6 chữ số</label><input id="OtpCode" name="OtpCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" /></details>
+<button type="submit" class="button primary">Đăng nhập</button>
+</form></section>
+}
+else
+{
+<section class="panel login-panel"><h2>Đăng nhập chưa được bật</h2><p>Môi trường này chưa bật kết nối admin thật. Bản xem trước chỉ dùng dữ liệu mô phỏng.</p><p>Tài khoản người thân không cấp quyền vào trang quản trị.</p>
+@if (HostEnvironment.IsDevelopment() && Configuration.GetValue<bool>("AdminWeb:EnablePreview"))
+{ <a class="button primary" asp-page="/Overview">Xem giao diện với dữ liệu mô phỏng</a> }
+</section>
+}

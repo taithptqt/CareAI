@@ -1,5 +1,8 @@
+import '../theme/careai_theme.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
+
 import '../models/fall_event.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
@@ -15,13 +19,17 @@ import '../services/emergency_evidence_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
 import '../services/sync_service.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../caregiver/screens/home_screen.dart';
 import '../caregiver/screens/login_screen.dart';
 import '../caregiver/services/caregiver_api_service.dart';
 import '../services/location_service.dart';
 import '../services/voice_guidance_service.dart';
+
 import 'package:intl/intl.dart';
+
 import 'device_pairing_screen.dart';
 import 'fall_countdown_dialog.dart';
 import 'role_selection_screen.dart';
@@ -100,9 +108,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     });
 
     // Lắng nghe lệnh phát tín hiệu SOS trực tiếp từ đồng hồ (Bỏ qua đếm ngược té ngã vì cụ chủ động bấm nút)
-    _manualSosSubscription = FallService.instance.onManualSosTriggered.listen((payload) {
+    _manualSosSubscription = FallService.instance.onManualSosTriggered.listen((
+      payload,
+    ) {
       if (mounted) {
-        final packetId = payload['packetId'] as String? ?? 'SOS_WATCH_${DateTime.now().millisecondsSinceEpoch}';
+        final packetId =
+            payload['packetId'] as String? ??
+            'SOS_WATCH_${DateTime.now().millisecondsSinceEpoch}';
         _sosStartTime = DateTime.now();
         setState(() {
           _isSosActive = true;
@@ -115,11 +127,12 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     });
 
     // Lắng nghe sự kiện kết nối/ngắt kết nối đồng hồ thời gian thực (Event-Driven 0.1 giây từ Native Android/iOS)
-    _watchStatusSubscription = FallService.instance.onWatchConnectionChanged.listen((status) {
-      if (mounted) {
-        _applyWatchStatus(status);
-      }
-    });
+    _watchStatusSubscription = FallService.instance.onWatchConnectionChanged
+        .listen((status) {
+          if (mounted) {
+            _applyWatchStatus(status);
+          }
+        });
 
     WidgetsBinding.instance.addObserver(this);
     _initLastPairedWatchName();
@@ -213,17 +226,23 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     if (_customWatchAlias != null && _customWatchAlias!.trim().isNotEmpty) {
       return _customWatchAlias!.trim();
     }
-    final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
-    final isStatusGeneric = _watchStatus.watchName == null ||
+    final platformName = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'Apple Watch'
+        : 'Galaxy Watch';
+    final isStatusGeneric =
+        _watchStatus.watchName == null ||
         _watchStatus.watchName!.trim().isEmpty ||
         _watchStatus.watchName == 'Apple Watch' ||
         _watchStatus.watchName == 'Galaxy Watch';
-    final isSavedSpecific = _lastPairedWatchName != null &&
+    final isSavedSpecific =
+        _lastPairedWatchName != null &&
         _lastPairedWatchName!.trim().isNotEmpty &&
         _lastPairedWatchName != 'Apple Watch' &&
         _lastPairedWatchName != 'Galaxy Watch';
 
-    if (!isStatusGeneric && _watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) {
+    if (!isStatusGeneric &&
+        _watchStatus.watchName != null &&
+        _watchStatus.watchName!.isNotEmpty) {
       return _watchStatus.watchName!;
     }
     if (isSavedSpecific) {
@@ -267,7 +286,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     //   * 8 giây (còi đã tắt, giọng nói an tâm đã phát, kiểm tra RESOLVED tiết kiệm pin)
     // - Quá 2 giờ: giãn ra 60 giây (bảo vệ pin nếu sự cố bị lãng quên hoặc treo)
     final now = DateTime.now();
-    final elapsedSec = _sosStartTime != null ? now.difference(_sosStartTime!).inSeconds : 0;
+    final elapsedSec = _sosStartTime != null
+        ? now.difference(_sosStartTime!).inSeconds
+        : 0;
 
     Duration interval;
     if (elapsedSec > 7200) {
@@ -319,17 +340,21 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           unawaited(FallService.instance.stopEmergencySound());
 
           // Đồng bộ sang Apple Watch / Wear OS
-          unawaited(FallService.instance.notifyIncidentStatusToWatch(
-            status: 'ACKNOWLEDGED',
-            acknowledgedByName: incident.acknowledgedByName,
-            notes: incident.acknowledgedNote,
-            incidentId: incident.incidentId,
-          ));
+          unawaited(
+            FallService.instance.notifyIncidentStatusToWatch(
+              status: 'ACKNOWLEDGED',
+              acknowledgedByName: incident.acknowledgedByName,
+              notes: incident.acknowledgedNote,
+              incidentId: incident.incidentId,
+            ),
+          );
 
           // Phát âm báo giọng nói tiếng Việt an tâm (một lần duy nhất)
           if (!_acknowledgedAnnounced) {
             _acknowledgedAnnounced = true;
-            final who = (incident.acknowledgedByName != null && incident.acknowledgedByName!.trim().isNotEmpty)
+            final who =
+                (incident.acknowledgedByName != null &&
+                    incident.acknowledgedByName!.trim().isNotEmpty)
                 ? incident.acknowledgedByName!.trim()
                 : 'Người thân';
             final text = '$who đã tiếp nhận hỗ trợ.';
@@ -361,10 +386,12 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           unawaited(FallService.instance.stopEmergencySound());
 
           // Báo đồng hồ đưa về bình thường
-          unawaited(FallService.instance.notifyIncidentStatusToWatch(
-            status: 'RESOLVED',
-            incidentId: incident.incidentId,
-          ));
+          unawaited(
+            FallService.instance.notifyIncidentStatusToWatch(
+              status: 'RESOLVED',
+              incidentId: incident.incidentId,
+            ),
+          );
 
           // Phát âm thông báo an toàn
           final text = (resolvedName != null && resolvedName.trim().isNotEmpty)
@@ -410,7 +437,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               ),
               SizedBox(width: 12),
               Text('🔍 Đang kiểm tra kết nối đồng hồ...'),
@@ -426,7 +456,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     }
   }
 
-  Future<void> _applyWatchStatus(WatchStatus status, {bool showFeedback = false}) async {
+  Future<void> _applyWatchStatus(
+    WatchStatus status, {
+    bool showFeedback = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final savedWatchName = prefs.getString('last_paired_watch_name');
 
@@ -443,8 +476,16 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           }
         });
 
-        final isStatusGeneric = status.watchName == null || status.watchName!.trim().isEmpty || status.watchName == 'Apple Watch' || status.watchName == 'Galaxy Watch';
-        final isSavedSpecific = savedWatchName != null && savedWatchName.trim().isNotEmpty && savedWatchName != 'Apple Watch' && savedWatchName != 'Galaxy Watch';
+        final isStatusGeneric =
+            status.watchName == null ||
+            status.watchName!.trim().isEmpty ||
+            status.watchName == 'Apple Watch' ||
+            status.watchName == 'Galaxy Watch';
+        final isSavedSpecific =
+            savedWatchName != null &&
+            savedWatchName.trim().isNotEmpty &&
+            savedWatchName != 'Apple Watch' &&
+            savedWatchName != 'Galaxy Watch';
 
         if (!isStatusGeneric) {
           _lastPairedWatchName = status.watchName;
@@ -455,35 +496,40 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
         final effectiveName = _effectiveWatchDisplayName;
 
-        unawaited(ApiService.instance.syncConnectedWatch(
-          effectiveName,
-          isConnected: true,
-          isWorn: status.isWorn,
-          isCharging: status.isCharging,
-          batteryLevel: status.batteryLevel,
-          todaySteps: status.todaySteps,
-          heartRate: status.heartRate,
-          spo2: status.spo2,
-          bpSystolic: status.bpSystolic,
-          bpDiastolic: status.bpDiastolic,
-          sleepMinutes: status.sleepMinutes,
-          deepSleepMinutes: status.deepSleepMinutes,
-          coreSleepMinutes: status.coreSleepMinutes,
-          remSleepMinutes: status.remSleepMinutes,
-          awakeMinutes: status.awakeMinutes,
-          wakeCount: status.wakeCount,
-          minSleepingHr: status.minSleepingHr,
-          avgSleepingHr: status.avgSleepingHr,
-          minNightSpo2: status.minNightSpo2,
-          nightSpo2DipsCount: status.nightSpo2DipsCount,
-          breathingDisturbances: status.breathingDisturbances,
-          supportedMetrics: status.supportedMetrics,
-        ));
+        unawaited(
+          ApiService.instance.syncConnectedWatch(
+            effectiveName,
+            isConnected: true,
+            isWorn: status.isWorn,
+            isCharging: status.isCharging,
+            batteryLevel: status.batteryLevel,
+            todaySteps: status.todaySteps,
+            heartRate: status.heartRate,
+            spo2: status.spo2,
+            bpSystolic: status.bpSystolic,
+            bpDiastolic: status.bpDiastolic,
+            sleepMinutes: status.sleepMinutes,
+            deepSleepMinutes: status.deepSleepMinutes,
+            coreSleepMinutes: status.coreSleepMinutes,
+            remSleepMinutes: status.remSleepMinutes,
+            awakeMinutes: status.awakeMinutes,
+            wakeCount: status.wakeCount,
+            minSleepingHr: status.minSleepingHr,
+            avgSleepingHr: status.avgSleepingHr,
+            minNightSpo2: status.minNightSpo2,
+            nightSpo2DipsCount: status.nightSpo2DipsCount,
+            breathingDisturbances: status.breathingDisturbances,
+            supportedMetrics: status.supportedMetrics,
+          ),
+        );
         unawaited(() async {
           final serverUrl = await ApiService.instance.getServerUrl();
           final devId = await ApiService.instance.getDeviceId();
           final devToken = await ApiService.instance.getDeviceToken();
-          if (devId != null && devToken != null && devId.isNotEmpty && devToken.isNotEmpty) {
+          if (devId != null &&
+              devToken != null &&
+              devId.isNotEmpty &&
+              devToken.isNotEmpty) {
             await FallService.instance.syncWatchCredentials(
               backendUrl: serverUrl,
               deviceId: devId,
@@ -493,7 +539,8 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           }
         }());
 
-        final isWatchWornAndActive = (status.isWorn ?? true) && !(status.isCharging ?? false);
+        final isWatchWornAndActive =
+            (status.isWorn ?? true) && !(status.isCharging ?? false);
         if (isWatchWornAndActive) {
           // Người già đang đeo đồng hồ: Tắt hoàn toàn cảm biến nền điện thoại để tiết kiệm 100% pin
           FallService.instance.stopPhoneAccelerometerDetector();
@@ -517,16 +564,20 @@ class _SosButtonScreenState extends State<SosButtonScreen>
               _lastPairedWatchName = savedWatchName;
             }
           });
-          if (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) {
-            unawaited(ApiService.instance.syncConnectedWatch(
-              _lastPairedWatchName!,
-              isConnected: false,
-              disconnectReason: 'BLUETOOTH_OFF',
-            ));
+          if (_lastPairedWatchName != null &&
+              _lastPairedWatchName!.isNotEmpty) {
+            unawaited(
+              ApiService.instance.syncConnectedWatch(
+                _lastPairedWatchName!,
+                isConnected: false,
+                disconnectReason: 'BLUETOOTH_OFF',
+              ),
+            );
           }
         } else {
           // Trường hợp B: Mất sóng BLE tạm thời do đi xa / qua tường -> Giữ trạng thái debounce 3 phút chống báo động giả
-          if (_watchDisconnectDebounceTimer == null || !_watchDisconnectDebounceTimer!.isActive) {
+          if (_watchDisconnectDebounceTimer == null ||
+              !_watchDisconnectDebounceTimer!.isActive) {
             setState(() {
               _watchStatus = status;
               _isDebouncingDisconnect = true;
@@ -534,21 +585,30 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 _lastPairedWatchName = savedWatchName;
               }
             });
-            _watchDisconnectDebounceTimer = Timer(_kWatchDisconnectDebounce, () {
-              if (mounted) {
-                setState(() {
-                  _isDebouncingDisconnect = false;
-                });
-                if (!_watchStatus.isConnected && _lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) {
-                  debugPrint('[SosButtonScreen] Đã quá 3 phút mất sóng BLE -> Xác nhận ngắt kết nối thật, thông báo lên máy chủ');
-                  unawaited(ApiService.instance.syncConnectedWatch(
-                    _lastPairedWatchName!,
-                    isConnected: false,
-                    disconnectReason: 'SIGNAL_LOST',
-                  ));
+            _watchDisconnectDebounceTimer = Timer(
+              _kWatchDisconnectDebounce,
+              () {
+                if (mounted) {
+                  setState(() {
+                    _isDebouncingDisconnect = false;
+                  });
+                  if (!_watchStatus.isConnected &&
+                      _lastPairedWatchName != null &&
+                      _lastPairedWatchName!.isNotEmpty) {
+                    debugPrint(
+                      '[SosButtonScreen] Đã quá 3 phút mất sóng BLE -> Xác nhận ngắt kết nối thật, thông báo lên máy chủ',
+                    );
+                    unawaited(
+                      ApiService.instance.syncConnectedWatch(
+                        _lastPairedWatchName!,
+                        isConnected: false,
+                        disconnectReason: 'SIGNAL_LOST',
+                      ),
+                    );
+                  }
                 }
-              }
-            });
+              },
+            );
           } else {
             setState(() {
               _watchStatus = status;
@@ -560,19 +620,30 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         }
       }
       if (showFeedback && mounted) {
-        final platformName = defaultTargetPlatform == TargetPlatform.iOS ? 'Apple Watch' : 'Galaxy Watch';
-        final channelDesc = defaultTargetPlatform == TargetPlatform.iOS ? 'Bluetooth / Apple Watch App' : 'Bluetooth / Galaxy Wearable';
+        final platformName = defaultTargetPlatform == TargetPlatform.iOS
+            ? 'Apple Watch'
+            : 'Galaxy Watch';
+        final channelDesc = defaultTargetPlatform == TargetPlatform.iOS
+            ? 'Bluetooth / Apple Watch App'
+            : 'Bluetooth / Galaxy Wearable';
         final effectiveWatchName = _effectiveWatchDisplayName;
-        final hasKnownWatch = status.isPaired || _lastPairedWatchName != null || (_customWatchAlias != null && _customWatchAlias!.trim().isNotEmpty);
+        final hasKnownWatch =
+            status.isPaired ||
+            _lastPairedWatchName != null ||
+            (_customWatchAlias != null && _customWatchAlias!.trim().isNotEmpty);
         String feedbackMsg;
         if (status.isConnected) {
-          feedbackMsg = '🟢 Đã kết nối: $effectiveWatchName (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})';
+          feedbackMsg =
+              '🟢 Đã kết nối: $effectiveWatchName (${defaultTargetPlatform == TargetPlatform.iOS ? "watchOS" : "Wear OS"})';
         } else if (status.reason == 'BLUETOOTH_OFF') {
-          feedbackMsg = '🔴 Bluetooth đang tắt: $effectiveWatchName (Bật lại Bluetooth trên điện thoại)';
+          feedbackMsg =
+              '🔴 Bluetooth đang tắt: $effectiveWatchName (Bật lại Bluetooth trên điện thoại)';
         } else if (hasKnownWatch) {
-          feedbackMsg = '🔴 Mất tín hiệu: $effectiveWatchName (Kiểm tra khoảng cách/Pin đồng hồ)';
+          feedbackMsg =
+              '🔴 Mất tín hiệu: $effectiveWatchName (Kiểm tra khoảng cách/Pin đồng hồ)';
         } else {
-          feedbackMsg = '⚪ Chưa phát hiện $platformName kết nối (Kiểm tra qua $channelDesc)';
+          feedbackMsg =
+              '⚪ Chưa phát hiện $platformName kết nối (Kiểm tra qua $channelDesc)';
         }
 
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -593,13 +664,18 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final serverUrl = await ApiService.instance.getServerUrl();
     final lastSync = await LocalOfflineStore.instance.getLastSyncTimestamp();
 
-    if (devId != null && devToken != null && devId.isNotEmpty && devToken.isNotEmpty) {
-      unawaited(FallService.instance.syncWatchCredentials(
-        backendUrl: serverUrl,
-        deviceId: devId,
-        deviceToken: devToken,
-        elderName: name,
-      ));
+    if (devId != null &&
+        devToken != null &&
+        devId.isNotEmpty &&
+        devToken.isNotEmpty) {
+      unawaited(
+        FallService.instance.syncWatchCredentials(
+          backendUrl: serverUrl,
+          deviceId: devId,
+          deviceToken: devToken,
+          elderName: name,
+        ),
+      );
       unawaited(_sendElderDeviceHeartbeat());
     }
 
@@ -613,7 +689,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
     // Lấy tọa độ GPS thực tế của thiết bị (Không dùng bản đồ Trung Quốc)
     try {
-      final loc = await LocationService.instance.getCurrentLocation(requestPermissionIfDenied: false);
+      final loc = await LocationService.instance.getCurrentLocation(
+        requestPermissionIfDenied: false,
+      );
       if (mounted) {
         setState(() {
           _currentGps = loc.coordinatesFormatted;
@@ -627,7 +705,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   Future<void> _sendElderDeviceHeartbeat() async {
     final devId = await ApiService.instance.getDeviceId();
     final devToken = await ApiService.instance.getDeviceToken();
-    if (devId == null || devToken == null || devId.isEmpty || devToken.isEmpty) return;
+    if (devId == null || devToken == null || devId.isEmpty || devToken.isEmpty) {
+      return;
+    }
 
     // Gửi nhịp đập của điện thoại Người cao tuổi để app Người thân luôn thấy trạng thái ONLINE
     unawaited(ApiService.instance.sendHeartbeat());
@@ -636,30 +716,32 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     if (_watchStatus.isConnected) {
       final watchName = _effectiveWatchDisplayName;
 
-      unawaited(ApiService.instance.syncConnectedWatch(
-        watchName,
-        isConnected: true,
-        isWorn: _watchStatus.isWorn,
-        isCharging: _watchStatus.isCharging,
-        batteryLevel: _watchStatus.batteryLevel,
-        todaySteps: _watchStatus.todaySteps,
-        heartRate: _watchStatus.heartRate,
-        spo2: _watchStatus.spo2,
-        bpSystolic: _watchStatus.bpSystolic,
-        bpDiastolic: _watchStatus.bpDiastolic,
-        sleepMinutes: _watchStatus.sleepMinutes,
-        deepSleepMinutes: _watchStatus.deepSleepMinutes,
-        coreSleepMinutes: _watchStatus.coreSleepMinutes,
-        remSleepMinutes: _watchStatus.remSleepMinutes,
-        awakeMinutes: _watchStatus.awakeMinutes,
-        wakeCount: _watchStatus.wakeCount,
-        minSleepingHr: _watchStatus.minSleepingHr,
-        avgSleepingHr: _watchStatus.avgSleepingHr,
-        minNightSpo2: _watchStatus.minNightSpo2,
-        nightSpo2DipsCount: _watchStatus.nightSpo2DipsCount,
-        breathingDisturbances: _watchStatus.breathingDisturbances,
-        supportedMetrics: _watchStatus.supportedMetrics,
-      ));
+      unawaited(
+        ApiService.instance.syncConnectedWatch(
+          watchName,
+          isConnected: true,
+          isWorn: _watchStatus.isWorn,
+          isCharging: _watchStatus.isCharging,
+          batteryLevel: _watchStatus.batteryLevel,
+          todaySteps: _watchStatus.todaySteps,
+          heartRate: _watchStatus.heartRate,
+          spo2: _watchStatus.spo2,
+          bpSystolic: _watchStatus.bpSystolic,
+          bpDiastolic: _watchStatus.bpDiastolic,
+          sleepMinutes: _watchStatus.sleepMinutes,
+          deepSleepMinutes: _watchStatus.deepSleepMinutes,
+          coreSleepMinutes: _watchStatus.coreSleepMinutes,
+          remSleepMinutes: _watchStatus.remSleepMinutes,
+          awakeMinutes: _watchStatus.awakeMinutes,
+          wakeCount: _watchStatus.wakeCount,
+          minSleepingHr: _watchStatus.minSleepingHr,
+          avgSleepingHr: _watchStatus.avgSleepingHr,
+          minNightSpo2: _watchStatus.minNightSpo2,
+          nightSpo2DipsCount: _watchStatus.nightSpo2DipsCount,
+          breathingDisturbances: _watchStatus.breathingDisturbances,
+          supportedMetrics: _watchStatus.supportedMetrics,
+        ),
+      );
     }
   }
 
@@ -690,14 +772,17 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       if (online && (wasOffline || _pendingPacketCount > 0)) {
         SyncService.instance.syncOfflineSpool().then((result) async {
           await _loadPendingCount();
-          final lastSync = await LocalOfflineStore.instance.getLastSyncTimestamp();
+          final lastSync = await LocalOfflineStore.instance
+              .getLastSyncTimestamp();
           if (mounted && result.syncedCount > 0) {
             setState(() {
               _lastSyncTime = lastSync;
             });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Tự động đồng bộ thành công: Đã gửi ${result.syncedCount} gói tin khẩn cấp!'),
+                content: Text(
+                  'Tự động đồng bộ thành công: Đã gửi ${result.syncedCount} gói tin khẩn cấp!',
+                ),
                 backgroundColor: const Color(0xFF2563EB),
                 duration: const Duration(seconds: 3),
               ),
@@ -766,10 +851,24 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     // Fact 35 Invariant: Gói Fast-Lane SOS lưu toàn bộ mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
     final samples = <TelemetrySample>[];
     if (lastHr != null && lastHr > 0) {
-      samples.add(TelemetrySample(metricType: 'HEART_RATE', value: lastHr, unit: 'BPM', timestamp: now));
+      samples.add(
+        TelemetrySample(
+          metricType: 'HEART_RATE',
+          value: lastHr,
+          unit: 'BPM',
+          timestamp: now,
+        ),
+      );
     }
     if (lastSpo2 != null && lastSpo2 > 0) {
-      samples.add(TelemetrySample(metricType: 'SPO2', value: lastSpo2, unit: '%', timestamp: now));
+      samples.add(
+        TelemetrySample(
+          metricType: 'SPO2',
+          value: lastSpo2,
+          unit: '%',
+          timestamp: now,
+        ),
+      );
     }
 
     // TUÂN THỦ NGHIÊM NGẶT: Lấy tọa độ GPS thực tế từ phần cứng thiết bị (Không dùng bản đồ Trung Quốc)
@@ -777,7 +876,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final gpsResult = await LocationService.instance.getCurrentLocation();
     final realGpsLocation = gpsResult.isRealGps
         ? gpsResult.coordinatesFormatted
-        : (recentFix != null && !recentFix.isSimulated ? recentFix.coordinates : null);
+        : (recentFix != null && !recentFix.isSimulated
+              ? recentFix.coordinates
+              : null);
     if (mounted && realGpsLocation != null) {
       setState(() => _currentGps = realGpsLocation);
     }
@@ -809,13 +910,22 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
     // BƯỚC 2: Thử Fast-Lane HTTP POST trực tiếp lên máy chủ
     try {
-      final result = await ApiService.instance.sendFastLaneSosWithResult(sosRequest);
+      final result = await ApiService.instance.sendFastLaneSosWithResult(
+        sosRequest,
+      );
       if (result.accepted) {
         await LocalOfflineStore.instance.markPacketSynced(packetId);
         if (result.incidentId != null) {
-          unawaited(EmergencyEvidenceService.attachLocationWhenReady(
-              result.incidentId!, locationTask, initiallySentGps: realGpsLocation));
-          unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
+          unawaited(
+            EmergencyEvidenceService.attachLocationWhenReady(
+              result.incidentId!,
+              locationTask,
+              initiallySentGps: realGpsLocation,
+            ),
+          );
+          unawaited(
+            EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!),
+          );
         }
       }
     } catch (_) {
@@ -827,7 +937,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Tín hiệu cấp cứu đã được ghi nhận và gửi đến người thân!'),
+          content: Text(
+            'Tín hiệu cấp cứu đã được ghi nhận và gửi đến người thân!',
+          ),
           backgroundColor: Color(0xFFDC2626),
           duration: Duration(seconds: 4),
         ),
@@ -837,7 +949,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   Future<void> _handleManualSync() async {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đang đồng bộ dữ liệu ngoại tuyến...'), duration: Duration(seconds: 1)),
+      const SnackBar(
+        content: Text('Đang đồng bộ dữ liệu ngoại tuyến...'),
+        duration: Duration(seconds: 1),
+      ),
     );
 
     final result = await SyncService.instance.syncOfflineSpool();
@@ -872,8 +987,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     if (mounted) {
       setState(() => _backgroundGpsGranted = status.isGranted);
       if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
-          'Để gửi GPS khi app ở nền, chọn “Cho phép mọi lúc” trong quyền vị trí của CareAI.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Để gửi GPS khi app ở nền, chọn “Cho phép mọi lúc” trong quyền vị trí của CareAI.',
+            ),
+          ),
+        );
       }
     }
   }
@@ -890,10 +1010,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     if (mounted) {
       setState(() {
         _locatingGps = false;
-      _gpsStatus = fix == null
-          ? 'Chưa có GPS. Kiểm tra quyền vị trí và bật định vị.'
-          : '${fix.isSimulated ? 'GPS MÔ PHỎNG' : 'GPS'}: ${fix.coordinates}'
-              '${fix.accuracyMeters == null ? '' : ' (±${fix.accuracyMeters!.round()} m)'}';
+        _gpsStatus = fix == null
+            ? 'Chưa có GPS. Kiểm tra quyền vị trí và bật định vị.'
+            : '${fix.isSimulated ? 'GPS MÔ PHỎNG' : 'GPS'}: ${fix.coordinates}'
+                  '${fix.accuracyMeters == null ? '' : ' (±${fix.accuracyMeters!.round()} m)'}';
       });
     }
   }
@@ -910,7 +1030,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mẫu nhịp nhanh 185 bpm đã được gửi hoặc lưu vào hàng đợi.'),
+          content: Text(
+            'Mẫu nhịp nhanh 185 bpm đã được gửi hoặc lưu vào hàng đợi.',
+          ),
           backgroundColor: Color(0xFFDC2626),
         ),
       );
@@ -929,7 +1051,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mẫu thiếu oxy SpO2 88% đã được gửi hoặc lưu vào hàng đợi.'),
+          content: Text(
+            'Mẫu thiếu oxy SpO2 88% đã được gửi hoặc lưu vào hàng đợi.',
+          ),
           backgroundColor: Color(0xFF7C3AED),
         ),
       );
@@ -939,7 +1063,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   void _showDiagnosticTestLabSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: const Color(0xFFFFFFFF),
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -949,7 +1073,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           builder: (context, setSheetState) {
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -961,10 +1088,15 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              color: const Color(0xFFF59E0B)
+                                  .withValues(alpha: 0.15),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.biotech_rounded, color: Color(0xFFF59E0B), size: 24),
+                            child: const Icon(
+                              Icons.biotech_rounded,
+                              color: Color(0xFFF59E0B),
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           const Expanded(
@@ -973,72 +1105,122 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                               children: [
                                 Text(
                                   'Phòng Thử Nghiệm Tín Hiệu',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: CareAiColors.ink,
+                                  ),
                                 ),
                                 SizedBox(height: 2),
                                 Text(
                                   'Chuyên biệt cho kiểm thử lâm sàng & phần cứng',
-                                  style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF7D7168),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white70),
+                            icon: const Icon(
+                              Icons.close,
+                              color: CareAiColors.secondary,
+                            ),
                             onPressed: () => Navigator.pop(ctx),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Divider(color: Color(0xFF334155), height: 1),
+                      const Divider(color: Color(0xFFE4DACD), height: 1),
                       const SizedBox(height: 14),
 
                       // Section 1: Mô phỏng biến cố khẩn cấp
                       const Text(
                         'MÔ PHỎNG BIẾN CỐ KHẨN CẤP',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF7D7168),
+                          letterSpacing: 0.5,
+                        ),
                       ),
                       const SizedBox(height: 8),
 
                       // Test Ngã Button
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        tileColor: const Color(0xFF0F172A),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        tileColor: const Color(0xFFFAF7F2),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Color(0xFF7F1D1D)),
+                          side: const BorderSide(color: Color(0xFFFFEDE7)),
                         ),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDC2626).withValues(alpha: 0.2),
+                            color: const Color(0xFFDC2626)
+                                .withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.personal_injury, color: Color(0xFFEF4444), size: 22),
+                          child: const Icon(
+                            Icons.personal_injury,
+                            color: Color(0xFFEF4444),
+                            size: 22,
+                          ),
                         ),
-                        title: const Text('Mô phỏng té ngã phần cứng', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        subtitle: const Text('Kích hoạt chu trình đếm ngược 15s và còi SOS', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        title: const Text(
+                          'Mô phỏng té ngã phần cứng',
+                          style: TextStyle(
+                            color: CareAiColors.ink,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Kích hoạt chu trình đếm ngược 15s và còi SOS',
+                          style: TextStyle(
+                            color: Color(0xFF7D7168),
+                            fontSize: 14,
+                          ),
+                        ),
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFDC2626),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: () async {
                             Navigator.pop(ctx);
-                            final eventId = await FallService.instance.simulateHardwareFall();
+                            final eventId = await FallService.instance
+                                .simulateHardwareFall();
                             if (context.mounted && eventId != null) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('⚡ Đã kích hoạt mô phỏng ngã phần cứng ($eventId)'),
+                                  content: Text(
+                                    '⚡ Đã kích hoạt mô phỏng ngã phần cứng ($eventId)',
+                                  ),
                                   backgroundColor: const Color(0xFFB91C1C),
                                   duration: const Duration(seconds: 2),
                                 ),
                               );
                             }
                           },
-                          child: const Text('Kích hoạt', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'Kích hoạt',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
 
@@ -1047,40 +1229,77 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                       // Section 2: Sinh hiệu lâm sàng
                       const Text(
                         'THỬ NGHIỆM SINH HIỆU LÂM SÀNG',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF7D7168),
+                          letterSpacing: 0.5,
+                        ),
                       ),
                       const SizedBox(height: 8),
 
                       // Test Nhịp nhanh 185 bpm
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        tileColor: const Color(0xFF0F172A),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        tileColor: const Color(0xFFFAF7F2),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Color(0xFF334155)),
+                          side: const BorderSide(color: Color(0xFFE4DACD)),
                         ),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                            color: const Color(0xFFEF4444)
+                                .withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.monitor_heart, color: Color(0xFFEF4444), size: 22),
+                          child: const Icon(
+                            Icons.monitor_heart,
+                            color: Color(0xFFEF4444),
+                            size: 22,
+                          ),
                         ),
-                        title: const Text('Mô phỏng nhịp nhanh 185 BPM', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        subtitle: const Text('Bắn mẫu telemetry nhịp tim cao khẩn cấp', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        title: const Text(
+                          'Mô phỏng nhịp nhanh 185 BPM',
+                          style: TextStyle(
+                            color: CareAiColors.ink,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Bắn mẫu telemetry nhịp tim cao khẩn cấp',
+                          style: TextStyle(
+                            color: Color(0xFF7D7168),
+                            fontSize: 14,
+                          ),
+                        ),
                         trailing: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFF87171),
+                            foregroundColor: const Color(0xFFC93B2B),
                             side: const BorderSide(color: Color(0xFFEF4444)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: () async {
                             Navigator.pop(ctx);
                             await _simulateUrgentHeartRate();
                           },
-                          child: const Text('Bắn mẫu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'Bắn mẫu',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
 
@@ -1088,34 +1307,66 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
                       // Test Thiếu Oxy SpO2 88%
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        tileColor: const Color(0xFF0F172A),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        tileColor: const Color(0xFFFAF7F2),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Color(0xFF334155)),
+                          side: const BorderSide(color: Color(0xFFE4DACD)),
                         ),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFA855F7).withValues(alpha: 0.15),
+                            color: const Color(0xFFA855F7)
+                                .withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.air, color: Color(0xFFA855F7), size: 22),
+                          child: const Icon(
+                            Icons.air,
+                            color: Color(0xFFA855F7),
+                            size: 22,
+                          ),
                         ),
-                        title: const Text('Mô phỏng thiếu oxy SpO2 88%', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        subtitle: const Text('Bắn mẫu telemetry SpO2 dưới ngưỡng an toàn', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        title: const Text(
+                          'Mô phỏng thiếu oxy SpO2 88%',
+                          style: TextStyle(
+                            color: CareAiColors.ink,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Bắn mẫu telemetry SpO2 dưới ngưỡng an toàn',
+                          style: TextStyle(
+                            color: Color(0xFF7D7168),
+                            fontSize: 14,
+                          ),
+                        ),
                         trailing: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFC084FC),
                             side: const BorderSide(color: Color(0xFFA855F7)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: () async {
                             Navigator.pop(ctx);
                             await _simulateHypoxiaSpO2();
                           },
-                          child: const Text('Bắn mẫu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'Bắn mẫu',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
 
@@ -1124,35 +1375,80 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                       // Section 3: Định vị & Bản đồ
                       const Text(
                         'ĐỊNH VỊ & BẢN ĐỒ VỊ TRÍ',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), letterSpacing: 0.5),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF7D7168),
+                          letterSpacing: 0.5,
+                        ),
                       ),
                       const SizedBox(height: 8),
 
                       ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        tileColor: const Color(0xFF0F172A),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        tileColor: const Color(0xFFFAF7F2),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Color(0xFF334155)),
+                          side: const BorderSide(color: Color(0xFFE4DACD)),
                         ),
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                            color: const Color(0xFF456624)
+                                .withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.map_outlined, color: Color(0xFF38BDF8), size: 22),
+                          child: const Icon(
+                            Icons.map_outlined,
+                            color: Color(0xFF456624),
+                            size: 22,
+                          ),
                         ),
-                        title: Text('Tọa độ GPS: $_currentGps', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                        subtitle: Text(_gpsStatus, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                        title: Text(
+                          'Tọa độ GPS: $_currentGps',
+                          style: const TextStyle(
+                            color: CareAiColors.ink,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _gpsStatus,
+                          style: const TextStyle(
+                            color: Color(0xFF7D7168),
+                            fontSize: 14,
+                          ),
+                        ),
                         trailing: TextButton.icon(
                           onPressed: () async {
-                            final loc = await LocationService.instance.getCurrentLocation();
-                            if (mounted) setState(() => _currentGps = loc.coordinatesFormatted);
-                            await LocationService.instance.openGoogleMaps(loc.latitude, loc.longitude, label: 'Vị trí Người cao tuổi: $_elderName');
+                            final loc = await LocationService.instance
+                                .getCurrentLocation();
+                            if (mounted) {
+                              setState(
+                                () => _currentGps = loc.coordinatesFormatted,
+                              );
+                            }
+                            await LocationService.instance.openGoogleMaps(
+                              loc.latitude,
+                              loc.longitude,
+                              label: 'Vị trí Người cao tuổi: $_elderName',
+                            );
                           },
-                          icon: const Icon(Icons.open_in_new, size: 14, color: Color(0xFF38BDF8)),
-                          label: const Text('Maps', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
+                          icon: const Icon(
+                            Icons.open_in_new,
+                            size: 14,
+                            color: Color(0xFF456624),
+                          ),
+                          label: const Text(
+                            'Maps',
+                            style: TextStyle(
+                              color: Color(0xFF456624),
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -1162,21 +1458,27 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: const Color(0xFFFAF7F2),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF334155)),
+                          border: Border.all(color: const Color(0xFFE4DACD)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Mã thiết bị: $_deviceId',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF7D7168),
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               'Máy chủ: ${ApiService.instance.activeServerUrl}',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF7D7168),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1198,82 +1500,110 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
   /// Đổi tên thân thuộc cho đồng hồ (biệt danh) để người thân dễ nhận biết
   Future<void> _showEditWatchNameDialog(String currentName) async {
-    final isGeneric = currentName == 'Apple Watch' ||
+    final isGeneric =
+        currentName == 'Apple Watch' ||
         currentName == 'Galaxy Watch' ||
         currentName == 'Apple Watch (watchOS)' ||
         currentName == 'Galaxy Watch (Wear OS)' ||
         currentName == 'Chưa kết nối đồng hồ' ||
         currentName == 'Chưa ghép nối đồng hồ';
-    final controller = TextEditingController(text: isGeneric ? '' : currentName);
+    final controller = TextEditingController(
+      text: isGeneric ? '' : currentName,
+    );
     final formKey = GlobalKey<FormState>();
 
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        backgroundColor: const Color(0xFFFFFFFF),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF334155)),
+          side: const BorderSide(color: Color(0xFFE4DACD)),
         ),
         title: const Row(
           children: [
-            Icon(Icons.edit_note_rounded, color: Color(0xFF38BDF8), size: 22),
+            Icon(Icons.edit_note_rounded, color: Color(0xFF456624), size: 22),
             SizedBox(width: 8),
-            Text(
-              'Tên Gọi Đồng Hồ',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                'Tên đồng hồ',
+                style: TextStyle(
+                  color: CareAiColors.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Đặt tên gợi nhớ để người thân dễ nhận diện trong gia đình (ví dụ: Apple Watch của Bedouh):',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: controller,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: 'Nhập tên đồng hồ...',
-                  hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                  filled: true,
-                  fillColor: const Color(0xFF0F172A),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF334155)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Đặt tên quen thuộc để gia đình dễ nhận ra đồng hồ.',
+                  style: TextStyle(
+                    color: Color(0xFF7D7168),
+                    fontSize: 14,
+                    height: 1.4,
                   ),
                 ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Vui lòng nhập tên cho đồng hồ';
-                  }
-                  return null;
-                },
-              ),
-            ],
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: controller,
+                  autofocus: true,
+                  style: const TextStyle(color: CareAiColors.ink, fontSize: 15),
+                  decoration: InputDecoration(
+                    labelText: 'Tên đồng hồ',
+                    hintStyle: const TextStyle(color: Color(0xFF7D7168)),
+                    filled: true,
+                    fillColor: const Color(0xFFFAF7F2),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(color: Color(0xFFE4DACD)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF456624),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Vui lòng nhập tên cho đồng hồ';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('HỦY BỎ', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(
+                color: Color(0xFF7D7168),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0284C7),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              backgroundColor: const Color(0xFF4A3020),
+              shape: const StadiumBorder(),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
             onPressed: () {
@@ -1281,7 +1611,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 Navigator.pop(ctx, controller.text.trim());
               }
             },
-            child: const Text('LƯU TÊN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Lưu tên',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -1293,35 +1629,37 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       setState(() {
         _customWatchAlias = newName;
       });
-      unawaited(ApiService.instance.syncConnectedWatch(
-        newName,
-        isConnected: _watchStatus.isConnected,
-        isWorn: _watchStatus.isWorn,
-        isCharging: _watchStatus.isCharging,
-        batteryLevel: _watchStatus.batteryLevel,
-        todaySteps: _watchStatus.todaySteps,
-        heartRate: _watchStatus.heartRate,
-        spo2: _watchStatus.spo2,
-        bpSystolic: _watchStatus.bpSystolic,
-        bpDiastolic: _watchStatus.bpDiastolic,
-        sleepMinutes: _watchStatus.sleepMinutes,
-        deepSleepMinutes: _watchStatus.deepSleepMinutes,
-        coreSleepMinutes: _watchStatus.coreSleepMinutes,
-        remSleepMinutes: _watchStatus.remSleepMinutes,
-        awakeMinutes: _watchStatus.awakeMinutes,
-        wakeCount: _watchStatus.wakeCount,
-        minSleepingHr: _watchStatus.minSleepingHr,
-        avgSleepingHr: _watchStatus.avgSleepingHr,
-        minNightSpo2: _watchStatus.minNightSpo2,
-        nightSpo2DipsCount: _watchStatus.nightSpo2DipsCount,
-        breathingDisturbances: _watchStatus.breathingDisturbances,
-        supportedMetrics: _watchStatus.supportedMetrics,
-      ));
+      unawaited(
+        ApiService.instance.syncConnectedWatch(
+          newName,
+          isConnected: _watchStatus.isConnected,
+          isWorn: _watchStatus.isWorn,
+          isCharging: _watchStatus.isCharging,
+          batteryLevel: _watchStatus.batteryLevel,
+          todaySteps: _watchStatus.todaySteps,
+          heartRate: _watchStatus.heartRate,
+          spo2: _watchStatus.spo2,
+          bpSystolic: _watchStatus.bpSystolic,
+          bpDiastolic: _watchStatus.bpDiastolic,
+          sleepMinutes: _watchStatus.sleepMinutes,
+          deepSleepMinutes: _watchStatus.deepSleepMinutes,
+          coreSleepMinutes: _watchStatus.coreSleepMinutes,
+          remSleepMinutes: _watchStatus.remSleepMinutes,
+          awakeMinutes: _watchStatus.awakeMinutes,
+          wakeCount: _watchStatus.wakeCount,
+          minSleepingHr: _watchStatus.minSleepingHr,
+          avgSleepingHr: _watchStatus.avgSleepingHr,
+          minNightSpo2: _watchStatus.minNightSpo2,
+          nightSpo2DipsCount: _watchStatus.nightSpo2DipsCount,
+          breathingDisturbances: _watchStatus.breathingDisturbances,
+          supportedMetrics: _watchStatus.supportedMetrics,
+        ),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Đã cập nhật tên đồng hồ: $newName'),
-            backgroundColor: const Color(0xFF0284C7),
+            backgroundColor: const Color(0xFF4A3020),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -1332,7 +1670,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   /// Mở hộp thoại Cài Đặt Thiết Bị (Thanh lịch, không gây hoang mang, tách bạch chức năng)
   Future<void> _showSettingsDialog() async {
     final isConnected = _watchStatus.isConnected;
-    final hasKnownWatch = (_watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) ||
+    final hasKnownWatch =
+        (_watchStatus.watchName != null &&
+            _watchStatus.watchName!.isNotEmpty) ||
         (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) ||
         _customWatchAlias != null ||
         _watchStatus.isPaired;
@@ -1341,222 +1681,235 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     await showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFFFFFFFF),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
+          side: const BorderSide(color: Color(0xFFE4DACD), width: 1),
         ),
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header với icon cài đặt & nút đóng
-              Row(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.settings_outlined, color: Color(0xFF38BDF8), size: 22),
+                  // Header với icon cài đặt & nút đóng
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF456624)
+                              .withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.settings_outlined,
+                          color: Color(0xFF456624),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Cài đặt thiết bị',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: CareAiColors.ink,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Kết nối và hồ sơ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF7D7168),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          color: CareAiColors.secondary,
+                          size: 20,
+                        ),
+                        tooltip: 'Đóng cài đặt',
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  const SizedBox(height: 10),
+                  const Divider(color: Color(0xFFE4DACD), height: 1),
+                  const SizedBox(height: 10),
+
+                  // Thẻ thông tin Apple Watch (Gọn gàng, vừa khít, cùng một hàng, không thừa không gian)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: CareAiColors.canvas,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: CareAiColors.border),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.watch_outlined,
+                              size: 24,
+                              color: CareAiColors.brown,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                watchDisplayName,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: CareAiColors.ink,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         Text(
-                          'Cài Đặt Thiết Bị',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                          isConnected
+                              ? '${_watchStatus.batteryLevel != null ? 'Pin ${_watchStatus.batteryLevel}%' : 'Đã kết nối'}${_watchStatus.isWorn == true ? ' · Đang đeo' : ''}'
+                              : 'Chưa nhận tín hiệu',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: CareAiColors.secondary,
                           ),
                         ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Quản lý kết nối & kiểm thử',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                        ),
+                        if (hasKnownWatch || isConnected) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _showEditWatchNameDialog(watchDisplayName);
+                                },
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                label: const Text('Đổi tên đồng hồ'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _handleUnpairWatchOnly();
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: CareAiColors.amber,
+                                ),
+                                icon: const Icon(
+                                  Icons.link_off_rounded,
+                                  size: 18,
+                                ),
+                                label: const Text('Ngắt kết nối'),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                  const SizedBox(height: 8),
+
+                  // Nút 1: Phòng thử nghiệm tín hiệu
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF456624),
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.biotech_outlined, size: 17),
+                    label: const Text(
+                      'Mở Phòng Thử Nghiệm Tín Hiệu',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showDiagnosticTestLabSheet(context);
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  const Divider(color: Color(0xFFE4DACD), height: 1),
+                  const SizedBox(height: 10),
+
+                  // Nút 2: ĐĂNG XUẤT HỒ SƠ (Gọn gàng, đúng nhãn yêu cầu)
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(
+                        color: Color(0xFFDC2626),
+                        width: 1.2,
+                      ),
+                      backgroundColor: const Color(0xFFFFEDE7)
+                          .withValues(alpha: 0.15),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.logout_rounded, size: 16),
+                    label: const Text(
+                      'ĐĂNG XUẤT HỒ SƠ',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _handleLogoutAccount();
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Nút 3: HỦY BỎ (Dưới cùng, đơn giản, rõ nét)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: CareAiColors.brown,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     onPressed: () => Navigator.pop(ctx),
+                    child: const Text(
+                      'Đóng',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              const Divider(color: Color(0xFF334155), height: 1),
-              const SizedBox(height: 10),
-
-              // Thẻ thông tin Apple Watch (Gọn gàng, vừa khít, cùng một hàng, không thừa không gian)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF334155)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: (isConnected ? const Color(0xFF34D399) : const Color(0xFF94A3B8)).withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.watch_rounded,
-                        color: isConnected ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  watchDisplayName,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (hasKnownWatch || isConnected) ...[
-                                const SizedBox(width: 4),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    _showEditWatchNameDialog(watchDisplayName);
-                                  },
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(2),
-                                    child: Icon(Icons.edit_outlined, size: 14, color: Color(0xFF38BDF8)),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            isConnected
-                                ? '🟢 ${_watchStatus.batteryLevel != null ? 'Pin ${_watchStatus.batteryLevel}%' : 'Đã kết nối'}${_watchStatus.isWorn == true ? ' · Đang đeo' : ''}'
-                                : '⚪ Chưa nhận tín hiệu',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isConnected ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (hasKnownWatch || isConnected) ...[
-                      const SizedBox(width: 8),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFF97316),
-                          backgroundColor: const Color(0xFFF97316).withValues(alpha: 0.12),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(color: const Color(0xFFF97316).withValues(alpha: 0.35)),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _handleUnpairWatchOnly();
-                        },
-                        child: const Text(
-                          'Ngắt kết nối',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Nút 1: Phòng thử nghiệm tín hiệu
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF38BDF8),
-                  padding: const EdgeInsets.symmetric(vertical: 7),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                icon: const Icon(Icons.biotech_outlined, size: 17),
-                label: const Text(
-                  'Mở Phòng Thử Nghiệm Tín Hiệu',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _showDiagnosticTestLabSheet(context);
-                },
-              ),
-              const SizedBox(height: 6),
-              const Divider(color: Color(0xFF334155), height: 1),
-              const SizedBox(height: 10),
-
-              // Nút 2: ĐĂNG XUẤT HỒ SƠ (Gọn gàng, đúng nhãn yêu cầu)
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFEF4444),
-                  side: const BorderSide(color: Color(0xFFDC2626), width: 1.2),
-                  backgroundColor: const Color(0xFF7F1D1D).withValues(alpha: 0.15),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.logout_rounded, size: 16),
-                label: const Text(
-                  'ĐĂNG XUẤT HỒ SƠ',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, letterSpacing: 0.3),
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _handleLogoutAccount();
-                },
-              ),
-              const SizedBox(height: 8),
-
-              // Nút 3: HỦY BỎ (Dưới cùng, đơn giản, rõ nét)
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF334155),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'HỦY BỎ',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1568,10 +1921,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFFFFFFFF),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFF334155)),
+          side: const BorderSide(color: Color(0xFFE4DACD)),
         ),
         title: const Row(
           children: [
@@ -1580,28 +1933,40 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             Expanded(
               child: Text(
                 'Ngắt Liên Kết Đồng Hồ?',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: CareAiColors.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         ),
         content: const Text(
           'Đồng hồ sẽ ngừng đo nhịp tim và phát hiện té ngã.\n\nNút SOS khẩn cấp và định vị GPS trên chiếc điện thoại này vẫn hoạt động bình thường để bảo vệ bạn.',
-          style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 13, height: 1.4),
+          style: TextStyle(color: Color(0xFF5C493B), fontSize: 14, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('GIỮ KẾT NỐI', style: TextStyle(color: Colors.white70)),
+            child: const Text(
+              'GIỮ KẾT NỐI',
+              style: TextStyle(color: CareAiColors.secondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEA580C),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('XÁC NHẬN NGẮT', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'XÁC NHẬN NGẮT',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -1622,8 +1987,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Đã ngắt liên kết đồng hồ. Nút SOS trên điện thoại vẫn sẵn sàng bảo vệ bạn.'),
-            backgroundColor: Color(0xFF0F172A),
+            content: Text(
+              'Đã ngắt liên kết đồng hồ. Nút SOS trên điện thoại vẫn sẵn sàng bảo vệ bạn.',
+            ),
+            backgroundColor: Color(0xFFFAF7F2),
             duration: Duration(seconds: 4),
           ),
         );
@@ -1636,40 +2003,60 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFFFFFFFF),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFF7F1D1D)),
+          side: const BorderSide(color: Color(0xFFFFEDE7)),
         ),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFEF4444),
+              size: 24,
+            ),
             SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Xác Nhận Đăng Xuất Hồ Sơ?',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: CareAiColors.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         ),
         content: Text(
           'Toàn bộ tính năng bảo vệ, định vị và gửi tín hiệu SOS của ông/bà ${_elderName.isNotEmpty ? _elderName : "người cao tuổi"} trên CẢ ĐIỆN THOẠI VÀ ĐỒNG HỒ sẽ dừng hoạt động.\n\nBạn sẽ cần quét mã PIN mới để kết nối lại.',
-          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 13, height: 1.4),
+          style: const TextStyle(
+            color: Color(0xFF5C493B),
+            fontSize: 14,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('HỦY BỎ', style: TextStyle(color: Colors.white70)),
+            child: const Text(
+              'HỦY BỎ',
+              style: TextStyle(color: CareAiColors.secondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'ĐĂNG XUẤT',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -1705,11 +2092,19 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           'Bạn có muốn chuyển sang Chế độ Người thân (Caregiver Dashboard) để theo dõi và quản lý từ xa?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7)),
-            child: const Text('CHUYỂN ĐỔI', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4A3020),
+            ),
+            child: const Text(
+              'CHUYỂN ĐỔI',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1722,12 +2117,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
       // Kiểm tra tính sở hữu: Người cao tuổi trên máy có thuộc Người thân đang lưu hay không
       final currentElderId = await ApiService.instance.getElderProfileId();
-      final canEnterHomeScreen = await CaregiverApiService.instance.verifyOrLogoutIfMismatchedElder(currentElderId);
+      final canEnterHomeScreen = await CaregiverApiService.instance
+          .verifyOrLogoutIfMismatchedElder(currentElderId);
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => canEnterHomeScreen ? const HomeScreen() : const LoginScreen(),
+          builder: (_) =>
+              canEnterHomeScreen ? const HomeScreen() : const LoginScreen(),
         ),
       );
     }
@@ -1736,9 +2133,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFFFFFFFF),
         elevation: 0,
         title: GestureDetector(
           onTap: _handleSecretTitleTap,
@@ -1751,22 +2148,35 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 height: 10,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _isServerOnline ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+                  color: _isServerOnline
+                      ? const Color(0xFF7A9850)
+                      : const Color(0xFFEF4444),
                 ),
               ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   _isServerOnline
-                      ? (ApiService.instance.activeServerUrl.contains('127.0.0.1')
-                          ? 'Trực tuyến (Cáp USB)'
-                          : (ApiService.instance.activeServerUrl.contains('trycloudflare.com') ||
-                                  ApiService.instance.activeServerUrl.contains('azurewebsites.net') ||
-                                  ApiService.instance.activeServerUrl.startsWith('https://'))
-                              ? 'Trực tuyến (Internet/4G)'
-                              : 'Trực tuyến (Wi-Fi LAN)')
-                      : 'Ngoại tuyến (Offline)',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      ? (ApiService.instance.activeServerUrl.contains(
+                              '127.0.0.1',
+                            )
+                            ? 'Đã kết nối'
+                            : (ApiService.instance.activeServerUrl.contains(
+                                    'trycloudflare.com',
+                                  ) ||
+                                  ApiService.instance.activeServerUrl.contains(
+                                    'azurewebsites.net',
+                                  ) ||
+                                  ApiService.instance.activeServerUrl
+                                      .startsWith('https://'))
+                            ? 'Đã kết nối'
+                            : 'Đã kết nối')
+                      : 'Đang ngoại tuyến',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: CareAiColors.ink,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1775,7 +2185,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF38BDF8)),
+            icon: const Icon(
+              Icons.swap_horiz_rounded,
+              color: Color(0xFF456624),
+            ),
             tooltip: 'Đổi vai trò Người thân',
             onPressed: _handleSwitchRole,
           ),
@@ -1783,136 +2196,289 @@ class _SosButtonScreenState extends State<SosButtonScreen>
             icon: Badge(
               isLabelVisible: _pendingPacketCount > 0,
               label: Text('$_pendingPacketCount'),
-              child: const Icon(Icons.sync, color: Colors.white),
+              child: const Icon(Icons.sync, color: CareAiColors.brown),
             ),
             tooltip: 'Đồng bộ ngoại tuyến',
             onPressed: _handleManualSync,
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.white70),
+            icon: const Icon(
+              Icons.settings_outlined,
+              color: CareAiColors.brown,
+            ),
             tooltip: 'Cài đặt thiết bị',
             onPressed: _showSettingsDialog,
           ),
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 20),
           children: [
-            // Thẻ thông tin người cao tuổi (Thiết kế trực quan, ấm cúng, không rác kỹ thuật)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF334155)),
-              ),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    backgroundColor: Color(0xFF0284C7),
-                    radius: 24,
-                    child: Icon(Icons.person, color: Colors.white, size: 28),
+            // Banner trạng thái SOS / Sự cố khẩn cấp (Phản hồi 2 chiều Closed-Loop)
+            if (_isSosActive)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                      ? const Color(0xFFE2EDD3) // Xanh lục an tâm (Emerald 900)
+                      : const Color(0xFFFFEDE7), // Đỏ cảnh báo (Red 900)
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                        ? const Color(0xFF456624) // Emerald 500
+                        : const Color(0xFFEF4444), // Red 500
+                    width: 1.5,
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _elderName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        const Row(
-                          children: [
-                            Icon(Icons.verified_user_outlined, size: 13, color: Color(0xFF34D399)),
-                            SizedBox(width: 4),
-                            Text(
-                              'Đang bảo vệ an toàn 24/7',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF34D399), fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 13,
-                              color: EmergencyEvidenceService.recentFix == null
-                                  ? const Color(0xFFFBBF24)
-                                  : const Color(0xFF38BDF8),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                _locatingGps
-                                    ? 'Đang tìm vị trí vệ tinh...'
-                                    : (EmergencyEvidenceService.recentFix == null
-                                        ? 'Đang cập nhật vị trí bảo vệ'
-                                        : 'Vị trí sẵn sàng gửi người thân'),
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: EmergencyEvidenceService.recentFix == null
-                                      ? const Color(0xFFFBBF24)
-                                      : const Color(0xFF94A3B8),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (!_backgroundGpsGranted)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: InkWell(
-                              onTap: _enableBackgroundGps,
-                              child: const Text(
-                                '⚠️ Bật định vị nền để bảo vệ liên tục',
-                                style: TextStyle(fontSize: 11, color: Color(0xFFFBBF24), decoration: TextDecoration.underline),
-                              ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _activeIncidentStatus == 'ACKNOWLEDGED'
+                          ? Icons.check_circle_rounded
+                          : Icons.notifications_active,
+                      color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                          ? const Color(0xFF456624)
+                          : CareAiColors.danger,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _activeIncidentStatus == 'ACKNOWLEDGED'
+                                ? 'NGƯỜI THÂN ĐÃ TIẾP NHẬN!'
+                                : 'ĐÃ PHÁT TÍN HIỆU CẤP CỨU',
+                            style: const TextStyle(
+                              color: CareAiColors.ink,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              letterSpacing: 0.3,
                             ),
                           ),
-                      ],
+                          const SizedBox(height: 2),
+                          Text(
+                            _activeIncidentStatus == 'ACKNOWLEDGED'
+                                ? '${_acknowledgedByName ?? 'Người thân'} đã tiếp nhận${_acknowledgedAt != null ? ' lúc ${DateFormat('HH:mm').format(_acknowledgedAt!.toLocal())}' : ''}\n${_acknowledgedNote != null && _acknowledgedNote!.isNotEmpty ? _acknowledgedNote! : 'Đang đến hỗ trợ, ông/bà yên tâm nhé!'}'
+                                : 'Mã: ${_lastSosPacketId ?? 'SOS'}\nĐang chờ người nhà tiếp nhận...',
+                            style: TextStyle(
+                              color: _activeIncidentStatus == 'ACKNOWLEDGED'
+                                  ? const Color(0xFF456624)
+                                  : CareAiColors.secondary,
+                              fontSize: 14,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: CareAiColors.secondary,
+                      ),
+                      tooltip: 'Đóng thông báo',
+                      onPressed: () {
+                        _stopIncidentPolling();
+                        setState(() {
+                          _isSosActive = false;
+                          _activeIncidentStatus = null;
+                        });
+                        FallService.instance.stopEmergencySound();
+                        FallService.instance.notifyIncidentStatusToWatch(
+                          status: 'RESOLVED',
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Column(
+                children: [
+                  const Text(
+                    'Cần người thân giúp?',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: CareAiColors.ink,
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Cập nhật lại GPS',
-                    onPressed: _locatingGps ? null : _prepareGps,
-                    icon: _locatingGps
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)),
-                          )
-                        : const Icon(Icons.my_location, color: Color(0xFF38BDF8), size: 22),
+                  const SizedBox(height: 24),
+                  Semantics(
+                    button: true,
+                    label: 'SOS. Báo cần giúp cho người thân',
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: const BoxDecoration(
+                        color: CareAiColors.peach,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Material(
+                        color: CareAiColors.danger,
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _triggerManualSos,
+                          child: SizedBox(
+                            width: 232,
+                            height: 232,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'SOS',
+                                  style: TextStyle(
+                                    fontSize: 44,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    height: 1.15,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Chạm nút SOS để báo cần giúp.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      color: CareAiColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Bạn có thể hủy nếu chạm nhầm ở bước xác nhận.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: CareAiColors.secondary,
+                    ),
                   ),
                 ],
               ),
             ),
-
+            // Thông tin hồ sơ và GPS nằm sau thao tác SOS chính.
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: CareAiColors.surface,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 24,
+                        backgroundColor: CareAiColors.peach,
+                        child: Icon(
+                          Icons.person_outline_rounded,
+                          color: CareAiColors.brown,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _elderName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: CareAiColors.ink,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 20,
+                        color: EmergencyEvidenceService.recentFix == null
+                            ? CareAiColors.amber
+                            : CareAiColors.greenInk,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _locatingGps
+                              ? 'Đang tìm vị trí…'
+                              : EmergencyEvidenceService.recentFix == null
+                              ? 'Chưa có vị trí mới'
+                              : 'Vị trí sẵn sàng gửi người thân',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: CareAiColors.secondary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cập nhật lại GPS',
+                        onPressed: _locatingGps ? null : _prepareGps,
+                        icon: _locatingGps
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.my_location_rounded,
+                                color: CareAiColors.greenInk,
+                              ),
+                      ),
+                    ],
+                  ),
+                  if (!_backgroundGpsGranted)
+                    TextButton.icon(
+                      onPressed: _enableBackgroundGps,
+                      icon: const Icon(Icons.location_on_outlined, size: 18),
+                      label: const Text('Bật vị trí khi ở nền'),
+                    ),
+                ],
+              ),
+            ),
             // Card Thiết bị đeo Galaxy Watch (Wear OS) / Apple Watch (watchOS)
             Builder(
               builder: (context) {
                 final isConnected = _watchStatus.isConnected;
-                final hasKnownWatch = (_watchStatus.watchName != null && _watchStatus.watchName!.isNotEmpty) ||
-                    (_lastPairedWatchName != null && _lastPairedWatchName!.isNotEmpty) ||
+                final hasKnownWatch =
+                    (_watchStatus.watchName != null &&
+                        _watchStatus.watchName!.isNotEmpty) ||
+                    (_lastPairedWatchName != null &&
+                        _lastPairedWatchName!.isNotEmpty) ||
                     _customWatchAlias != null ||
                     _watchStatus.isPaired;
-                final isBtOff = !isConnected && _watchStatus.reason == 'BLUETOOTH_OFF';
+                final isBtOff =
+                    !isConnected && _watchStatus.reason == 'BLUETOOTH_OFF';
                 final isDisconnected = !isConnected && hasKnownWatch;
                 final watchTitle = isConnected
                     ? _effectiveWatchDisplayName
-                    : (isDisconnected ? _effectiveWatchDisplayName : 'Chưa ghép nối đồng hồ');
+                    : (isDisconnected
+                          ? _effectiveWatchDisplayName
+                          : 'Chưa ghép nối đồng hồ');
 
                 final String statusSubtext;
                 final Color borderColor;
@@ -1928,92 +2494,128 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
                   if (isCharging) {
                     if (batteryPct == 100) {
-                      statusSubtext = '🔋 Đã sạc đầy 100% · Nhớ đeo lại vào tay';
-                      borderColor = const Color(0xFF10B981).withValues(alpha: 0.8);
-                      iconBgColor = const Color(0xFF064E3B).withValues(alpha: 0.6);
-                      iconColor = const Color(0xFF34D399);
-                      subtextColor = const Color(0xFF6EE7B7);
+                      statusSubtext =
+                          '🔋 Đã sạc đầy 100% · Nhớ đeo lại vào tay';
+                      borderColor = const Color(0xFF456624)
+                          .withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFFE2EDD3)
+                          .withValues(alpha: 0.6);
+                      iconColor = const Color(0xFF456624);
+                      subtextColor = const Color(0xFF456624);
                       iconData = Icons.battery_charging_full_rounded;
                     } else {
-                      final pctStr = batteryPct != null ? ' ($batteryPct%)' : '';
-                      statusSubtext = '⚡ Đang sạc pin$pctStr · Tạm dừng sinh hiệu';
-                      borderColor = const Color(0xFF38BDF8).withValues(alpha: 0.8);
-                      iconBgColor = const Color(0xFF0C4A6E).withValues(alpha: 0.6);
-                      iconColor = const Color(0xFF38BDF8);
-                      subtextColor = const Color(0xFF7DD3FC);
+                      final pctStr = batteryPct != null
+                          ? ' ($batteryPct%)'
+                          : '';
+                      statusSubtext =
+                          '⚡ Đang sạc pin$pctStr · Tạm dừng sinh hiệu';
+                      borderColor = const Color(0xFF456624)
+                          .withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFFF0F4E4)
+                          .withValues(alpha: 0.6);
+                      iconColor = const Color(0xFF456624);
+                      subtextColor = const Color(0xFF456624);
                       iconData = Icons.battery_charging_full_rounded;
                     }
                   } else if (isWorn == false) {
-                    final pctStr = batteryPct != null ? ' · Pin $batteryPct%' : '';
+                    final pctStr = batteryPct != null
+                        ? ' · Pin $batteryPct%'
+                        : '';
                     if (batteryPct != null && batteryPct <= 20) {
-                      statusSubtext = '⚠️ Đã tháo khỏi cổ tay · Pin yếu $batteryPct%';
-                      borderColor = const Color(0xFFEF4444).withValues(alpha: 0.8);
-                      iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.6);
-                      iconColor = const Color(0xFFF87171);
-                      subtextColor = const Color(0xFFFCA5A5);
+                      statusSubtext =
+                          '⚠️ Đã tháo khỏi cổ tay · Pin yếu $batteryPct%';
+                      borderColor = const Color(0xFFEF4444)
+                          .withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFFFFEDE7)
+                          .withValues(alpha: 0.6);
+                      iconColor = const Color(0xFFC93B2B);
+                      subtextColor = const Color(0xFFC93B2B);
                       iconData = Icons.battery_alert_rounded;
                     } else {
                       statusSubtext = '🟡 Đã tháo khỏi cổ tay$pctStr';
-                      borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.8);
-                      iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.6);
-                      iconColor = const Color(0xFFFBBF24);
-                      subtextColor = const Color(0xFFFDE68A);
+                      borderColor = const Color(0xFFF59E0B)
+                          .withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFFFAEFE5)
+                          .withValues(alpha: 0.6);
+                      iconColor = const Color(0xFF916018);
+                      subtextColor = const Color(0xFF916018);
                       iconData = Icons.watch_off_outlined;
                     }
                   } else {
                     if (batteryPct != null && batteryPct <= 10) {
-                      statusSubtext = '🚨 Pin đồng hồ sắp cạn ($batteryPct%) · Hãy sạc ngay';
-                      borderColor = const Color(0xFFEF4444).withValues(alpha: 0.9);
-                      iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.7);
-                      iconColor = const Color(0xFFF87171);
-                      subtextColor = const Color(0xFFFCA5A5);
+                      statusSubtext =
+                          '🚨 Pin đồng hồ sắp cạn ($batteryPct%) · Hãy sạc ngay';
+                      borderColor = const Color(0xFFEF4444)
+                          .withValues(alpha: 0.9);
+                      iconBgColor = const Color(0xFFFFEDE7)
+                          .withValues(alpha: 0.7);
+                      iconColor = const Color(0xFFC93B2B);
+                      subtextColor = const Color(0xFFC93B2B);
                       iconData = Icons.battery_alert_rounded;
                     } else if (batteryPct != null && batteryPct <= 20) {
-                      statusSubtext = '⚠️ Pin đồng hồ yếu ($batteryPct%) · Vui lòng cắm sạc';
-                      borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.8);
-                      iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.6);
-                      iconColor = const Color(0xFFFBBF24);
-                      subtextColor = const Color(0xFFFDE68A);
+                      statusSubtext =
+                          '⚠️ Pin đồng hồ yếu ($batteryPct%) · Vui lòng cắm sạc';
+                      borderColor = const Color(0xFFF59E0B)
+                          .withValues(alpha: 0.8);
+                      iconBgColor = const Color(0xFFFAEFE5)
+                          .withValues(alpha: 0.6);
+                      iconColor = const Color(0xFF916018);
+                      subtextColor = const Color(0xFF916018);
                       iconData = Icons.battery_alert_rounded;
                     } else {
-                      final pctStr = batteryPct != null ? ' (Pin $batteryPct%)' : '';
-                      statusSubtext = '🟢 Đã kết nối · Trên cổ tay$pctStr · $_platformSensorLabel';
-                      borderColor = const Color(0xFF22C55E).withValues(alpha: 0.6);
-                      iconBgColor = const Color(0xFF14532D).withValues(alpha: 0.5);
-                      iconColor = const Color(0xFF4ADE80);
-                      subtextColor = const Color(0xFF4ADE80);
+                      final pctStr = batteryPct != null
+                          ? ' (Pin $batteryPct%)'
+                          : '';
+                      statusSubtext =
+                          '🟢 Đã kết nối · Trên cổ tay$pctStr · $_platformSensorLabel';
+                      borderColor = const Color(0xFF7A9850)
+                          .withValues(alpha: 0.6);
+                      iconBgColor = const Color(0xFFE2EDD3)
+                          .withValues(alpha: 0.5);
+                      iconColor = const Color(0xFF456624);
+                      subtextColor = const Color(0xFF456624);
                       iconData = Icons.watch;
                     }
                   }
                 } else if (isDisconnected) {
                   if (isBtOff) {
-                    statusSubtext = '🔴 Bluetooth đang tắt · Gạt bật để kết nối đồng hồ';
-                    borderColor = const Color(0xFFEF4444).withValues(alpha: 0.7);
-                    iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.5);
-                    iconColor = const Color(0xFFF87171);
-                    subtextColor = const Color(0xFFF87171);
+                    statusSubtext =
+                        '🔴 Bluetooth đang tắt · Gạt bật để kết nối đồng hồ';
+                    borderColor = const Color(0xFFEF4444)
+                        .withValues(alpha: 0.7);
+                    iconBgColor = const Color(0xFFFFEDE7)
+                        .withValues(alpha: 0.5);
+                    iconColor = const Color(0xFFC93B2B);
+                    subtextColor = const Color(0xFFC93B2B);
                     iconData = Icons.bluetooth_disabled_rounded;
                   } else if (_isDebouncingDisconnect) {
-                    statusSubtext = '🟡 Đang tìm lại đồng hồ (tạm xa điện thoại)';
-                    borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.7);
-                    iconBgColor = const Color(0xFF78350F).withValues(alpha: 0.5);
-                    iconColor = const Color(0xFFFBBF24);
-                    subtextColor = const Color(0xFFFDE68A);
+                    statusSubtext =
+                        '🟡 Đang tìm lại đồng hồ (tạm xa điện thoại)';
+                    borderColor = const Color(0xFFF59E0B)
+                        .withValues(alpha: 0.7);
+                    iconBgColor = const Color(0xFFFAEFE5)
+                        .withValues(alpha: 0.5);
+                    iconColor = const Color(0xFF916018);
+                    subtextColor = const Color(0xFF916018);
                     iconData = Icons.watch_later_outlined;
                   } else {
-                    statusSubtext = '🔴 Mất tín hiệu đồng hồ · Kiểm tra khoảng cách/Pin';
-                    borderColor = const Color(0xFFEF4444).withValues(alpha: 0.7);
-                    iconBgColor = const Color(0xFF7F1D1D).withValues(alpha: 0.5);
-                    iconColor = const Color(0xFFF87171);
-                    subtextColor = const Color(0xFFF87171);
+                    statusSubtext =
+                        '🔴 Mất tín hiệu đồng hồ · Kiểm tra khoảng cách/Pin';
+                    borderColor = const Color(0xFFEF4444)
+                        .withValues(alpha: 0.7);
+                    iconBgColor = const Color(0xFFFFEDE7)
+                        .withValues(alpha: 0.5);
+                    iconColor = const Color(0xFFC93B2B);
+                    subtextColor = const Color(0xFFC93B2B);
                     iconData = Icons.watch_off_outlined;
                   }
                 } else {
-                  statusSubtext = '⚪ $_platformWatchTitle (Chạm để quét & kiểm tra)';
-                  borderColor = const Color(0xFF475569).withValues(alpha: 0.4);
-                  iconBgColor = const Color(0xFF1E293B);
-                  iconColor = const Color(0xFF94A3B8);
-                  subtextColor = const Color(0xFF94A3B8);
+                  statusSubtext =
+                      '⚪ $_platformWatchTitle (Chạm để quét & kiểm tra)';
+                  borderColor = const Color(0xFF8C7A6B).withValues(alpha: 0.4);
+                  iconBgColor = const Color(0xFFFFFFFF);
+                  iconColor = const Color(0xFF7D7168);
+                  subtextColor = const Color(0xFF7D7168);
                   iconData = Icons.watch;
                 }
 
@@ -2021,14 +2623,22 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     InkWell(
-                      onTap: isBtOff ? _openBluetoothSettings : () => _checkWatchStatus(showFeedback: true),
+                      onTap: isBtOff
+                          ? _openBluetoothSettings
+                          : () => _checkWatchStatus(showFeedback: true),
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
                         width: double.infinity,
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: const Color(0xFFFAF7F2),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: borderColor),
                         ),
@@ -2040,11 +2650,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                                 color: iconBgColor,
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                iconData,
-                                color: iconColor,
-                                size: 22,
-                              ),
+                              child: Icon(iconData, color: iconColor, size: 22),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -2060,7 +2666,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.white,
+                                            color: CareAiColors.ink,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -2069,10 +2675,16 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                                       if (isConnected || hasKnownWatch) ...[
                                         const SizedBox(width: 6),
                                         GestureDetector(
-                                          onTap: () => _showEditWatchNameDialog(watchTitle),
+                                          onTap: () => _showEditWatchNameDialog(
+                                            watchTitle,
+                                          ),
                                           child: const Padding(
                                             padding: EdgeInsets.all(2),
-                                            child: Icon(Icons.edit_outlined, size: 14, color: Color(0xFF38BDF8)),
+                                            child: Icon(
+                                              Icons.edit_outlined,
+                                              size: 14,
+                                              color: Color(0xFF456624),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -2082,7 +2694,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                                   Text(
                                     statusSubtext,
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 14,
                                       color: subtextColor,
                                     ),
                                   ),
@@ -2095,22 +2707,32 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                                 onTap: _openBluetoothSettings,
                                 borderRadius: BorderRadius.circular(8),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+                                    color: const Color(0xFFDC2626)
+                                        .withValues(alpha: 0.25),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFFEF4444)),
+                                    border: Border.all(
+                                      color: const Color(0xFFEF4444),
+                                    ),
                                   ),
                                   child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.bluetooth_searching, size: 14, color: Color(0xFFF87171)),
+                                      Icon(
+                                        Icons.bluetooth_searching,
+                                        size: 14,
+                                        color: Color(0xFFC93B2B),
+                                      ),
                                       SizedBox(width: 4),
                                       Text(
                                         'Bật BT',
                                         style: TextStyle(
-                                          color: Color(0xFFF87171),
-                                          fontSize: 11,
+                                          color: Color(0xFFC93B2B),
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -2124,19 +2746,19 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                                 height: 14,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Color(0xFFFBBF24),
+                                  color: Color(0xFF916018),
                                 ),
                               )
                             else if (isConnected)
                               const Icon(
                                 Icons.check_circle_rounded,
-                                color: Color(0xFF22C55E),
+                                color: Color(0xFF7A9850),
                                 size: 18,
                               )
                             else
                               const Icon(
                                 Icons.refresh_rounded,
-                                color: Color(0xFF64748B),
+                                color: Color(0xFF7D7168),
                                 size: 18,
                               ),
                           ],
@@ -2148,14 +2770,19 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                         padding: const EdgeInsets.fromLTRB(20, 2, 20, 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.lightbulb_outline, size: 13, color: Color(0xFFFBBF24)),
+                            const Icon(
+                              Icons.lightbulb_outline,
+                              size: 13,
+                              color: Color(0xFF916018),
+                            ),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 'Mẹo: Vuốt mép trên màn hình xuống & chạm icon Bluetooth để bật lại nhanh',
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  color: const Color(0xFFFDE68A).withValues(alpha: 0.9),
+                                  fontSize: 14,
+                                  color: const Color(0xFF916018)
+                                      .withValues(alpha: 0.9),
                                 ),
                               ),
                             ),
@@ -2166,199 +2793,59 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                 );
               },
             ),
-
-            // Banner trạng thái SOS / Sự cố khẩn cấp (Phản hồi 2 chiều Closed-Loop)
-            if (_isSosActive)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _activeIncidentStatus == 'ACKNOWLEDGED'
-                      ? const Color(0xFF064E3B) // Xanh lục an tâm (Emerald 900)
-                      : const Color(0xFF7F1D1D), // Đỏ cảnh báo (Red 900)
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _activeIncidentStatus == 'ACKNOWLEDGED'
-                        ? const Color(0xFF10B981) // Emerald 500
-                        : const Color(0xFFEF4444), // Red 500
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      _activeIncidentStatus == 'ACKNOWLEDGED'
-                          ? Icons.check_circle_rounded
-                          : Icons.notifications_active,
-                      color: _activeIncidentStatus == 'ACKNOWLEDGED'
-                          ? const Color(0xFF34D399)
-                          : Colors.white,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _activeIncidentStatus == 'ACKNOWLEDGED'
-                                ? 'NGƯỜI THÂN ĐÃ TIẾP NHẬN!'
-                                : 'ĐÃ PHÁT TÍN HIỆU CẤP CỨU',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13.5,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _activeIncidentStatus == 'ACKNOWLEDGED'
-                                ? '${_acknowledgedByName ?? 'Người thân'} đã tiếp nhận${_acknowledgedAt != null ? ' lúc ${DateFormat('HH:mm').format(_acknowledgedAt!.toLocal())}' : ''}\n${_acknowledgedNote != null && _acknowledgedNote!.isNotEmpty ? _acknowledgedNote! : 'Đang đến hỗ trợ, ông/bà yên tâm nhé!'}'
-                                : 'Mã: ${_lastSosPacketId ?? 'SOS'}\nĐang chờ người nhà tiếp nhận...',
-                            style: TextStyle(
-                              color: _activeIncidentStatus == 'ACKNOWLEDGED'
-                                  ? const Color(0xFFD1FAE5)
-                                  : Colors.white70,
-                              fontSize: 12,
-                              height: 1.25,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white70),
-                      tooltip: 'Đóng thông báo',
-                      onPressed: () {
-                        _stopIncidentPolling();
-                        setState(() {
-                          _isSosActive = false;
-                          _activeIncidentStatus = null;
-                        });
-                        FallService.instance.stopEmergencySound();
-                        FallService.instance.notifyIncidentStatusToWatch(status: 'RESOLVED');
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-            // Vùng trung tâm cố định chứa nút SOS (được Expanded chiếm trọn không gian còn lại và căn giữa)
-            Expanded(
-              child: Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: AnimatedBuilder(
-                      animation: _rippleController,
-                      builder: (context, child) {
-                        final rippleValue = _rippleController.value;
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Vòng sóng lan tỏa
-                            Container(
-                              width: 250 + (rippleValue * 40),
-                              height: 250 + (rippleValue * 40),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFFEF4444).withValues(alpha: (1 - rippleValue) * 0.4),
-                              ),
-                            ),
-                            child!,
-                          ],
-                        );
-                      },
-                      child: Material(
-                        color: Colors.transparent,
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: _triggerManualSos,
-                          child: Container(
-                            width: 230,
-                            height: 230,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const RadialGradient(
-                                colors: [Color(0xFFEF4444), Color(0xFFDC2626), Color(0xFF991B1B)],
-                                stops: [0.3, 0.7, 1.0],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFEF4444).withValues(alpha: 0.6),
-                                  blurRadius: 30,
-                                  spreadRadius: 6,
-                                ),
-                              ],
-                            ),
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.touch_app, size: 48, color: Colors.white),
-                                SizedBox(height: 6),
-                                Text(
-                                  'SOS',
-                                  style: TextStyle(
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                                Text(
-                                  'BẤM CẤP CỨU',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
       // Thanh trạng thái dưới cùng: Cố định 100% ở đáy màn hình bằng bottomNavigationBar (không bao giờ bị trôi/di chuyển)
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         child: SafeArea(
           top: false,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 16,
+            runSpacing: 8,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.cloud_upload_outlined, size: 18, color: Color(0xFF94A3B8)),
+                  const Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 18,
+                    color: Color(0xFF7D7168),
+                  ),
                   const SizedBox(width: 6),
-                  Text(
-                    _lastSyncTime != null
-                        ? 'Đã đồng bộ: ${_lastSyncTime!.hour.toString().padLeft(2, '0')}:${_lastSyncTime!.minute.toString().padLeft(2, '0')}'
-                        : 'Chưa có lượt đồng bộ',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  Flexible(
+                    child: Text(
+                      _lastSyncTime != null
+                          ? 'Đã đồng bộ: ${_lastSyncTime!.hour.toString().padLeft(2, '0')}:${_lastSyncTime!.minute.toString().padLeft(2, '0')}'
+                          : 'Chưa có lượt đồng bộ',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF7D7168),
+                      ),
+                    ),
                   ),
                 ],
               ),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.storage_outlined, size: 18, color: Color(0xFF94A3B8)),
+                  const Icon(
+                    Icons.storage_outlined,
+                    size: 18,
+                    color: Color(0xFF7D7168),
+                  ),
                   const SizedBox(width: 6),
-                  Text(
-                    '$_pendingPacketCount gói chờ',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  Flexible(
+                    child: Text(
+                      '$_pendingPacketCount gói chờ',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF7D7168),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -2372,7 +2859,8 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
 class _ManualSosConfirmDialog extends StatefulWidget {
   @override
-  State<_ManualSosConfirmDialog> createState() => _ManualSosConfirmDialogState();
+  State<_ManualSosConfirmDialog> createState() =>
+      _ManualSosConfirmDialogState();
 }
 
 class _ManualSosConfirmDialogState extends State<_ManualSosConfirmDialog> {
@@ -2413,13 +2901,19 @@ class _ManualSosConfirmDialogState extends State<_ManualSosConfirmDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: const Color(0xFFFFFFFF),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Row(
         children: [
           Icon(Icons.crisis_alert, color: Color(0xFFEF4444)),
           SizedBox(width: 10),
-          Text('Xác Nhận Cấp Cứu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text(
+            'Xác Nhận Cấp Cứu',
+            style: TextStyle(
+              color: CareAiColors.ink,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
       content: Column(
@@ -2427,7 +2921,7 @@ class _ManualSosConfirmDialogState extends State<_ManualSosConfirmDialog> {
         children: [
           const Text(
             'Hệ thống sẽ tự động gửi tín hiệu khẩn cấp đến toàn bộ người thân trong:',
-            style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 14),
+            style: TextStyle(color: Color(0xFF5C493B), fontSize: 14),
           ),
           const SizedBox(height: 20),
           Container(
@@ -2448,13 +2942,16 @@ class _ManualSosConfirmDialogState extends State<_ManualSosConfirmDialog> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text('giây', style: TextStyle(color: Color(0xFF94A3B8))),
+          const Text('giây', style: TextStyle(color: Color(0xFF7D7168))),
         ],
       ),
       actions: [
         TextButton(
           onPressed: () => _finish(false),
-          child: const Text('HỦY BỎ (CHẠM NHẦM)', style: TextStyle(color: Colors.white70)),
+          child: const Text(
+            'HỦY BỎ (CHẠM NHẦM)',
+            style: TextStyle(color: CareAiColors.secondary),
+          ),
         ),
         ElevatedButton(
           onPressed: () => _finish(true),
@@ -2462,7 +2959,10 @@ class _ManualSosConfirmDialogState extends State<_ManualSosConfirmDialog> {
             backgroundColor: const Color(0xFFEF4444),
             foregroundColor: Colors.white,
           ),
-          child: const Text('GỬI NGAY', style: TextStyle(fontWeight: FontWeight.bold)),
+          child: const Text(
+            'GỬI NGAY',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );

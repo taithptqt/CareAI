@@ -1,0 +1,226 @@
+[
+  {
+    "text": "Khi bạn đi làm xa",
+    "startMs": 60,
+    "endMs": 992,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "và không thể ở\ngần cha mẹ,",
+    "startMs": 992,
+    "endMs": 2020,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "CareAI giúp bạn\nvơi bớt nỗi lo",
+    "startMs": 2020,
+    "endMs": 3355,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "bằng cách theo dõi sức khỏe",
+    "startMs": 3355,
+    "endMs": 4414,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "và giữ kết nối với\nngười thân mỗi ngày.",
+    "startMs": 4414,
+    "endMs": 5946.666666666667,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Hệ thống kết nối đồng hồ\ncủa người cao tuổi",
+    "startMs": 5981.666666666667,
+    "endMs": 7739.666666666667,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "với ứng dụng trên\nđiện thoại người thân.",
+    "startMs": 7739.666666666667,
+    "endMs": 9213.333333333334,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Ứng dụng giúp gia đình\ntheo dõi nhịp tim",
+    "startMs": 9248.333333333334,
+    "endMs": 10826.333333333334,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "và độ bão hòa\noxy trong máu,",
+    "startMs": 10826.333333333334,
+    "endMs": 12492.333333333334,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "qua biểu đồ sức khỏe",
+    "startMs": 12492.333333333334,
+    "endMs": 13350.333333333334,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "cùng cảnh báo vượt ngưỡng,",
+    "startMs": 13350.333333333334,
+    "endMs": 14666.333333333334,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "và nhận định xu hướng\nkèm báo cáo tuần,",
+    "startMs": 14666.333333333334,
+    "endMs": 16702.333333333336,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "để nắm bắt thay đổi",
+    "startMs": 16702.333333333336,
+    "endMs": 17517.333333333336,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "và chủ động chăm sóc\nngười thân mỗi ngày.",
+    "startMs": 17517.333333333336,
+    "endMs": 19080,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Khi cần giúp, người cao tuổi có",
+    "startMs": 19115,
+    "endMs": 20503,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "thể gửi SOS từ đồng hồ hoặc",
+    "startMs": 20503,
+    "endMs": 22123,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "điện thoại.",
+    "startMs": 22123,
+    "endMs": 22646.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Có thể hủy nếu chạm nhầm, hoặc",
+    "startMs": 22681.666666666668,
+    "endMs": 24196.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "chọn gửi ngay tín hiệu cần giúp.",
+    "startMs": 24196.666666666668,
+    "endMs": 25546.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Trong tình huống khác, khi đồng hồ",
+    "startMs": 25581.666666666668,
+    "endMs": 27085.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "báo té ngã, người thân mở thông",
+    "startMs": 27085.666666666668,
+    "endMs": 28664.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "tin sự cố để kiểm tra.",
+    "startMs": 28664.666666666668,
+    "endMs": 29846.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Xem vị trí và ảnh khi có",
+    "startMs": 29881.666666666668,
+    "endMs": 31131.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "dữ liệu, mở chỉ đường hoặc gọi",
+    "startMs": 31131.666666666668,
+    "endMs": 32603.666666666668,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "liên hệ để tìm hiểu tình hình.",
+    "startMs": 32603.666666666668,
+    "endMs": 33880,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Người thân có thể tiếp nhận sự cố.",
+    "startMs": 33915,
+    "endMs": 35686,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "Gia đình cùng phối hợp hỗ trợ.",
+    "startMs": 35686,
+    "endMs": 37213.333333333336,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  },
+  {
+    "text": "CareAI – Một kết nối,\ntriệu yêu thương",
+    "startMs": 37248.333333333336,
+    "endMs": 39097.333333333336,
+    "timestampMs": null,
+    "confidence": null,
+    "pageBreakAfter": true
+  }
+]

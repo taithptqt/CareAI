@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/place_search_service.dart';
 import '../screens/home_location_map_screen.dart';
+import '../../theme/careai_theme.dart';
 
 class HomeAddressField extends StatefulWidget {
   const HomeAddressField({
@@ -40,8 +41,11 @@ class _HomeAddressFieldState extends State<HomeAddressField> {
     super.initState();
     _controller = TextEditingController(text: widget.initialValue);
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
-      _selectedPlace = PlaceSuggestion(widget.initialValue,
-        latitude: widget.initialLatitude, longitude: widget.initialLongitude);
+      _selectedPlace = PlaceSuggestion(
+        widget.initialValue,
+        latitude: widget.initialLatitude,
+        longitude: widget.initialLongitude,
+      );
     }
   }
 
@@ -106,9 +110,9 @@ class _HomeAddressFieldState extends State<HomeAddressField> {
   Future<void> _openMap() async {
     final chosen = await Navigator.push<PlaceSuggestion>(
       context,
-      MaterialPageRoute(builder: (_) => HomeLocationMapScreen(
-        initialPlace: _selectedPlace,
-      )),
+      MaterialPageRoute(
+        builder: (_) => HomeLocationMapScreen(initialPlace: _selectedPlace),
+      ),
     );
     if (chosen != null && mounted) _select(chosen);
   }
@@ -124,38 +128,56 @@ class _HomeAddressFieldState extends State<HomeAddressField> {
           onChanged: _onChanged,
           maxLines: 2,
           decoration: const InputDecoration(
-            labelText: 'Địa chỉ nhà để cứu hộ',
+            labelText: 'Địa chỉ nhà',
             hintText: 'Nhập tên đường, số nhà hoặc địa điểm',
             prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(),
           ),
         ),
-        if (_loading) const Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: LinearProgressIndicator(),
-        ),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LinearProgressIndicator(),
+          ),
         if (_suggestions.isNotEmpty) ...[
           const SizedBox(height: 6),
-          ..._suggestions.map((suggestion) => ListTile(
-            dense: true,
-            leading: const Icon(Icons.place_outlined),
-            title: Text(suggestion.address, maxLines: 2,
-              overflow: TextOverflow.ellipsis),
-            onTap: () => _select(suggestion),
-          )),
-          const Text('Gợi ý từ OpenStreetMap / Photon',
-            style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ..._suggestions.map(
+            (suggestion) => ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              leading: const Icon(
+                Icons.place_outlined,
+                color: CareAiColors.brown,
+              ),
+              title: Text(
+                suggestion.address,
+                style: const TextStyle(fontSize: 14),
+              ),
+              onTap: () => _select(suggestion),
+            ),
+          ),
+          const Text(
+            'Gợi ý từ OpenStreetMap / Photon',
+            style: TextStyle(fontSize: 12, color: CareAiColors.secondary),
+          ),
         ],
-        if (_failed) const Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text('Không tải được gợi ý. Bạn vẫn có thể nhập địa chỉ thủ công.',
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
-        ),
-        if (_hasSearched && _suggestions.isEmpty) const Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text('Không tìm thấy địa điểm. Bạn có thể nhập tay hoặc chọn trên bản đồ.',
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
-        ),
+        if (_failed)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Không tải được gợi ý. Bạn vẫn có thể nhập địa chỉ thủ công.',
+              style: TextStyle(fontSize: 13, color: CareAiColors.secondary),
+            ),
+          ),
+        if (_hasSearched && _suggestions.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Không tìm thấy địa điểm. Bạn có thể nhập tay hoặc chọn trên bản đồ.',
+              style: TextStyle(fontSize: 13, color: CareAiColors.secondary),
+            ),
+          ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: _openMap,
@@ -163,8 +185,13 @@ class _HomeAddressFieldState extends State<HomeAddressField> {
           label: const Text('Chọn chính xác trên bản đồ'),
         ),
         if (_selectedPlace?.latitude != null)
-          const Text('Đã chọn vị trí có ghim trên bản đồ',
-            style: TextStyle(fontSize: 12, color: Colors.green)),
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Đã chọn vị trí có ghim trên bản đồ',
+              style: TextStyle(fontSize: 13, color: CareAiColors.greenInk),
+            ),
+          ),
       ],
     );
   }

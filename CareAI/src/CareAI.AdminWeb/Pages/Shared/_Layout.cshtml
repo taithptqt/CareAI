@@ -1,0 +1,51 @@
+@inject AdminWebMode Mode
+@{
+    var current = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+    var sections = new[] {
+        ("/Overview", "Tổng quan"), ("/Accounts/Index", "Tài khoản"),
+        ("/Staff", "Nhân sự và quyền"), ("/Elders", "Người cao tuổi"),
+        ("/CareLinks", "Liên kết chăm sóc"), ("/Devices", "Thiết bị"),
+        ("/Incidents", "Giám sát sự cố"), ("/Feedback", "Phản hồi khách hàng"), ("/Audit", "Nhật ký quản trị")
+    };
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · CareAI Admin</title>
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+    <script src="~/js/admin.js" asp-append-version="true" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Đến nội dung chính</a>
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" asp-page="/Overview" aria-label="CareAI Admin — Tổng quan">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27 5 17C-3 8 9 0 16 9 23 0 35 8 27 17Z"/><path d="M7 16h5l2-5 4 11 2-6h5"/></svg>
+            <span>CareAI <small>Không gian quản trị</small></span>
+        </a>
+        <details class="navigation" open>
+            <summary>Điều hướng</summary>
+            <nav aria-label="Phân hệ quản trị">
+                @foreach (var destination in sections)
+                {
+                    var active = current == destination.Item1 || (destination.Item1 == "/Accounts/Index" && current.StartsWith("/Accounts/"));
+                    <a asp-page="@destination.Item1" class="@(active ? "active" : "")" aria-current="@(active ? "page" : null)">@destination.Item2</a>
+                }
+            </nav>
+        </details>
+        <div class="sidebar-note">Hỗ trợ vận hành chăm sóc<small>Admin không thay người thân tiếp nhận SOS.</small></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar"><span>CareAI / Quản trị · @(Mode.Preview ? "Mô phỏng" : "Development")</span><span>@(User.Identity?.IsAuthenticated == true ? User.Identity.Name : "Chưa đăng nhập")</span>
+        @if (User.Identity?.IsAuthenticated == true) { <a asp-page="/Security">Bảo mật / MFA</a><form method="post" asp-page="/Logout"><button class="button" type="submit">Đăng xuất</button></form> }
+        </header>
+        <main id="main" tabindex="-1">
+            @RenderBody()
+        </main>
+        <footer>CareAI Admin · Thời gian hiển thị: Asia/Saigon (UTC+07:00)</footer>
+    </div>
+</div>
+</body>
+</html>

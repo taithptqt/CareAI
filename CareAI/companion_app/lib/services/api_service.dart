@@ -331,12 +331,12 @@ class ApiService {
   /// Danh sách URL thử nghiệm theo thứ tự ưu tiên:
   /// Ưu tiên Đám Mây Azure (Internet 24/7), sau đó chuyển tiếp sang Cáp USB và Wi-Fi LAN.
   List<String> _getEndpointsToTry() {
-    return [
+    return {
       if (_activeServerUrl.isNotEmpty) _activeServerUrl,
       internetTunnelUrl,
       usbServerUrl,
       wifiServerUrl,
-    ].toSet().toList();
+    }.toList();
   }
 
   /// Gửi tín hiệu SOS Fast-Lane với cơ chế Chuyển mạch Dự phòng Kép (Dual-Failover)

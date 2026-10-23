@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../screens/role_selection_screen.dart';
 import '../services/caregiver_api_service.dart';
 import 'home_screen.dart';
 import 'server_config_dialog.dart';
+import '../../theme/careai_theme.dart';
+import '../../widgets/careai_ui.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -65,7 +68,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showForgotPasswordDialog() async {
-    final resetEmailCtrl = TextEditingController(text: _emailController.text.trim());
+    final resetEmailCtrl = TextEditingController(
+      text: _emailController.text.trim(),
+    );
     final otpCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
     int currentStep = 1; // 1: Email, 2: OTP + New Password
@@ -78,9 +83,12 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (ctx, setDState) => AlertDialog(
           title: Row(
             children: [
-              const Icon(Icons.lock_reset, color: Color(0xFF0284C7)),
+              const Icon(Icons.lock_reset, color: Color(0xFF4A3020)),
               const SizedBox(width: 8),
-              Text(currentStep == 1 ? 'Quên Mật Khẩu' : 'Đặt Lại Mật Khẩu', style: const TextStyle(fontSize: 16)),
+              Text(
+                currentStep == 1 ? 'Quên Mật Khẩu' : 'Đặt Lại Mật Khẩu',
+                style: const TextStyle(fontSize: 16),
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -91,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (currentStep == 1) ...[
                   const Text(
                     'Nhập địa chỉ email đăng ký để nhận mã OTP 6 số (TTL 10 phút):',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF7D7168)),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -106,7 +114,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ] else ...[
                   Text(
                     'Mã OTP đã được gửi tới email ${resetEmailCtrl.text.trim()}. Vui lòng kiểm tra hộp thư:',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7D7168),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -132,15 +143,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
                 if (dialogError != null) ...[
                   const SizedBox(height: 8),
-                  Text(dialogError!, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                  Text(
+                    dialogError!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFFDC2626),
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4A3020),
+                foregroundColor: Colors.white,
+              ),
               onPressed: isProcessing
                   ? null
                   : () async {
@@ -153,7 +176,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           dialogError = null;
                         });
                         try {
-                          await CaregiverApiService.instance.forgotPassword(email);
+                          await CaregiverApiService.instance.forgotPassword(
+                            email,
+                          );
                           setDState(() {
                             isProcessing = false;
                             currentStep = 2;
@@ -161,14 +186,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         } catch (e) {
                           setDState(() {
                             isProcessing = false;
-                            dialogError = e.toString().replaceAll('Exception:', '').trim();
+                            dialogError = e
+                                .toString()
+                                .replaceAll('Exception:', '')
+                                .trim();
                           });
                         }
                       } else {
                         final otp = otpCtrl.text.trim();
                         final newPass = newPassCtrl.text.trim();
                         if (otp.isEmpty || newPass.isEmpty) {
-                          setDState(() => dialogError = 'Vui lòng điền đủ OTP và mật khẩu mới.');
+                          setDState(
+                            () => dialogError =
+                                'Vui lòng điền đủ OTP và mật khẩu mới.',
+                          );
                           return;
                         }
 
@@ -187,7 +218,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Đã đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay.'),
+                                content: Text(
+                                  'Đã đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay.',
+                                ),
                                 backgroundColor: Colors.green,
                               ),
                             );
@@ -195,14 +228,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         } catch (e) {
                           setDState(() {
                             isProcessing = false;
-                            dialogError = e.toString().replaceAll('Exception:', '').trim();
+                            dialogError = e
+                                .toString()
+                                .replaceAll('Exception:', '')
+                                .trim();
                           });
                         }
                       }
                     },
               child: isProcessing
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text(currentStep == 1 ? 'Gửi Mã OTP' : 'Xác Nhận Đổi Mật Khẩu'),
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      currentStep == 1 ? 'Gửi Mã OTP' : 'Xác Nhận Đổi Mật Khẩu',
+                    ),
             ),
           ],
         ),
@@ -212,14 +257,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showGreetingIllustration =
+        MediaQuery.sizeOf(context).width >= 360 &&
+        MediaQuery.textScalerOf(context).scale(14) <= 20;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E293B)),
-          tooltip: 'Quay lại Chọn vai trò',
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Quay lại chọn vai trò',
           onPressed: () async {
             final prefs = await SharedPreferences.getInstance();
             await prefs.remove(RoleSelectionScreen.prefSelectedRole);
@@ -232,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Color(0xFF1E293B)),
+            icon: const Icon(Icons.settings_outlined),
             tooltip: 'Cài đặt máy chủ',
             onPressed: () => showDialog(
               context: context,
@@ -243,232 +288,205 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo & Header
-                Image.asset(
-                  'assets/images/logo.png',
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'CareAI',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Ứng Dụng Giám Sát Sức Khỏe Cho Người Thân',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Form Card
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 12, 0),
+                    decoration: const BoxDecoration(
+                      color: CareAiColors.sageLight,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(32),
+                        topRight: Radius.circular(32),
+                        bottomLeft: Radius.circular(72),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Segmented Tab
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _isLogin = true),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: _isLogin ? Colors.white : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(8),
-                                      boxShadow: _isLogin
-                                          ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]
-                                          : null,
-                                    ),
-                                    child: Text(
-                                      'Đăng Nhập',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: _isLogin ? FontWeight.bold : FontWeight.w500,
-                                        color: _isLogin ? const Color(0xFF0284C7) : const Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _isLogin = false),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: !_isLogin ? Colors.white : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(8),
-                                      boxShadow: !_isLogin
-                                          ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)]
-                                          : null,
-                                    ),
-                                    child: Text(
-                                      'Đăng Ký Mới',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: !_isLogin ? FontWeight.bold : FontWeight.w500,
-                                        color: !_isLogin ? const Color(0xFF0284C7) : const Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        const CareAiBrand(
+                          subtitle: 'Một kết nối, triệu yêu thương',
                         ),
-                        const SizedBox(height: 20),
-
-                        // Trường Đăng ký
-                        if (!_isLogin) ...[
-                          TextField(
-                            controller: _fullNameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Họ và Tên',
-                              prefixIcon: Icon(Icons.person_outline),
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              labelText: 'Số Điện Thoại',
-                              prefixIcon: Icon(Icons.phone_outlined),
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                        ],
-
-                        // Trường Email
-                        TextField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Địa chỉ Email',
-                            prefixIcon: Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Trường Mật khẩu
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Mật khẩu',
-                            prefixIcon: Icon(Icons.lock_outline),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        if (_isLogin)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(50, 30),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              onPressed: _showForgotPasswordDialog,
-                              child: const Text(
-                                'Quên mật khẩu?',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF0284C7), fontWeight: FontWeight.w600),
+                        const SizedBox(height: 22),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 24),
+                                child: Text(
+                                  _isLogin
+                                      ? 'Chào mừng\nbạn trở lại.'
+                                      : 'Cùng chăm sóc\nngười thương.',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium,
+                                ),
                               ),
                             ),
-                          ),
-                        const SizedBox(height: 12),
-
-                        // Báo lỗi nếu có
-                        if (_errorMessage != null)
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            margin: const EdgeInsets.only(bottom: 14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF2F2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFFECACA)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline, size: 18, color: Color(0xFFDC2626)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Nút Submit
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0284C7),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: _isLoading ? null : _submit,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : Text(
-                                  _isLogin ? 'ĐĂNG NHẬP' : 'TẠO TÀI KHOẢN MỚI',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
+                            if (showGreetingIllustration)
+                              Image.asset(
+                                'assets/images/facare/girl-greeting-clean.png',
+                                width: 112,
+                                height: 145,
+                                fit: BoxFit.contain,
+                                excludeFromSemantics: true,
+                              ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Kết nối: ${CaregiverApiService.instance.currentServerUrl}',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                ),
-                const SizedBox(height: 20),
-              ],
+                  const SizedBox(height: 28),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Đăng nhập')),
+                      ButtonSegment(value: false, label: Text('Đăng ký')),
+                    ],
+                    selected: {_isLogin},
+                    showSelectedIcon: false,
+                    onSelectionChanged: _isLoading
+                        ? null
+                        : (value) => setState(() => _isLogin = value.first),
+                    style: SegmentedButton.styleFrom(
+                      selectedBackgroundColor: CareAiColors.brown,
+                      selectedForegroundColor: Colors.white,
+                      backgroundColor: CareAiColors.muted,
+                      foregroundColor: CareAiColors.brown,
+                      minimumSize: const Size(48, 50),
+                      side: BorderSide.none,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    _isLogin
+                        ? 'Đăng nhập để kết nối với gia đình.'
+                        : 'Tạo tài khoản người thân để bắt đầu.',
+                    style: const TextStyle(
+                      color: CareAiColors.secondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (!_isLogin) ...[
+                    TextField(
+                      controller: _fullNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Họ và tên',
+                        prefixIcon: Icon(Icons.person_outline_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Số điện thoại',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Địa chỉ email',
+                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Mật khẩu',
+                      prefixIcon: Icon(Icons.lock_outline_rounded),
+                    ),
+                  ),
+                  if (_isLogin)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : _showForgotPasswordDialog,
+                        child: const Text('Quên mật khẩu?'),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  if (_errorMessage != null) ...[
+                    Semantics(
+                      liveRegion: true,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: CareAiColors.dangerSurface,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: CareAiColors.danger,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                  color: CareAiColors.danger,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  FilledButton(
+                    onPressed: _isLoading ? null : _submit,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _isLogin ? 'Đăng nhập' : 'Tạo tài khoản',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(Icons.arrow_forward_rounded, size: 20),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Chăm sóc từ xa, yêu thương gần hơn.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: CareAiColors.secondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

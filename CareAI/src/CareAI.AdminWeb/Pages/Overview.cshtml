@@ -1,0 +1,36 @@
+@page
+@model CareAI.AdminWeb.Pages.OverviewModel
+@{
+    ViewData["Title"] = "Tổng quan";
+    var data = Model.Data;
+}
+<div class="title-row"><div><h1>Tổng quan</h1><p>Những vấn đề vận hành cần chú ý trước.</p></div><a class="button" asp-page="/Overview">Tải lại dữ liệu</a></div>
+<partial name="_PreviewNotice" />
+<div class="section-meta">Thời điểm dữ liệu: @AdminDisplay.Time(data.AsOfUtc) · UTC+07:00</div>
+<div class="metrics">
+    <a asp-page="/Accounts/Index"><span>Tài khoản người thân</span><strong>@data.AccountCount</strong><small>Xem danh sách tài khoản →</small></a>
+    <a asp-page="/Elders"><span>Hồ sơ người cao tuổi</span><strong>@data.ElderCount</strong><small>Hồ sơ, không phải tài khoản</small></a>
+    <a asp-page="/Devices"><span>Thiết bị hoạt động</span><strong>@data.ActiveDeviceCount</strong><small>Đã đăng ký và còn hiệu lực</small></a>
+    <a asp-page="/Incidents"><span>Sự cố chưa giải quyết</span><strong>@data.ActiveIncidentCount</strong><small>Chưa tiếp nhận / đã tiếp nhận</small></a>
+</div>
+<div class="overview-grid">
+    <section class="panel">
+        <div class="panel-heading"><div><h2>Sự cố cần theo dõi</h2><p>Chỉ giám sát; người thân xử lý trên ứng dụng.</p></div><a asp-page="/Incidents">Xem tất cả →</a></div>
+        @foreach (var incident in data.ActiveIncidents)
+        {
+            <div class="attention-row"><div><strong>@incident.ElderDisplayName</strong><p>@AdminDisplay.Status(incident.Type) · @AdminDisplay.Time(incident.CreatedAt)</p></div><span class="status @(incident.Status == "Open" ? "danger" : "neutral")">@AdminDisplay.Status(incident.Status)</span></div>
+        }
+        @if (data.ActiveIncidents.Count == 0) { <p class="empty-state">Không có sự cố chưa giải quyết tại thời điểm tải.</p> }
+        <p class="panel-footnote">Không suy luận trạng thái an toàn từ heartbeat hoặc trạng thái tiếp nhận.</p>
+    </section>
+    <section class="panel">
+        <div class="panel-heading"><div><h2>Mất heartbeat</h2><p>@data.OfflineDeviceCount thiết bị cần kiểm tra kết nối.</p></div></div>
+        @foreach (var device in data.OfflineDevices)
+        {
+            <div class="device-row"><strong>@device.Model</strong><p>@device.ElderDisplayName</p><span class="status warning">@AdminDisplay.Status(device.ConnectionStatus)</span><p>Lần cuối: @AdminDisplay.Time(device.LastHeartbeatUtc)</p></div>
+        }
+        @if (data.OfflineDevices.Count == 0) { <p class="empty-state">Không có thiết bị mất heartbeat tại thời điểm tải.</p> }
+        <a asp-page="/Devices">Xem thiết bị →</a>
+    </section>
+</div>
+<section class="panel compact"><h2>Nhật ký quản trị</h2><p>Ghi nhận đăng nhập, đăng xuất và bootstrap. Cần quyền xem audit riêng.</p><a asp-page="/Audit">Xem nhật ký →</a></section>

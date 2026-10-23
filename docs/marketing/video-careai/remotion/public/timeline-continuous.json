@@ -1,0 +1,202 @@
+[
+  {
+    "id": "Opening",
+    "name": "01 · Đi làm xa vẫn gần cha mẹ",
+    "duration": 5.966666666666667,
+    "title": "Đi làm xa nhà\nVẫn gần cha mẹ",
+    "chapter": "LỜI MỞ",
+    "text": "Khi bạn đi làm xa và không thể ở gần cha mẹ, CareAI giúp bạn vơi bớt nỗi lo bằng cách theo dõi sức khỏe và giữ kết nối với người thân mỗi ngày.",
+    "captionPhrases": [
+      "Khi bạn đi làm xa",
+      "và không thể ở\ngần cha mẹ,",
+      "CareAI giúp bạn\nvơi bớt nỗi lo",
+      "bằng cách theo dõi sức khỏe",
+      "và giữ kết nối với\nngười thân mỗi ngày."
+    ],
+    "durationInFrames": 179,
+    "connectionAt": 2.01975
+  },
+  {
+    "id": "Connection",
+    "name": "02 · Đồng hồ đến điện thoại",
+    "duration": 3.2666666666666666,
+    "title": "Kết nối đồng hồ\nvới người thân",
+    "chapter": "KẾT NỐI",
+    "text": "Hệ thống kết nối đồng hồ của người cao tuổi với ứng dụng trên điện thoại người thân.",
+    "captionPhrases": [
+      "Hệ thống kết nối đồng hồ\ncủa người cao tuổi",
+      "với ứng dụng trên\nđiện thoại người thân."
+    ],
+    "durationInFrames": 98
+  },
+  {
+    "id": "Monitoring",
+    "name": "03 · Theo dõi sức khỏe mỗi ngày",
+    "duration": 9.866666666666667,
+    "title": "Theo dõi sức khỏe.\nChủ động quan tâm.",
+    "chapter": "THEO DÕI",
+    "image": 3,
+    "focus": {
+      "top": 0.34,
+      "height": 0.315,
+      "width": 800
+    },
+    "text": "Ứng dụng giúp gia đình theo dõi nhịp tim và độ bão hòa oxy trong máu, qua biểu đồ sức khỏe cùng cảnh báo vượt ngưỡng, và nhận định xu hướng kèm báo cáo tuần, để nắm bắt thay đổi và chủ động chăm sóc người thân mỗi ngày.",
+    "captionPhrases": [
+      "Ứng dụng giúp gia đình\ntheo dõi nhịp tim",
+      "và độ bão hòa\noxy trong máu,",
+      "qua biểu đồ sức khỏe",
+      "cùng cảnh báo vượt ngưỡng,",
+      "và nhận định xu hướng\nkèm báo cáo tuần,",
+      "để nắm bắt thay đổi",
+      "và chủ động chăm sóc\nngười thân mỗi ngày."
+    ],
+    "durationInFrames": 296,
+    "healthCues": {
+      "metricsAt": 0.5,
+      "chartsAt": 3.428208,
+      "insightsAt": 5.580832999999999
+    }
+  },
+  {
+    "id": "Sos",
+    "name": "04 · Chủ động báo cần giúp",
+    "duration": 3.566666666666667,
+    "title": "Chủ động\nbáo cần giúp.",
+    "chapter": "CHỦ ĐỘNG",
+    "image": 5,
+    "focus": {
+      "top": 0.3,
+      "height": 0.6,
+      "width": 780
+    },
+    "accent": "#ff6969",
+    "sfx": [
+      [
+        "tap",
+        1.498
+      ]
+    ],
+    "text": "Khi cần giúp, người cao tuổi có thể gửi SOS từ đồng hồ hoặc điện thoại.",
+    "durationInFrames": 107
+  },
+  {
+    "id": "Confirmation",
+    "name": "05 · Xác nhận tín hiệu",
+    "duration": 2.9,
+    "title": "Chạm nhầm?\nCó thể hủy.",
+    "chapter": "XÁC NHẬN",
+    "image": 6,
+    "focus": {
+      "top": 0.26,
+      "height": 0.55,
+      "width": 780
+    },
+    "accent": "#ff6969",
+    "sfx": [
+      [
+        "tap",
+        1.508
+      ]
+    ],
+    "text": "Có thể hủy nếu chạm nhầm, hoặc chọn gửi ngay tín hiệu cần giúp.",
+    "durationInFrames": 87
+  },
+  {
+    "id": "FallAlert",
+    "name": "06 · Cảnh báo ngã từ đồng hồ",
+    "duration": 4.3,
+    "title": "Tình huống khác:\nđồng hồ báo té ngã.",
+    "chapter": "CẢNH BÁO",
+    "image": 7,
+    "focus": {
+      "top": 0,
+      "height": 0.57,
+      "width": 780
+    },
+    "accent": "#ff6969",
+    "sfx": [
+      [
+        "notification",
+        0.35
+      ]
+    ],
+    "text": "Trong tình huống khác, khi đồng hồ báo té ngã, người thân mở thông tin sự cố để kiểm tra.",
+    "durationInFrames": 129
+  },
+  {
+    "id": "Incident",
+    "name": "07 · Xem và liên hệ",
+    "duration": 4.033333333333333,
+    "title": "Xem thông tin.\nLiên hệ người nhà.",
+    "chapter": "PHẢN HỒI",
+    "image": 9,
+    "focus": {
+      "top": 0.68,
+      "height": 0.3,
+      "width": 800
+    },
+    "second": 10,
+    "secondFocus": {
+      "top": 0.13,
+      "height": 0.77,
+      "width": 620
+    },
+    "switchAt": 1.936,
+    "accent": "#38bdf8",
+    "sfx": [
+      [
+        "tap",
+        1.3713333333333333
+      ]
+    ],
+    "text": "Xem vị trí và ảnh khi có dữ liệu, mở chỉ đường hoặc gọi liên hệ để tìm hiểu tình hình.",
+    "durationInFrames": 121
+  },
+  {
+    "id": "Acknowledged",
+    "name": "08 · Gia đình cùng phản hồi",
+    "duration": 3.3333333333333335,
+    "title": "Người thân có thể\ntiếp nhận sự cố",
+    "chapter": "CÙNG CHĂM SÓC",
+    "image": 10,
+    "focus": {
+      "top": 0.76,
+      "height": 0.22,
+      "width": 800
+    },
+    "second": 12,
+    "secondFocus": {
+      "top": 0.06,
+      "height": 0.5,
+      "width": 800
+    },
+    "switchAt": 1.78575,
+    "accent": "#ffb454",
+    "sfx": [
+      [
+        "tap",
+        0.9333333333333335
+      ],
+      [
+        "accepted",
+        2.06575
+      ]
+    ],
+    "text": "Người thân có thể tiếp nhận sự cố. Gia đình cùng phối hợp hỗ trợ.",
+    "durationInFrames": 100
+  },
+  {
+    "id": "Closing",
+    "name": "09 · Một kết nối triệu yêu thương",
+    "duration": 2.2666666666666666,
+    "title": "Một kết nối\nTriệu yêu thương",
+    "chapter": "CAREAI",
+    "ending": true,
+    "text": "CareAI – Một kết nối, triệu yêu thương",
+    "captionPhrases": [
+      "CareAI – Một kết nối,\ntriệu yêu thương"
+    ],
+    "durationInFrames": 68
+  }
+]

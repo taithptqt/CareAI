@@ -36,6 +36,7 @@ public class CareAiDbContext : DbContext
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        EnforceAdminAuditImmutability();
         if (!AllowAdminHistoricalOverride)
         {
             EnforceHistoryImmutability();
@@ -45,11 +46,19 @@ public class CareAiDbContext : DbContext
 
     public override int SaveChanges()
     {
+        EnforceAdminAuditImmutability();
         if (!AllowAdminHistoricalOverride)
         {
             EnforceHistoryImmutability();
         }
         return base.SaveChanges();
+    }
+
+    private void EnforceAdminAuditImmutability()
+    {
+        if (ChangeTracker.Entries<CareAI.Core.Entities.Admin.AdminAuditEvent>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Admin audit events are append-only.");
     }
 
     private void EnforceHistoryImmutability()
@@ -95,6 +104,23 @@ public class CareAiDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        CareAI.Infrastructure.Admin.AdminMapping.Configure(modelBuilder);
+        modelBuilder.Entity<CustomerFeedback>(b =>
+        {
+            b.ToTable("CustomerFeedback"); b.HasKey(x => x.Id);
+            b.Property(x => x.Id).HasMaxLength(36);
+            b.Property(x => x.CaregiverId).HasMaxLength(50);
+            b.Property(x => x.RequestId).HasMaxLength(32);
+            b.Property(x => x.Category).HasMaxLength(20);
+            b.Property(x => x.Subject).HasMaxLength(120);
+            b.Property(x => x.Message).HasMaxLength(3000);
+            b.Property(x => x.Status).HasMaxLength(20);
+            b.Property(x => x.AdminReply).HasMaxLength(3000);
+            b.HasOne(x => x.Caregiver).WithMany().HasForeignKey(x => x.CaregiverId).OnDelete(DeleteBehavior.Restrict);
+            b.HasIndex(x => new { x.CaregiverId, x.RequestId }).IsUnique();
+            b.HasIndex(x => new { x.CaregiverId, x.CreatedAtUtc });
+            b.HasIndex(x => x.CreatedAtUtc);
+        });
 
         // 1. ElderProfile
         modelBuilder.Entity<ElderProfile>(b =>

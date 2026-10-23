@@ -1,7 +1,11 @@
+import '../theme/careai_theme.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../models/fall_event.dart';
 import '../models/incident_dto.dart';
 import '../models/telemetry_sample.dart';
@@ -10,6 +14,7 @@ import '../services/emergency_evidence_service.dart';
 import '../services/fall_service.dart';
 import '../services/local_offline_store.dart';
 import '../services/voice_guidance_service.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FallCountdownDialog extends StatefulWidget {
@@ -40,7 +45,9 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _totalSeconds = widget.event.secondsRemaining > 0 ? widget.event.secondsRemaining : 30;
+    _totalSeconds = widget.event.secondsRemaining > 0
+        ? widget.event.secondsRemaining
+        : 30;
     _remainingSeconds = _totalSeconds;
     _stopwatch.start();
     _locationTask = EmergencyEvidenceService.captureCurrentLocation();
@@ -137,7 +144,9 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
         : 'FALL_${widget.event.eventId}';
 
     final recentFix = EmergencyEvidenceService.recentFix;
-    final initialGps = (recentFix != null && !recentFix.isSimulated) ? recentFix.coordinates : null;
+    final initialGps = (recentFix != null && !recentFix.isSimulated)
+        ? recentFix.coordinates
+        : null;
     final prefs = await SharedPreferences.getInstance();
     final lastHr = prefs.getDouble('careai_last_heart_rate');
     final lastSpo2 = prefs.getDouble('careai_last_spo2');
@@ -158,20 +167,24 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
       ),
     ];
     if (lastHr != null && lastHr > 0) {
-      samples.add(TelemetrySample(
-        metricType: 'HEART_RATE',
-        value: lastHr,
-        unit: 'bpm',
-        timestamp: now,
-      ));
+      samples.add(
+        TelemetrySample(
+          metricType: 'HEART_RATE',
+          value: lastHr,
+          unit: 'bpm',
+          timestamp: now,
+        ),
+      );
     }
     if (lastSpo2 != null && lastSpo2 > 0) {
-      samples.add(TelemetrySample(
-        metricType: 'SPO2',
-        value: lastSpo2,
-        unit: '%',
-        timestamp: now,
-      ));
+      samples.add(
+        TelemetrySample(
+          metricType: 'SPO2',
+          value: lastSpo2,
+          unit: '%',
+          timestamp: now,
+        ),
+      );
     }
 
     // Fact 35 Invariant: Gói Fast-Lane SOS lưu toàn bộ mẫu đo sinh hiệu thực tế đi kèm (nếu có, không bịa đặt số liệu giả)
@@ -203,13 +216,24 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
     // Bắn Fast-Lane SOS bất đồng bộ trong nền
     unawaited(() async {
       try {
-        final result = await ApiService.instance.sendFastLaneSosWithResult(request);
+        final result = await ApiService.instance.sendFastLaneSosWithResult(
+          request,
+        );
         if (result.accepted) {
           await LocalOfflineStore.instance.markPacketSynced(canonicalPacketId);
           if (result.incidentId != null) {
-            unawaited(EmergencyEvidenceService.attachLocationWhenReady(
-                result.incidentId!, _locationTask, initiallySentGps: initialGps));
-            unawaited(EmergencyEvidenceService.captureAndUploadPhoto(result.incidentId!));
+            unawaited(
+              EmergencyEvidenceService.attachLocationWhenReady(
+                result.incidentId!,
+                _locationTask,
+                initiallySentGps: initialGps,
+              ),
+            );
+            unawaited(
+              EmergencyEvidenceService.captureAndUploadPhoto(
+                result.incidentId!,
+              ),
+            );
           }
         }
       } catch (_) {
@@ -220,144 +244,177 @@ class _FallCountdownDialogState extends State<FallCountdownDialog>
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
     return PopScope(
       canPop: false,
       child: Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-        child: AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            final pulseColor = Color.lerp(
-              const Color(0xFFEF4444),
-              const Color(0xFF7F1D1D),
-              _pulseController.value,
-            )!;
-
-            return Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: pulseColor, width: 4),
-                boxShadow: [
-                  BoxShadow(
-                    color: pulseColor.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    spreadRadius: 4,
-                  ),
-                ],
-              ),
-              child: child,
-            );
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFEE2E2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Color(0xFFDC2626),
-                  size: 54,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'PHÁT HIỆN TÉ NGÃ!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF991B1B),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.event.isFromHardwareWatch
-                    ? 'Cảm biến Galaxy Watch phát hiện cú ngã mạnh.'
-                    : 'Cảm biến chuyển động điện thoại phát hiện va đập.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF475569)),
-              ),
-              const SizedBox(height: 24),
-
-              // Đồng hồ đếm ngược to rõ
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFDC2626), width: 5),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$_remainingSeconds',
-                  style: const TextStyle(
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFDC2626),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'giây nữa sẽ tự động gọi cấp cứu',
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 28),
-
-              // Nút TÔI ỔN (Chỉ cần 1 chạm)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _handleUserIsOk,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 3,
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check_circle_outline, size: 26),
-                      SizedBox(width: 8),
-                      Text(
-                        'TÔI ỔN - HỦY CẢNH BÁO',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Nút GỬI CẤP CỨU NGAY (Chỉ cần 1 chạm)
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => _handleSendEmergencyNow(isTimeout: false),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFDC2626), width: 2),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: const Text(
-                    'CẦN TRỢ GIÚP - GỬI NGAY',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFDC2626),
+        backgroundColor: CareAiColors.canvas,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 480,
+            maxHeight: MediaQuery.sizeOf(context).height - 48,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!largeText)
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: const BoxDecoration(
+                              color: CareAiColors.dangerSurface,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              size: 42,
+                              color: CareAiColors.danger,
+                            ),
+                          ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Bạn vẫn ổn chứ?',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 25,
+                            height: 1.3,
+                            fontWeight: FontWeight.w800,
+                            color: CareAiColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        AnimatedBuilder(
+                          animation: _pulseController,
+                          builder: (context, child) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 28,
+                              vertical: 20,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CareAiColors.dangerSurface,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: reduceMotion
+                                    ? CareAiColors.danger
+                                    : Color.lerp(
+                                        CareAiColors.danger,
+                                        CareAiColors.coral,
+                                        _pulseController.value,
+                                      )!,
+                                width: 2,
+                              ),
+                            ),
+                            child: child,
+                          ),
+                          child: Semantics(
+                            label:
+                                'Còn $_remainingSeconds giây trước khi gửi SOS',
+                            child: ExcludeSemantics(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    '$_remainingSeconds',
+                                    style: const TextStyle(
+                                      fontSize: 48,
+                                      height: 1.1,
+                                      fontWeight: FontWeight.w800,
+                                      color: CareAiColors.danger,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'giây trước khi gửi SOS',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: CareAiColors.brown,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.event.isFromHardwareWatch
+                              ? 'Đồng hồ vừa ghi nhận dấu hiệu té ngã.'
+                              : 'Điện thoại vừa ghi nhận va đập có thể do té ngã.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 1.5,
+                            color: CareAiColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Nếu bạn vẫn ổn, hãy hủy cảnh báo. Nếu cần giúp, gửi SOS ngay cho người thân.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.55,
+                            color: CareAiColors.secondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _handleUserIsOk,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CareAiColors.greenInk,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(48, 64),
+                    ),
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: const Text(
+                      'Tôi vẫn ổn',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _handleSendEmergencyNow(isTimeout: false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: CareAiColors.danger,
+                      side: const BorderSide(color: CareAiColors.danger),
+                      minimumSize: const Size(48, 60),
+                    ),
+                    icon: const Icon(Icons.sos_rounded),
+                    label: const Text(
+                      'Gửi SOS ngay',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

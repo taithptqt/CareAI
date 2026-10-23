@@ -1,0 +1,15 @@
+@page "/Incidents/{id}"
+@model CareAI.AdminWeb.Pages.IncidentModel
+@{ ViewData["Title"] = "Chi tiết sự cố"; }
+<a asp-page="/Incidents">← Danh sách sự cố</a>
+<div class="title-row"><div><h1>@Model.Data.Incident.ElderDisplayName</h1><p>@AdminDisplay.Status(Model.Data.Incident.Type) · @AdminDisplay.Status(Model.Data.Incident.Status)</p></div></div>
+<section class="panel"><h2>Thời điểm</h2><dl class="detail-list">
+<div><dt>Phát sinh</dt><dd>@AdminDisplay.Time(Model.Data.Incident.CreatedAt)</dd></div>
+<div><dt>Tiếp nhận</dt><dd>@AdminDisplay.Time(Model.Data.AcknowledgedAtUtc)</dd></div>
+<div><dt>Giải quyết</dt><dd>@AdminDisplay.Time(Model.Data.ResolvedAtUtc)</dd></div>
+</dl></section>
+<section class="panel compact"><h2>Timeline sự cố</h2>
+@foreach (var item in Model.Data.Timeline) { <div class="attention-row"><div><strong>@item.EventType</strong><p>@AdminDisplay.Time(item.AtUtc) · Vòng @item.Cycle · ID người thực hiện @(item.ActorId ?? "Hệ thống")</p></div></div> }
+@if (Model.Data.Timeline.Count == 0) { <p>Chưa có sự kiện timeline.</p> }
+<p class="panel-footnote">Chỉ đọc metadata. Giữ nguyên snapshot, timeline và outbox. Không hiển thị số đo, vị trí, ảnh hoặc mô tả có thể chứa dữ liệu sức khỏe.</p>
+</section>

@@ -1,0 +1,72 @@
+[
+  {
+    "text": "Có",
+    "startMs": 100.0,
+    "endMs": 237.708
+  },
+  {
+    "text": "thể",
+    "startMs": 237.708,
+    "endMs": 396.624
+  },
+  {
+    "text": "hủy",
+    "startMs": 396.625,
+    "endMs": 608.458
+  },
+  {
+    "text": "nếu",
+    "startMs": 608.458,
+    "endMs": 788.541
+  },
+  {
+    "text": "chạm",
+    "startMs": 788.541,
+    "endMs": 1000.416
+  },
+  {
+    "text": "nhầm",
+    "startMs": 1000.416,
+    "endMs": 1265.249
+  },
+  {
+    "text": "hoặc",
+    "startMs": 1413.541,
+    "endMs": 1614.832
+  },
+  {
+    "text": "chọn",
+    "startMs": 1614.833,
+    "endMs": 1858.458
+  },
+  {
+    "text": "gửi",
+    "startMs": 1858.458,
+    "endMs": 2017.374
+  },
+  {
+    "text": "ngay",
+    "startMs": 2017.375,
+    "endMs": 2176.291
+  },
+  {
+    "text": "tín",
+    "startMs": 2176.291,
+    "endMs": 2377.541
+  },
+  {
+    "text": "hiệu",
+    "startMs": 2377.541,
+    "endMs": 2536.457
+  },
+  {
+    "text": "cần",
+    "startMs": 2536.458,
+    "endMs": 2737.708
+  },
+  {
+    "text": "giúp",
+    "startMs": 2737.708,
+    "endMs": 2928.374
+  }
+]

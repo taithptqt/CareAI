@@ -3,13 +3,17 @@ import 'package:careai_companion/main.dart';
 import 'package:careai_companion/screens/device_pairing_screen.dart';
 
 void main() {
-  testWidgets('CareAiUnifiedApp smoke test loads DevicePairingScreen', (WidgetTester tester) async {
+  testWidgets('CareAiUnifiedApp smoke test loads DevicePairingScreen', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const CareAiUnifiedApp(initialScreen: DevicePairingScreen()),
     );
 
-    // Verify key titles on pairing screen
-    expect(find.text('Ghép Nối Thiết Bị CareAI'), findsOneWidget);
-    expect(find.text('Kích Hoạt Thiết Bị Giám Sát'), findsOneWidget);
+    expect(find.text('Kết nối gia đình'), findsOneWidget);
+    expect(find.text('Gần nhau hơn,\ntừ một kết nối.'), findsOneWidget);
+    await tester.tap(find.text('Kết nối thiết bị'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mã PIN phải gồm đúng 6 chữ số'), findsOneWidget);
   });
 }

@@ -1,0 +1,77 @@
+[
+  {
+    "text": "Người",
+    "startMs": 100.0,
+    "endMs": 343.625
+  },
+  {
+    "text": "thân",
+    "startMs": 343.625,
+    "endMs": 566.083
+  },
+  {
+    "text": "có",
+    "startMs": 566.083,
+    "endMs": 661.416
+  },
+  {
+    "text": "thể",
+    "startMs": 661.458,
+    "endMs": 799.166
+  },
+  {
+    "text": "tiếp",
+    "startMs": 799.166,
+    "endMs": 1000.416
+  },
+  {
+    "text": "nhận",
+    "startMs": 1000.416,
+    "endMs": 1212.291
+  },
+  {
+    "text": "sự",
+    "startMs": 1212.291,
+    "endMs": 1392.374
+  },
+  {
+    "text": "cố",
+    "startMs": 1392.375,
+    "endMs": 1720.75
+  },
+  {
+    "text": "Gia",
+    "startMs": 2422.875,
+    "endMs": 2655.916
+  },
+  {
+    "text": "đình",
+    "startMs": 2655.916,
+    "endMs": 2888.957
+  },
+  {
+    "text": "cùng",
+    "startMs": 2889.0,
+    "endMs": 3079.666
+  },
+  {
+    "text": "phối",
+    "startMs": 3079.666,
+    "endMs": 3249.166
+  },
+  {
+    "text": "hợp",
+    "startMs": 3249.166,
+    "endMs": 3418.624
+  },
+  {
+    "text": "hỗ",
+    "startMs": 3418.625,
+    "endMs": 3577.541
+  },
+  {
+    "text": "trợ",
+    "startMs": 3577.541,
+    "endMs": 3916.541
+  }
+]

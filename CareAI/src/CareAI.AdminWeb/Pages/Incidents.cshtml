@@ -1,0 +1,28 @@
+@page
+@model CareAI.AdminWeb.Pages.IncidentsModel
+@{ ViewData["Title"] = "Giám sát sự cố"; }
+<div class="title-row"><div><h1>Giám sát sự cố</h1><p>Theo dõi trạng thái; người thân tiếp nhận và giải quyết trên ứng dụng.</p></div></div>
+<partial name="_PreviewNotice" />
+<form method="get" class="filters" role="search"><div class="search-field"><label asp-for="Search">Tên hồ sơ, loại hoặc ID sự cố</label><input asp-for="Search" type="search" maxlength="120" /></div><div><label asp-for="Status">Trạng thái</label><select asp-for="Status"><option value="">Tất cả</option><option value="Open">Chưa tiếp nhận</option><option value="Acknowledged">Đã tiếp nhận</option><option value="Resolved">Đã giải quyết</option></select></div><div><label asp-for="Severity">Mức độ</label><select asp-for="Severity"><option value="">Tất cả</option><option value="Low">Thấp</option><option value="Medium">Trung bình</option><option value="High">Cao</option><option value="Critical">Khẩn cấp</option></select></div><button class="button primary">Áp dụng</button><a asp-page="/Incidents">Xóa lọc</a></form>
+<div class="result-meta"><strong>@Model.Data.TotalCount sự cố</strong><span>Thời điểm dữ liệu: @AdminDisplay.Time(Model.Data.AsOfUtc)</span></div>
+<form method="get" class="filters" aria-label="Khoảng ngày sự cố">
+<input type="hidden" asp-for="Search" /><input type="hidden" asp-for="Status" /><input type="hidden" asp-for="Severity" />
+<div><label asp-for="FromDate">Từ ngày (giờ Việt Nam)</label><input asp-for="FromDate" type="date" /></div>
+<div><label asp-for="BeforeDate">Đến trước ngày</label><input asp-for="BeforeDate" type="date" /></div>
+<button class="button">Lọc thời gian</button>
+</form>
+<div class="table-frame" tabindex="0" role="region" aria-label="Sự cố"><table>
+<caption class="sr-only">Danh sách sự cố — chỉ đọc</caption>
+<thead><tr><th scope="col">Hồ sơ / ID</th><th scope="col">Loại</th><th scope="col">Mức độ</th><th scope="col">Trạng thái</th><th scope="col">Phát sinh</th></tr></thead>
+<tbody>@foreach (var incident in Model.Data.Items)
+{<tr><td><strong>@incident.ElderDisplayName</strong><small>@incident.Id</small>
+@if (!WebMode.Preview) { <a asp-page="/Incident" asp-route-id="@incident.Id">Xem timeline</a> }
+</td><td>@AdminDisplay.Status(incident.Type)</td><td>@AdminDisplay.Status(incident.Severity)</td><td><span class="status @(incident.Status == "Open" ? "danger" : "neutral")">@AdminDisplay.Status(incident.Status)</span></td><td>@AdminDisplay.Time(incident.CreatedAt)</td></tr>}
+</tbody></table></div>
+<section class="panel compact"><h2>Phạm vi giám sát</h2><p>Timeline metadata chỉ đọc. Không hiển thị số đo, vị trí hoặc ảnh khi chưa có quyền riêng. Trạng thái SENT của outbox không chứng minh thông báo đã đến điện thoại.</p></section>
+
+<nav class="pagination" aria-label="Phân trang"><span>Trang @Model.Data.Page · @Model.Data.TotalCount kết quả</span><div>
+@if (Model.Data.Page > 1) { <a class="button" asp-route-PageNumber="@(Model.Data.Page - 1)" asp-route-Search="@Model.Search" asp-route-Status="@Model.Status" asp-route-Severity="@Model.Severity" asp-route-FromDate="@(Model.FromDate?.ToString("yyyy-MM-dd"))" asp-route-BeforeDate="@(Model.BeforeDate?.ToString("yyyy-MM-dd"))">← Trước</a> }
+@if (Model.Data.Page * Model.Data.PageSize < Model.Data.TotalCount) { <a class="button" asp-route-PageNumber="@(Model.Data.Page + 1)" asp-route-Search="@Model.Search" asp-route-Status="@Model.Status" asp-route-Severity="@Model.Severity" asp-route-FromDate="@(Model.FromDate?.ToString("yyyy-MM-dd"))" asp-route-BeforeDate="@(Model.BeforeDate?.ToString("yyyy-MM-dd"))">Sau →</a> }
+</div></nav>
+@if (Model.Data.TotalCount == 0) { <p class="empty-state">Không có kết quả tại thời điểm tải.</p> }

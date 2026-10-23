@@ -1,0 +1,37 @@
+@page "/Accounts"
+@model CareAI.AdminWeb.Pages.Accounts.IndexModel
+@{ ViewData["Title"] = "Tài khoản"; }
+<div class="title-row"><div><h1>Tài khoản</h1><p>Tra cứu người thân và tình trạng truy cập của từng tài khoản.</p></div></div>
+<partial name="_PreviewNotice" />
+<form method="get" class="filters" role="search" aria-label="Lọc tài khoản">
+    <div class="search-field"><label for="search">Tìm tài khoản</label><input id="search" name="Search" value="@Model.Search" maxlength="120" placeholder="Họ tên hoặc email đã che" type="search" /></div>
+    <div><label for="status">Trạng thái hành chính</label><select id="status" asp-for="Status"><option value="">Tất cả</option><option value="Active">Hoạt động</option><option value="Suspended">Tạm ngưng</option></select></div>
+    <label class="checkbox"><input asp-for="Locked" /> Đang khóa đăng nhập</label>
+    <button class="button primary" type="submit">Áp dụng</button><a asp-page="/Accounts/Index">Xóa bộ lọc</a>
+</form>
+<div class="result-meta"><strong>@Model.Results.TotalCount tài khoản</strong><span>Thời điểm dữ liệu: @AdminDisplay.Time(Model.Results.AsOfUtc)</span></div>
+<div class="table-frame" role="region" aria-label="Danh sách tài khoản" tabindex="0">
+<table>
+    <caption class="sr-only">Danh sách tài khoản người thân</caption>
+    <thead><tr><th scope="col">Người thân</th><th scope="col">Ngày tạo</th><th scope="col">Hành chính</th><th scope="col">Đăng nhập</th><th scope="col" class="number">Liên kết</th><th scope="col">Chi tiết</th></tr></thead>
+    <tbody>
+    @foreach (var account in Model.Results.Items)
+    {
+        <tr><td><strong>@account.FullName</strong><small>@account.MaskedEmail</small></td><td>@AdminDisplay.Time(account.CreatedAt)</td><td><span class="status @(account.AdministrativeStatus == "Suspended" ? "warning" : "neutral")">@AdminDisplay.Status(account.AdministrativeStatus)</span></td><td>@(account.LockoutEndUtc > Model.Results.AsOfUtc ? "Đang khóa tạm thời" : "Không khóa tạm thời")</td><td class="number">@account.ActiveCareLinks</td><td><a asp-page="/Accounts/Detail" asp-route-id="@account.Id" aria-label="Xem @account.FullName">Xem →</a></td></tr>
+    }
+    @if (Model.Results.Items.Count == 0)
+    {
+        <tr><td colspan="6" class="empty-state">Không có tài khoản phù hợp. Thử từ khóa khác hoặc xóa bộ lọc.</td></tr>
+    }
+    </tbody>
+</table>
+</div>
+<nav class="pagination" aria-label="Phân trang tài khoản">
+    <span>Trang @Model.PageNumber / @Model.PageCount · Tối đa 25 tài khoản mỗi trang</span>
+    <div>
+    @if (Model.PageNumber > 1)
+    { <a class="button" asp-page="/Accounts/Index" asp-route-PageNumber="@(Model.PageNumber - 1)" asp-route-Search="@Model.Search" asp-route-Status="@Model.Status" asp-route-Locked="@Model.Locked">← Trước</a> }
+    @if (Model.PageNumber < Model.PageCount)
+    { <a class="button" asp-page="/Accounts/Index" asp-route-PageNumber="@(Model.PageNumber + 1)" asp-route-Search="@Model.Search" asp-route-Status="@Model.Status" asp-route-Locked="@Model.Locked">Sau →</a> }
+    </div>
+</nav>

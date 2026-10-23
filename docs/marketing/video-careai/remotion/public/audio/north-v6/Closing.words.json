@@ -1,0 +1,42 @@
+[
+  {
+    "text": "Ke",
+    "startMs": 15.0,
+    "endMs": 258.625
+  },
+  {
+    "text": "Ai",
+    "startMs": 258.625,
+    "endMs": 544.625
+  },
+  {
+    "text": "một",
+    "startMs": 544.666,
+    "endMs": 714.166
+  },
+  {
+    "text": "kết",
+    "startMs": 714.166,
+    "endMs": 915.416
+  },
+  {
+    "text": "nối",
+    "startMs": 915.416,
+    "endMs": 1095.499
+  },
+  {
+    "text": "triệu",
+    "startMs": 1095.5,
+    "endMs": 1328.541
+  },
+  {
+    "text": "yêu",
+    "startMs": 1328.541,
+    "endMs": 1476.832
+  },
+  {
+    "text": "thương",
+    "startMs": 1476.875,
+    "endMs": 1784.083
+  }
+]

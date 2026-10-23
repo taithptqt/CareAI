@@ -1,0 +1,2232 @@
+[
+  {
+    "id": "Opening",
+    "start": 0.0,
+    "duration": 5.966666666666667,
+    "startFrame": 0,
+    "durationInFrames": 179,
+    "file": "audio/north-v9/Opening.wav",
+    "audioDuration": 5.966666666666667,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Khi bạn đi làm xa và không thể ở gần cha mẹ, CareAI giúp bạn vơi bớt nỗi lo bằng cách theo dõi sức khỏe và giữ kết nối với người thân mỗi ngày.",
+    "spokenText": "Khi bạn đi làm xa và không thể ở gần cha mẹ Ke Ai giúp bạn vơi bớt nỗi lo bằng cách theo dõi sức khỏe và giữ kết nối với người thân mỗi ngày.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Khi",
+        "startMs": 60.0,
+        "endMs": 261.291
+      },
+      {
+        "text": "bạn",
+        "startMs": 261.291,
+        "endMs": 451.957
+      },
+      {
+        "text": "đi",
+        "startMs": 451.958,
+        "endMs": 547.291
+      },
+      {
+        "text": "làm",
+        "startMs": 547.291,
+        "endMs": 716.791
+      },
+      {
+        "text": "xa",
+        "startMs": 716.791,
+        "endMs": 992.207
+      },
+      {
+        "text": "và",
+        "startMs": 992.208,
+        "endMs": 1098.124
+      },
+      {
+        "text": "không",
+        "startMs": 1098.125,
+        "endMs": 1278.208
+      },
+      {
+        "text": "thể",
+        "startMs": 1278.208,
+        "endMs": 1415.916
+      },
+      {
+        "text": "ở",
+        "startMs": 1415.916,
+        "endMs": 1511.249
+      },
+      {
+        "text": "gần",
+        "startMs": 1511.291,
+        "endMs": 1701.957
+      },
+      {
+        "text": "cha",
+        "startMs": 1701.958,
+        "endMs": 1850.249
+      },
+      {
+        "text": "mẹ,",
+        "startMs": 1850.25,
+        "endMs": 2019.75
+      },
+      {
+        "text": "CareAI",
+        "startMs": 2019.75,
+        "endMs": 2369.291
+      },
+      {
+        "text": "giúp",
+        "startMs": 2369.333,
+        "endMs": 2517.624
+      },
+      {
+        "text": "bạn",
+        "startMs": 2517.625,
+        "endMs": 2729.5
+      },
+      {
+        "text": "vơi",
+        "startMs": 2729.5,
+        "endMs": 2814.25
+      },
+      {
+        "text": "bớt",
+        "startMs": 2814.25,
+        "endMs": 3026.083
+      },
+      {
+        "text": "nỗi",
+        "startMs": 3026.083,
+        "endMs": 3174.374
+      },
+      {
+        "text": "lo",
+        "startMs": 3174.416,
+        "endMs": 3354.499
+      },
+      {
+        "text": "bằng",
+        "startMs": 3354.5,
+        "endMs": 3524.0
+      },
+      {
+        "text": "cách",
+        "startMs": 3524.0,
+        "endMs": 3672.291
+      },
+      {
+        "text": "theo",
+        "startMs": 3672.291,
+        "endMs": 3788.832
+      },
+      {
+        "text": "dõi",
+        "startMs": 3788.833,
+        "endMs": 3958.291
+      },
+      {
+        "text": "sức",
+        "startMs": 3958.291,
+        "endMs": 4106.582
+      },
+      {
+        "text": "khỏe",
+        "startMs": 4106.625,
+        "endMs": 4413.833
+      },
+      {
+        "text": "và",
+        "startMs": 4413.833,
+        "endMs": 4551.541
+      },
+      {
+        "text": "giữ",
+        "startMs": 4551.541,
+        "endMs": 4678.624
+      },
+      {
+        "text": "kết",
+        "startMs": 4678.625,
+        "endMs": 4858.708
+      },
+      {
+        "text": "nối",
+        "startMs": 4858.708,
+        "endMs": 5049.374
+      },
+      {
+        "text": "với",
+        "startMs": 5049.416,
+        "endMs": 5155.332
+      },
+      {
+        "text": "người",
+        "startMs": 5155.333,
+        "endMs": 5335.416
+      },
+      {
+        "text": "thân",
+        "startMs": 5335.416,
+        "endMs": 5504.916
+      },
+      {
+        "text": "mỗi",
+        "startMs": 5504.916,
+        "endMs": 5663.832
+      },
+      {
+        "text": "ngày.",
+        "startMs": 5663.833,
+        "endMs": 5907.458
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Khi",
+        "startMs": 60.0,
+        "endMs": 261.291
+      },
+      {
+        "text": "bạn",
+        "startMs": 261.291,
+        "endMs": 451.957
+      },
+      {
+        "text": "đi",
+        "startMs": 451.958,
+        "endMs": 547.291
+      },
+      {
+        "text": "làm",
+        "startMs": 547.291,
+        "endMs": 716.791
+      },
+      {
+        "text": "xa",
+        "startMs": 716.791,
+        "endMs": 992.207
+      },
+      {
+        "text": "và",
+        "startMs": 992.208,
+        "endMs": 1098.124
+      },
+      {
+        "text": "không",
+        "startMs": 1098.125,
+        "endMs": 1278.208
+      },
+      {
+        "text": "thể",
+        "startMs": 1278.208,
+        "endMs": 1415.916
+      },
+      {
+        "text": "ở",
+        "startMs": 1415.916,
+        "endMs": 1511.249
+      },
+      {
+        "text": "gần",
+        "startMs": 1511.291,
+        "endMs": 1701.957
+      },
+      {
+        "text": "cha",
+        "startMs": 1701.958,
+        "endMs": 1850.249
+      },
+      {
+        "text": "mẹ",
+        "startMs": 1850.25,
+        "endMs": 2019.75
+      },
+      {
+        "text": "Ke",
+        "startMs": 2019.75,
+        "endMs": 2221.0
+      },
+      {
+        "text": "Ai",
+        "startMs": 2221.0,
+        "endMs": 2369.291
+      },
+      {
+        "text": "giúp",
+        "startMs": 2369.333,
+        "endMs": 2517.624
+      },
+      {
+        "text": "bạn",
+        "startMs": 2517.625,
+        "endMs": 2729.5
+      },
+      {
+        "text": "vơi",
+        "startMs": 2729.5,
+        "endMs": 2814.25
+      },
+      {
+        "text": "bớt",
+        "startMs": 2814.25,
+        "endMs": 3026.083
+      },
+      {
+        "text": "nỗi",
+        "startMs": 3026.083,
+        "endMs": 3174.374
+      },
+      {
+        "text": "lo",
+        "startMs": 3174.416,
+        "endMs": 3354.499
+      },
+      {
+        "text": "bằng",
+        "startMs": 3354.5,
+        "endMs": 3524.0
+      },
+      {
+        "text": "cách",
+        "startMs": 3524.0,
+        "endMs": 3672.291
+      },
+      {
+        "text": "theo",
+        "startMs": 3672.291,
+        "endMs": 3788.832
+      },
+      {
+        "text": "dõi",
+        "startMs": 3788.833,
+        "endMs": 3958.291
+      },
+      {
+        "text": "sức",
+        "startMs": 3958.291,
+        "endMs": 4106.582
+      },
+      {
+        "text": "khỏe",
+        "startMs": 4106.625,
+        "endMs": 4413.833
+      },
+      {
+        "text": "và",
+        "startMs": 4413.833,
+        "endMs": 4551.541
+      },
+      {
+        "text": "giữ",
+        "startMs": 4551.541,
+        "endMs": 4678.624
+      },
+      {
+        "text": "kết",
+        "startMs": 4678.625,
+        "endMs": 4858.708
+      },
+      {
+        "text": "nối",
+        "startMs": 4858.708,
+        "endMs": 5049.374
+      },
+      {
+        "text": "với",
+        "startMs": 5049.416,
+        "endMs": 5155.332
+      },
+      {
+        "text": "người",
+        "startMs": 5155.333,
+        "endMs": 5335.416
+      },
+      {
+        "text": "thân",
+        "startMs": 5335.416,
+        "endMs": 5504.916
+      },
+      {
+        "text": "mỗi",
+        "startMs": 5504.916,
+        "endMs": 5663.832
+      },
+      {
+        "text": "ngày",
+        "startMs": 5663.833,
+        "endMs": 5907.458
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 85.0,
+      "endMs": 5972.458333333333
+    },
+    "sourceFile": "audio/north-v7/Opening-source.wav",
+    "audioEdit": "Only Opening revoiced with emotional family introduction in one uninterrupted utterance. Other eight north-v6 scene files preserved byte-for-byte.",
+    "initialLeadMs": 45.0,
+    "interWordGapEdits": [],
+    "maximumInterWordGapMs": 0.043
+  },
+  {
+    "id": "Connection",
+    "start": 5.966666666666667,
+    "duration": 3.2666666666666666,
+    "startFrame": 179,
+    "durationInFrames": 98,
+    "file": "audio/north-v9/Connection.wav",
+    "audioDuration": 3.2666666666666666,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Hệ thống kết nối đồng hồ của người cao tuổi với ứng dụng trên điện thoại người thân.",
+    "spokenText": "Hệ thống kết nối đồng hồ của người cao tuổi với ứng dụng trên điện thoại người thân.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Hệ",
+        "startMs": 15.0,
+        "endMs": 205.666
+      },
+      {
+        "text": "thống",
+        "startMs": 205.666,
+        "endMs": 406.957
+      },
+      {
+        "text": "kết",
+        "startMs": 406.958,
+        "endMs": 597.624
+      },
+      {
+        "text": "nối",
+        "startMs": 597.625,
+        "endMs": 777.708
+      },
+      {
+        "text": "đồng",
+        "startMs": 777.708,
+        "endMs": 936.624
+      },
+      {
+        "text": "hồ",
+        "startMs": 936.625,
+        "endMs": 1106.083
+      },
+      {
+        "text": "của",
+        "startMs": 1106.083,
+        "endMs": 1201.416
+      },
+      {
+        "text": "người",
+        "startMs": 1201.458,
+        "endMs": 1360.333
+      },
+      {
+        "text": "cao",
+        "startMs": 1360.333,
+        "endMs": 1540.416
+      },
+      {
+        "text": "tuổi",
+        "startMs": 1540.416,
+        "endMs": 1773.457
+      },
+      {
+        "text": "với",
+        "startMs": 1773.458,
+        "endMs": 1911.166
+      },
+      {
+        "text": "ứng",
+        "startMs": 1911.166,
+        "endMs": 2059.457
+      },
+      {
+        "text": "dụng",
+        "startMs": 2059.5,
+        "endMs": 2271.375
+      },
+      {
+        "text": "trên",
+        "startMs": 2271.375,
+        "endMs": 2419.666
+      },
+      {
+        "text": "điện",
+        "startMs": 2419.666,
+        "endMs": 2578.541
+      },
+      {
+        "text": "thoại",
+        "startMs": 2578.541,
+        "endMs": 2758.624
+      },
+      {
+        "text": "người",
+        "startMs": 2758.625,
+        "endMs": 2917.541
+      },
+      {
+        "text": "thân.",
+        "startMs": 2917.541,
+        "endMs": 3192.957
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Hệ",
+        "startMs": 15.0,
+        "endMs": 205.666
+      },
+      {
+        "text": "thống",
+        "startMs": 205.666,
+        "endMs": 406.957
+      },
+      {
+        "text": "kết",
+        "startMs": 406.958,
+        "endMs": 597.624
+      },
+      {
+        "text": "nối",
+        "startMs": 597.625,
+        "endMs": 777.708
+      },
+      {
+        "text": "đồng",
+        "startMs": 777.708,
+        "endMs": 936.624
+      },
+      {
+        "text": "hồ",
+        "startMs": 936.625,
+        "endMs": 1106.083
+      },
+      {
+        "text": "của",
+        "startMs": 1106.083,
+        "endMs": 1201.416
+      },
+      {
+        "text": "người",
+        "startMs": 1201.458,
+        "endMs": 1360.333
+      },
+      {
+        "text": "cao",
+        "startMs": 1360.333,
+        "endMs": 1540.416
+      },
+      {
+        "text": "tuổi",
+        "startMs": 1540.416,
+        "endMs": 1773.457
+      },
+      {
+        "text": "với",
+        "startMs": 1773.458,
+        "endMs": 1911.166
+      },
+      {
+        "text": "ứng",
+        "startMs": 1911.166,
+        "endMs": 2059.457
+      },
+      {
+        "text": "dụng",
+        "startMs": 2059.5,
+        "endMs": 2271.375
+      },
+      {
+        "text": "trên",
+        "startMs": 2271.375,
+        "endMs": 2419.666
+      },
+      {
+        "text": "điện",
+        "startMs": 2419.666,
+        "endMs": 2578.541
+      },
+      {
+        "text": "thoại",
+        "startMs": 2578.541,
+        "endMs": 2758.624
+      },
+      {
+        "text": "người",
+        "startMs": 2758.625,
+        "endMs": 2917.541
+      },
+      {
+        "text": "thân",
+        "startMs": 2917.541,
+        "endMs": 3192.957
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 85.0,
+      "endMs": 3302.958333333333
+    },
+    "sourceFile": "audio/north-v8/Connection-source.wav",
+    "audioEdit": "Revoiced with approved generic system/application wording as one uninterrupted utterance.",
+    "interWordGapEdits": [],
+    "maximumInterWordGapMs": 0.043
+  },
+  {
+    "id": "Monitoring",
+    "start": 9.233333333333333,
+    "duration": 9.866666666666667,
+    "startFrame": 277,
+    "durationInFrames": 296,
+    "file": "audio/north-v9/Monitoring.wav",
+    "audioDuration": 9.866666666666667,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Ứng dụng giúp gia đình theo dõi nhịp tim và độ bão hòa oxy trong máu, qua biểu đồ sức khỏe cùng cảnh báo vượt ngưỡng, và nhận định xu hướng kèm báo cáo tuần, để nắm bắt thay đổi và chủ động chăm sóc người thân mỗi ngày.",
+    "spokenText": "Ứng dụng giúp gia đình theo dõi nhịp tim và độ bão hòa oxy trong máu, qua biểu đồ sức khỏe cùng cảnh báo vượt ngưỡng, và nhận định xu hướng kèm báo cáo tuần, để nắm bắt thay đổi và chủ động chăm sóc người thân mỗi ngày.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Ứng",
+        "startMs": 15.0,
+        "endMs": 226.875
+      },
+      {
+        "text": "dụng",
+        "startMs": 226.875,
+        "endMs": 417.541
+      },
+      {
+        "text": "giúp",
+        "startMs": 417.541,
+        "endMs": 576.457
+      },
+      {
+        "text": "gia",
+        "startMs": 576.458,
+        "endMs": 724.749
+      },
+      {
+        "text": "đình",
+        "startMs": 724.75,
+        "endMs": 873.041
+      },
+      {
+        "text": "theo",
+        "startMs": 873.041,
+        "endMs": 1000.166
+      },
+      {
+        "text": "dõi",
+        "startMs": 1000.166,
+        "endMs": 1159.082
+      },
+      {
+        "text": "nhịp",
+        "startMs": 1159.083,
+        "endMs": 1360.333
+      },
+      {
+        "text": "tim",
+        "startMs": 1360.333,
+        "endMs": 1593.374
+      },
+      {
+        "text": "và",
+        "startMs": 1593.375,
+        "endMs": 1688.708
+      },
+      {
+        "text": "độ",
+        "startMs": 1688.708,
+        "endMs": 1826.416
+      },
+      {
+        "text": "bão",
+        "startMs": 1826.458,
+        "endMs": 2006.541
+      },
+      {
+        "text": "hòa",
+        "startMs": 2006.541,
+        "endMs": 2207.791
+      },
+      {
+        "text": "oxy",
+        "startMs": 2207.791,
+        "endMs": 2514.999
+      },
+      {
+        "text": "trong",
+        "startMs": 2515.0,
+        "endMs": 2652.708
+      },
+      {
+        "text": "máu,",
+        "startMs": 2652.708,
+        "endMs": 2938.708
+      },
+      {
+        "text": "qua",
+        "startMs": 3258.708,
+        "endMs": 3428.208
+      },
+      {
+        "text": "biểu",
+        "startMs": 3428.208,
+        "endMs": 3597.708
+      },
+      {
+        "text": "đồ",
+        "startMs": 3597.708,
+        "endMs": 3724.791
+      },
+      {
+        "text": "sức",
+        "startMs": 3724.791,
+        "endMs": 3883.707
+      },
+      {
+        "text": "khỏe",
+        "startMs": 3883.708,
+        "endMs": 4116.749
+      },
+      {
+        "text": "cùng",
+        "startMs": 4116.749,
+        "endMs": 4307.415
+      },
+      {
+        "text": "cảnh",
+        "startMs": 4307.458,
+        "endMs": 4487.541
+      },
+      {
+        "text": "báo",
+        "startMs": 4487.541,
+        "endMs": 4656.999
+      },
+      {
+        "text": "vượt",
+        "startMs": 4656.999,
+        "endMs": 4805.29
+      },
+      {
+        "text": "ngưỡng,",
+        "startMs": 4805.333,
+        "endMs": 5112.541
+      },
+      {
+        "text": "và",
+        "startMs": 5432.541,
+        "endMs": 5580.832
+      },
+      {
+        "text": "nhận",
+        "startMs": 5580.833,
+        "endMs": 5771.499
+      },
+      {
+        "text": "định",
+        "startMs": 5771.5,
+        "endMs": 5941.0
+      },
+      {
+        "text": "xu",
+        "startMs": 5941.0,
+        "endMs": 6110.5
+      },
+      {
+        "text": "hướng",
+        "startMs": 6110.5,
+        "endMs": 6301.166
+      },
+      {
+        "text": "kèm",
+        "startMs": 6301.166,
+        "endMs": 6513.041
+      },
+      {
+        "text": "báo",
+        "startMs": 6513.041,
+        "endMs": 6661.332
+      },
+      {
+        "text": "cáo",
+        "startMs": 6661.333,
+        "endMs": 6841.416
+      },
+      {
+        "text": "tuần,",
+        "startMs": 6841.416,
+        "endMs": 7148.624
+      },
+      {
+        "text": "để",
+        "startMs": 7468.624,
+        "endMs": 7606.332
+      },
+      {
+        "text": "nắm",
+        "startMs": 7606.333,
+        "endMs": 7786.416
+      },
+      {
+        "text": "bắt",
+        "startMs": 7786.416,
+        "endMs": 7913.541
+      },
+      {
+        "text": "thay",
+        "startMs": 7913.541,
+        "endMs": 8040.624
+      },
+      {
+        "text": "đổi",
+        "startMs": 8040.624,
+        "endMs": 8284.249
+      },
+      {
+        "text": "và",
+        "startMs": 8284.291,
+        "endMs": 8411.416
+      },
+      {
+        "text": "chủ",
+        "startMs": 8411.416,
+        "endMs": 8559.707
+      },
+      {
+        "text": "động",
+        "startMs": 8559.708,
+        "endMs": 8750.374
+      },
+      {
+        "text": "chăm",
+        "startMs": 8750.374,
+        "endMs": 8919.874
+      },
+      {
+        "text": "sóc",
+        "startMs": 8919.874,
+        "endMs": 9110.54
+      },
+      {
+        "text": "người",
+        "startMs": 9110.541,
+        "endMs": 9258.832
+      },
+      {
+        "text": "thân",
+        "startMs": 9258.874,
+        "endMs": 9407.165
+      },
+      {
+        "text": "mỗi",
+        "startMs": 9407.166,
+        "endMs": 9566.082
+      },
+      {
+        "text": "ngày.",
+        "startMs": 9566.083,
+        "endMs": 9809.708
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Ứng",
+        "startMs": 15.0,
+        "endMs": 226.875
+      },
+      {
+        "text": "dụng",
+        "startMs": 226.875,
+        "endMs": 417.541
+      },
+      {
+        "text": "giúp",
+        "startMs": 417.541,
+        "endMs": 576.457
+      },
+      {
+        "text": "gia",
+        "startMs": 576.458,
+        "endMs": 724.749
+      },
+      {
+        "text": "đình",
+        "startMs": 724.75,
+        "endMs": 873.041
+      },
+      {
+        "text": "theo",
+        "startMs": 873.041,
+        "endMs": 1000.166
+      },
+      {
+        "text": "dõi",
+        "startMs": 1000.166,
+        "endMs": 1159.082
+      },
+      {
+        "text": "nhịp",
+        "startMs": 1159.083,
+        "endMs": 1360.333
+      },
+      {
+        "text": "tim",
+        "startMs": 1360.333,
+        "endMs": 1593.374
+      },
+      {
+        "text": "và",
+        "startMs": 1593.375,
+        "endMs": 1688.708
+      },
+      {
+        "text": "độ",
+        "startMs": 1688.708,
+        "endMs": 1826.416
+      },
+      {
+        "text": "bão",
+        "startMs": 1826.458,
+        "endMs": 2006.541
+      },
+      {
+        "text": "hòa",
+        "startMs": 2006.541,
+        "endMs": 2207.791
+      },
+      {
+        "text": "oxy",
+        "startMs": 2207.791,
+        "endMs": 2514.999
+      },
+      {
+        "text": "trong",
+        "startMs": 2515.0,
+        "endMs": 2652.708
+      },
+      {
+        "text": "máu",
+        "startMs": 2652.708,
+        "endMs": 2938.708
+      },
+      {
+        "text": "qua",
+        "startMs": 3258.708,
+        "endMs": 3428.208
+      },
+      {
+        "text": "biểu",
+        "startMs": 3428.208,
+        "endMs": 3597.708
+      },
+      {
+        "text": "đồ",
+        "startMs": 3597.708,
+        "endMs": 3724.791
+      },
+      {
+        "text": "sức",
+        "startMs": 3724.791,
+        "endMs": 3883.707
+      },
+      {
+        "text": "khỏe",
+        "startMs": 3883.708,
+        "endMs": 4116.749
+      },
+      {
+        "text": "cùng",
+        "startMs": 4116.749,
+        "endMs": 4307.415
+      },
+      {
+        "text": "cảnh",
+        "startMs": 4307.458,
+        "endMs": 4487.541
+      },
+      {
+        "text": "báo",
+        "startMs": 4487.541,
+        "endMs": 4656.999
+      },
+      {
+        "text": "vượt",
+        "startMs": 4656.999,
+        "endMs": 4805.29
+      },
+      {
+        "text": "ngưỡng",
+        "startMs": 4805.333,
+        "endMs": 5112.541
+      },
+      {
+        "text": "và",
+        "startMs": 5432.541,
+        "endMs": 5580.832
+      },
+      {
+        "text": "nhận",
+        "startMs": 5580.833,
+        "endMs": 5771.499
+      },
+      {
+        "text": "định",
+        "startMs": 5771.5,
+        "endMs": 5941.0
+      },
+      {
+        "text": "xu",
+        "startMs": 5941.0,
+        "endMs": 6110.5
+      },
+      {
+        "text": "hướng",
+        "startMs": 6110.5,
+        "endMs": 6301.166
+      },
+      {
+        "text": "kèm",
+        "startMs": 6301.166,
+        "endMs": 6513.041
+      },
+      {
+        "text": "báo",
+        "startMs": 6513.041,
+        "endMs": 6661.332
+      },
+      {
+        "text": "cáo",
+        "startMs": 6661.333,
+        "endMs": 6841.416
+      },
+      {
+        "text": "tuần",
+        "startMs": 6841.416,
+        "endMs": 7148.624
+      },
+      {
+        "text": "để",
+        "startMs": 7468.624,
+        "endMs": 7606.332
+      },
+      {
+        "text": "nắm",
+        "startMs": 7606.333,
+        "endMs": 7786.416
+      },
+      {
+        "text": "bắt",
+        "startMs": 7786.416,
+        "endMs": 7913.541
+      },
+      {
+        "text": "thay",
+        "startMs": 7913.541,
+        "endMs": 8040.624
+      },
+      {
+        "text": "đổi",
+        "startMs": 8040.624,
+        "endMs": 8284.249
+      },
+      {
+        "text": "và",
+        "startMs": 8284.291,
+        "endMs": 8411.416
+      },
+      {
+        "text": "chủ",
+        "startMs": 8411.416,
+        "endMs": 8559.707
+      },
+      {
+        "text": "động",
+        "startMs": 8559.708,
+        "endMs": 8750.374
+      },
+      {
+        "text": "chăm",
+        "startMs": 8750.374,
+        "endMs": 8919.874
+      },
+      {
+        "text": "sóc",
+        "startMs": 8919.874,
+        "endMs": 9110.54
+      },
+      {
+        "text": "người",
+        "startMs": 9110.541,
+        "endMs": 9258.832
+      },
+      {
+        "text": "thân",
+        "startMs": 9258.874,
+        "endMs": 9407.165
+      },
+      {
+        "text": "mỗi",
+        "startMs": 9407.166,
+        "endMs": 9566.082
+      },
+      {
+        "text": "ngày",
+        "startMs": 9566.083,
+        "endMs": 9809.708
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 85.0,
+      "endMs": 9415.25
+    },
+    "audioEdit": "Single utterance with natural commas; only silent comma gaps normalized to 320ms.",
+    "interWordGapEdits": [],
+    "maximumInterWordGapMs": 320.0,
+    "sourceFiles": [
+      "audio/north-v9/Monitoring-source.wav"
+    ],
+    "clausePauseEdits": [
+      {
+        "afterWord": "máu",
+        "beforeWord": "qua",
+        "originalGapMs": 158.917,
+        "addedSilenceMs": 161.083,
+        "finalGapMs": 320.0
+      },
+      {
+        "afterWord": "ngưỡng",
+        "beforeWord": "và",
+        "originalGapMs": 137.708,
+        "addedSilenceMs": 182.292,
+        "finalGapMs": 320.0
+      },
+      {
+        "afterWord": "tuần",
+        "beforeWord": "để",
+        "originalGapMs": 158.917,
+        "addedSilenceMs": 161.083,
+        "finalGapMs": 320.0
+      }
+    ]
+  },
+  {
+    "id": "Sos",
+    "start": 19.1,
+    "duration": 3.566666666666667,
+    "startFrame": 573,
+    "durationInFrames": 107,
+    "file": "audio/north-v9/Sos.wav",
+    "audioDuration": 3.566666666666667,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Khi cần giúp, người cao tuổi có thể gửi SOS từ đồng hồ hoặc điện thoại.",
+    "spokenText": "Khi cần giúp, người cao tuổi có thể gửi ét ô ét từ đồng hồ hoặc điện thoại.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Khi",
+        "startMs": 14.999,
+        "endMs": 226.832
+      },
+      {
+        "text": "cần",
+        "startMs": 226.833,
+        "endMs": 406.916
+      },
+      {
+        "text": "giúp,",
+        "startMs": 406.916,
+        "endMs": 608.207
+      },
+      {
+        "text": "người",
+        "startMs": 767.083,
+        "endMs": 947.166
+      },
+      {
+        "text": "cao",
+        "startMs": 947.166,
+        "endMs": 1095.457
+      },
+      {
+        "text": "tuổi",
+        "startMs": 1095.499,
+        "endMs": 1317.957
+      },
+      {
+        "text": "có",
+        "startMs": 1317.958,
+        "endMs": 1402.708
+      },
+      {
+        "text": "thể",
+        "startMs": 1402.708,
+        "endMs": 1550.999
+      },
+      {
+        "text": "gửi",
+        "startMs": 1550.999,
+        "endMs": 1762.874
+      },
+      {
+        "text": "SOS",
+        "startMs": 1762.874,
+        "endMs": 2366.666
+      },
+      {
+        "text": "từ",
+        "startMs": 2366.666,
+        "endMs": 2504.374
+      },
+      {
+        "text": "đồng",
+        "startMs": 2504.374,
+        "endMs": 2684.457
+      },
+      {
+        "text": "hồ",
+        "startMs": 2684.458,
+        "endMs": 2864.541
+      },
+      {
+        "text": "hoặc",
+        "startMs": 2864.541,
+        "endMs": 3023.457
+      },
+      {
+        "text": "điện",
+        "startMs": 3023.458,
+        "endMs": 3203.541
+      },
+      {
+        "text": "thoại.",
+        "startMs": 3203.541,
+        "endMs": 3510.749
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Khi",
+        "startMs": 14.999,
+        "endMs": 226.832
+      },
+      {
+        "text": "cần",
+        "startMs": 226.833,
+        "endMs": 406.916
+      },
+      {
+        "text": "giúp",
+        "startMs": 406.916,
+        "endMs": 608.207
+      },
+      {
+        "text": "người",
+        "startMs": 767.083,
+        "endMs": 947.166
+      },
+      {
+        "text": "cao",
+        "startMs": 947.166,
+        "endMs": 1095.457
+      },
+      {
+        "text": "tuổi",
+        "startMs": 1095.499,
+        "endMs": 1317.957
+      },
+      {
+        "text": "có",
+        "startMs": 1317.958,
+        "endMs": 1402.708
+      },
+      {
+        "text": "thể",
+        "startMs": 1402.708,
+        "endMs": 1550.999
+      },
+      {
+        "text": "gửi",
+        "startMs": 1550.999,
+        "endMs": 1762.874
+      },
+      {
+        "text": "ét",
+        "startMs": 1762.874,
+        "endMs": 2006.499
+      },
+      {
+        "text": "ô",
+        "startMs": 2006.499,
+        "endMs": 2197.165
+      },
+      {
+        "text": "ét",
+        "startMs": 2197.166,
+        "endMs": 2366.666
+      },
+      {
+        "text": "từ",
+        "startMs": 2366.666,
+        "endMs": 2504.374
+      },
+      {
+        "text": "đồng",
+        "startMs": 2504.374,
+        "endMs": 2684.457
+      },
+      {
+        "text": "hồ",
+        "startMs": 2684.458,
+        "endMs": 2864.541
+      },
+      {
+        "text": "hoặc",
+        "startMs": 2864.541,
+        "endMs": 3023.457
+      },
+      {
+        "text": "điện",
+        "startMs": 3023.458,
+        "endMs": 3203.541
+      },
+      {
+        "text": "thoại",
+        "startMs": 3203.541,
+        "endMs": 3510.749
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 12693.916666666666,
+      "endMs": 16229.666666666666
+    },
+    "sourceFile": "audio/north-v2/source-paragraph.wav"
+  },
+  {
+    "id": "Confirmation",
+    "start": 22.666666666666668,
+    "duration": 2.9,
+    "startFrame": 680,
+    "durationInFrames": 87,
+    "file": "audio/north-v9/Confirmation.wav",
+    "audioDuration": 2.9,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Có thể hủy nếu chạm nhầm, hoặc chọn gửi ngay tín hiệu cần giúp.",
+    "spokenText": "Có thể hủy nếu chạm nhầm, hoặc chọn gửi ngay tín hiệu cần giúp.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Có",
+        "startMs": 14.999,
+        "endMs": 152.707
+      },
+      {
+        "text": "thể",
+        "startMs": 152.708,
+        "endMs": 311.583
+      },
+      {
+        "text": "hủy",
+        "startMs": 311.583,
+        "endMs": 523.458
+      },
+      {
+        "text": "nếu",
+        "startMs": 523.458,
+        "endMs": 703.541
+      },
+      {
+        "text": "chạm",
+        "startMs": 703.541,
+        "endMs": 915.416
+      },
+      {
+        "text": "nhầm,",
+        "startMs": 915.416,
+        "endMs": 1180.249
+      },
+      {
+        "text": "hoặc",
+        "startMs": 1328.541,
+        "endMs": 1529.832
+      },
+      {
+        "text": "chọn",
+        "startMs": 1529.833,
+        "endMs": 1773.458
+      },
+      {
+        "text": "gửi",
+        "startMs": 1773.458,
+        "endMs": 1932.374
+      },
+      {
+        "text": "ngay",
+        "startMs": 1932.374,
+        "endMs": 2091.249
+      },
+      {
+        "text": "tín",
+        "startMs": 2091.249,
+        "endMs": 2292.54
+      },
+      {
+        "text": "hiệu",
+        "startMs": 2292.541,
+        "endMs": 2451.416
+      },
+      {
+        "text": "cần",
+        "startMs": 2451.416,
+        "endMs": 2652.707
+      },
+      {
+        "text": "giúp.",
+        "startMs": 2652.708,
+        "endMs": 2843.374
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Có",
+        "startMs": 14.999,
+        "endMs": 152.707
+      },
+      {
+        "text": "thể",
+        "startMs": 152.708,
+        "endMs": 311.583
+      },
+      {
+        "text": "hủy",
+        "startMs": 311.583,
+        "endMs": 523.458
+      },
+      {
+        "text": "nếu",
+        "startMs": 523.458,
+        "endMs": 703.541
+      },
+      {
+        "text": "chạm",
+        "startMs": 703.541,
+        "endMs": 915.416
+      },
+      {
+        "text": "nhầm",
+        "startMs": 915.416,
+        "endMs": 1180.249
+      },
+      {
+        "text": "hoặc",
+        "startMs": 1328.541,
+        "endMs": 1529.832
+      },
+      {
+        "text": "chọn",
+        "startMs": 1529.833,
+        "endMs": 1773.458
+      },
+      {
+        "text": "gửi",
+        "startMs": 1773.458,
+        "endMs": 1932.374
+      },
+      {
+        "text": "ngay",
+        "startMs": 1932.374,
+        "endMs": 2091.249
+      },
+      {
+        "text": "tín",
+        "startMs": 2091.249,
+        "endMs": 2292.54
+      },
+      {
+        "text": "hiệu",
+        "startMs": 2292.541,
+        "endMs": 2451.416
+      },
+      {
+        "text": "cần",
+        "startMs": 2451.416,
+        "endMs": 2652.707
+      },
+      {
+        "text": "giúp",
+        "startMs": 2652.708,
+        "endMs": 2843.374
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 16899.416666666668,
+      "endMs": 19767.791666666668
+    },
+    "sourceFile": "audio/north-v2/source-paragraph.wav"
+  },
+  {
+    "id": "FallAlert",
+    "start": 25.566666666666666,
+    "duration": 4.3,
+    "startFrame": 767,
+    "durationInFrames": 129,
+    "file": "audio/north-v9/FallAlert.wav",
+    "audioDuration": 4.3,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Trong tình huống khác, khi đồng hồ báo té ngã, người thân mở thông tin sự cố để kiểm tra.",
+    "spokenText": "Trong tình huống khác, khi đồng hồ báo té ngã, người thân mở thông tin sự cố để kiểm tra.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Trong",
+        "startMs": 14.999,
+        "endMs": 269.249
+      },
+      {
+        "text": "tình",
+        "startMs": 269.249,
+        "endMs": 438.707
+      },
+      {
+        "text": "huống",
+        "startMs": 438.708,
+        "endMs": 597.624
+      },
+      {
+        "text": "khác,",
+        "startMs": 597.624,
+        "endMs": 851.874
+      },
+      {
+        "text": "khi",
+        "startMs": 978.999,
+        "endMs": 1180.249
+      },
+      {
+        "text": "đồng",
+        "startMs": 1180.249,
+        "endMs": 1360.332
+      },
+      {
+        "text": "hồ",
+        "startMs": 1360.333,
+        "endMs": 1519.249
+      },
+      {
+        "text": "báo",
+        "startMs": 1519.249,
+        "endMs": 1699.332
+      },
+      {
+        "text": "té",
+        "startMs": 1699.333,
+        "endMs": 1868.833
+      },
+      {
+        "text": "ngã,",
+        "startMs": 1868.833,
+        "endMs": 2228.999
+      },
+      {
+        "text": "người",
+        "startMs": 2377.291,
+        "endMs": 2567.957
+      },
+      {
+        "text": "thân",
+        "startMs": 2567.958,
+        "endMs": 2748.041
+      },
+      {
+        "text": "mở",
+        "startMs": 2748.041,
+        "endMs": 2928.124
+      },
+      {
+        "text": "thông",
+        "startMs": 2928.124,
+        "endMs": 3097.624
+      },
+      {
+        "text": "tin",
+        "startMs": 3097.624,
+        "endMs": 3267.124
+      },
+      {
+        "text": "sự",
+        "startMs": 3267.124,
+        "endMs": 3425.999
+      },
+      {
+        "text": "cố",
+        "startMs": 3425.999,
+        "endMs": 3659.04
+      },
+      {
+        "text": "để",
+        "startMs": 3659.083,
+        "endMs": 3764.999
+      },
+      {
+        "text": "kiểm",
+        "startMs": 3764.999,
+        "endMs": 3976.874
+      },
+      {
+        "text": "tra.",
+        "startMs": 3976.874,
+        "endMs": 4241.707
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Trong",
+        "startMs": 14.999,
+        "endMs": 269.249
+      },
+      {
+        "text": "tình",
+        "startMs": 269.249,
+        "endMs": 438.707
+      },
+      {
+        "text": "huống",
+        "startMs": 438.708,
+        "endMs": 597.624
+      },
+      {
+        "text": "khác",
+        "startMs": 597.624,
+        "endMs": 851.874
+      },
+      {
+        "text": "khi",
+        "startMs": 978.999,
+        "endMs": 1180.249
+      },
+      {
+        "text": "đồng",
+        "startMs": 1180.249,
+        "endMs": 1360.332
+      },
+      {
+        "text": "hồ",
+        "startMs": 1360.333,
+        "endMs": 1519.249
+      },
+      {
+        "text": "báo",
+        "startMs": 1519.249,
+        "endMs": 1699.332
+      },
+      {
+        "text": "té",
+        "startMs": 1699.333,
+        "endMs": 1868.833
+      },
+      {
+        "text": "ngã",
+        "startMs": 1868.833,
+        "endMs": 2228.999
+      },
+      {
+        "text": "người",
+        "startMs": 2377.291,
+        "endMs": 2567.957
+      },
+      {
+        "text": "thân",
+        "startMs": 2567.958,
+        "endMs": 2748.041
+      },
+      {
+        "text": "mở",
+        "startMs": 2748.041,
+        "endMs": 2928.124
+      },
+      {
+        "text": "thông",
+        "startMs": 2928.124,
+        "endMs": 3097.624
+      },
+      {
+        "text": "tin",
+        "startMs": 3097.624,
+        "endMs": 3267.124
+      },
+      {
+        "text": "sự",
+        "startMs": 3267.124,
+        "endMs": 3425.999
+      },
+      {
+        "text": "cố",
+        "startMs": 3425.999,
+        "endMs": 3659.04
+      },
+      {
+        "text": "để",
+        "startMs": 3659.083,
+        "endMs": 3764.999
+      },
+      {
+        "text": "kiểm",
+        "startMs": 3764.999,
+        "endMs": 3976.874
+      },
+      {
+        "text": "tra",
+        "startMs": 3976.874,
+        "endMs": 4241.707
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 20437.541666666668,
+      "endMs": 24704.25
+    },
+    "sourceFile": "audio/north-v2/source-paragraph.wav"
+  },
+  {
+    "id": "Incident",
+    "start": 29.866666666666667,
+    "duration": 4.033333333333333,
+    "startFrame": 896,
+    "durationInFrames": 121,
+    "file": "audio/north-v9/Incident.wav",
+    "audioDuration": 4.033333333333333,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Xem vị trí và ảnh khi có dữ liệu, mở chỉ đường hoặc gọi liên hệ để tìm hiểu tình hình.",
+    "spokenText": "Xem vị trí và ảnh khi có dữ liệu, mở chỉ đường hoặc gọi liên hệ để tìm hiểu tình hình.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Xem",
+        "startMs": 15.0,
+        "endMs": 301.0
+      },
+      {
+        "text": "vị",
+        "startMs": 301.0,
+        "endMs": 428.125
+      },
+      {
+        "text": "trí",
+        "startMs": 428.125,
+        "endMs": 682.375
+      },
+      {
+        "text": "và",
+        "startMs": 682.375,
+        "endMs": 841.25
+      },
+      {
+        "text": "ảnh",
+        "startMs": 841.25,
+        "endMs": 1021.333
+      },
+      {
+        "text": "khi",
+        "startMs": 1021.333,
+        "endMs": 1169.624
+      },
+      {
+        "text": "có",
+        "startMs": 1169.625,
+        "endMs": 1264.958
+      },
+      {
+        "text": "dữ",
+        "startMs": 1265.0,
+        "endMs": 1423.875
+      },
+      {
+        "text": "liệu,",
+        "startMs": 1423.875,
+        "endMs": 1709.875
+      },
+      {
+        "text": "mở",
+        "startMs": 1858.208,
+        "endMs": 2059.458
+      },
+      {
+        "text": "chỉ",
+        "startMs": 2059.458,
+        "endMs": 2207.749
+      },
+      {
+        "text": "đường",
+        "startMs": 2207.791,
+        "endMs": 2419.624
+      },
+      {
+        "text": "hoặc",
+        "startMs": 2419.625,
+        "endMs": 2567.916
+      },
+      {
+        "text": "gọi",
+        "startMs": 2567.958,
+        "endMs": 2737.458
+      },
+      {
+        "text": "liên",
+        "startMs": 2737.458,
+        "endMs": 2938.708
+      },
+      {
+        "text": "hệ",
+        "startMs": 2938.708,
+        "endMs": 3129.374
+      },
+      {
+        "text": "để",
+        "startMs": 3129.375,
+        "endMs": 3235.291
+      },
+      {
+        "text": "tìm",
+        "startMs": 3235.333,
+        "endMs": 3425.999
+      },
+      {
+        "text": "hiểu",
+        "startMs": 3426.0,
+        "endMs": 3574.291
+      },
+      {
+        "text": "tình",
+        "startMs": 3574.291,
+        "endMs": 3743.791
+      },
+      {
+        "text": "hình.",
+        "startMs": 3743.791,
+        "endMs": 3966.249
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Xem",
+        "startMs": 15.0,
+        "endMs": 301.0
+      },
+      {
+        "text": "vị",
+        "startMs": 301.0,
+        "endMs": 428.125
+      },
+      {
+        "text": "trí",
+        "startMs": 428.125,
+        "endMs": 682.375
+      },
+      {
+        "text": "và",
+        "startMs": 682.375,
+        "endMs": 841.25
+      },
+      {
+        "text": "ảnh",
+        "startMs": 841.25,
+        "endMs": 1021.333
+      },
+      {
+        "text": "khi",
+        "startMs": 1021.333,
+        "endMs": 1169.624
+      },
+      {
+        "text": "có",
+        "startMs": 1169.625,
+        "endMs": 1264.958
+      },
+      {
+        "text": "dữ",
+        "startMs": 1265.0,
+        "endMs": 1423.875
+      },
+      {
+        "text": "liệu",
+        "startMs": 1423.875,
+        "endMs": 1709.875
+      },
+      {
+        "text": "mở",
+        "startMs": 1858.208,
+        "endMs": 2059.458
+      },
+      {
+        "text": "chỉ",
+        "startMs": 2059.458,
+        "endMs": 2207.749
+      },
+      {
+        "text": "đường",
+        "startMs": 2207.791,
+        "endMs": 2419.624
+      },
+      {
+        "text": "hoặc",
+        "startMs": 2419.625,
+        "endMs": 2567.916
+      },
+      {
+        "text": "gọi",
+        "startMs": 2567.958,
+        "endMs": 2737.458
+      },
+      {
+        "text": "liên",
+        "startMs": 2737.458,
+        "endMs": 2938.708
+      },
+      {
+        "text": "hệ",
+        "startMs": 2938.708,
+        "endMs": 3129.374
+      },
+      {
+        "text": "để",
+        "startMs": 3129.375,
+        "endMs": 3235.291
+      },
+      {
+        "text": "tìm",
+        "startMs": 3235.333,
+        "endMs": 3425.999
+      },
+      {
+        "text": "hiểu",
+        "startMs": 3426.0,
+        "endMs": 3574.291
+      },
+      {
+        "text": "tình",
+        "startMs": 3574.291,
+        "endMs": 3743.791
+      },
+      {
+        "text": "hình",
+        "startMs": 3743.791,
+        "endMs": 3966.249
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 25374.0,
+      "endMs": 29365.25
+    },
+    "sourceFile": "audio/north-v2/source-paragraph.wav"
+  },
+  {
+    "id": "Acknowledged",
+    "start": 33.9,
+    "duration": 3.3333333333333335,
+    "startFrame": 1017,
+    "durationInFrames": 100,
+    "file": "audio/north-v9/Acknowledged.wav",
+    "audioDuration": 3.3333333333333335,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "Người thân có thể tiếp nhận sự cố. Gia đình cùng phối hợp hỗ trợ.",
+    "spokenText": "Người thân có thể tiếp nhận sự cố. Gia đình cùng phối hợp hỗ trợ.",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "Người",
+        "startMs": 15.0,
+        "endMs": 258.625
+      },
+      {
+        "text": "thân",
+        "startMs": 258.625,
+        "endMs": 481.083
+      },
+      {
+        "text": "có",
+        "startMs": 481.083,
+        "endMs": 576.416
+      },
+      {
+        "text": "thể",
+        "startMs": 576.458,
+        "endMs": 714.166
+      },
+      {
+        "text": "tiếp",
+        "startMs": 714.166,
+        "endMs": 915.416
+      },
+      {
+        "text": "nhận",
+        "startMs": 915.416,
+        "endMs": 1127.291
+      },
+      {
+        "text": "sự",
+        "startMs": 1127.291,
+        "endMs": 1307.374
+      },
+      {
+        "text": "cố.",
+        "startMs": 1307.375,
+        "endMs": 1635.75
+      },
+      {
+        "text": "Gia",
+        "startMs": 1785.75,
+        "endMs": 2018.791
+      },
+      {
+        "text": "đình",
+        "startMs": 2018.791,
+        "endMs": 2251.832
+      },
+      {
+        "text": "cùng",
+        "startMs": 2251.875,
+        "endMs": 2442.541
+      },
+      {
+        "text": "phối",
+        "startMs": 2442.541,
+        "endMs": 2612.041
+      },
+      {
+        "text": "hợp",
+        "startMs": 2612.041,
+        "endMs": 2781.499
+      },
+      {
+        "text": "hỗ",
+        "startMs": 2781.5,
+        "endMs": 2940.416
+      },
+      {
+        "text": "trợ.",
+        "startMs": 2940.416,
+        "endMs": 3279.416
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Người",
+        "startMs": 15.0,
+        "endMs": 258.625
+      },
+      {
+        "text": "thân",
+        "startMs": 258.625,
+        "endMs": 481.083
+      },
+      {
+        "text": "có",
+        "startMs": 481.083,
+        "endMs": 576.416
+      },
+      {
+        "text": "thể",
+        "startMs": 576.458,
+        "endMs": 714.166
+      },
+      {
+        "text": "tiếp",
+        "startMs": 714.166,
+        "endMs": 915.416
+      },
+      {
+        "text": "nhận",
+        "startMs": 915.416,
+        "endMs": 1127.291
+      },
+      {
+        "text": "sự",
+        "startMs": 1127.291,
+        "endMs": 1307.374
+      },
+      {
+        "text": "cố",
+        "startMs": 1307.375,
+        "endMs": 1635.75
+      },
+      {
+        "text": "Gia",
+        "startMs": 1785.75,
+        "endMs": 2018.791
+      },
+      {
+        "text": "đình",
+        "startMs": 2018.791,
+        "endMs": 2251.832
+      },
+      {
+        "text": "cùng",
+        "startMs": 2251.875,
+        "endMs": 2442.541
+      },
+      {
+        "text": "phối",
+        "startMs": 2442.541,
+        "endMs": 2612.041
+      },
+      {
+        "text": "hợp",
+        "startMs": 2612.041,
+        "endMs": 2781.499
+      },
+      {
+        "text": "hỗ",
+        "startMs": 2781.5,
+        "endMs": 2940.416
+      },
+      {
+        "text": "trợ",
+        "startMs": 2940.416,
+        "endMs": 3279.416
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 85.0,
+      "endMs": 3941.5416666666665
+    },
+    "sourceFile": "audio/north-v3/acknowledgement-source.wav",
+    "audioEdit": "Entire acknowledgement scene revoiced; other scene PCM preserved from north-v2.",
+    "internalSentenceGapMs": 150.0,
+    "removedSentencePauseMs": 552.125
+  },
+  {
+    "id": "Closing",
+    "start": 37.233333333333334,
+    "duration": 2.2666666666666666,
+    "startFrame": 1117,
+    "durationInFrames": 68,
+    "file": "audio/north-v9/Closing.wav",
+    "audioDuration": 2.2666666666666666,
+    "playbackRate": 1,
+    "voiceStart": 0,
+    "text": "CareAI – Một kết nối, triệu yêu thương",
+    "spokenText": "Ke Ai một kết nối triệu yêu thương",
+    "voice": "vi-VN-NamMinhNeural",
+    "rate": "+18%",
+    "pitch": "-3Hz",
+    "words": [
+      {
+        "text": "CareAI",
+        "startMs": 15.0,
+        "endMs": 544.625
+      },
+      {
+        "text": "Một",
+        "startMs": 544.666,
+        "endMs": 714.166
+      },
+      {
+        "text": "kết",
+        "startMs": 714.166,
+        "endMs": 915.416
+      },
+      {
+        "text": "nối,",
+        "startMs": 915.416,
+        "endMs": 1095.499
+      },
+      {
+        "text": "triệu",
+        "startMs": 1095.5,
+        "endMs": 1328.541
+      },
+      {
+        "text": "yêu",
+        "startMs": 1328.541,
+        "endMs": 1476.832
+      },
+      {
+        "text": "thương",
+        "startMs": 1476.875,
+        "endMs": 1784.083
+      }
+    ],
+    "spokenWords": [
+      {
+        "text": "Ke",
+        "startMs": 15.0,
+        "endMs": 258.625
+      },
+      {
+        "text": "Ai",
+        "startMs": 258.625,
+        "endMs": 544.625
+      },
+      {
+        "text": "một",
+        "startMs": 544.666,
+        "endMs": 714.166
+      },
+      {
+        "text": "kết",
+        "startMs": 714.166,
+        "endMs": 915.416
+      },
+      {
+        "text": "nối",
+        "startMs": 915.416,
+        "endMs": 1095.499
+      },
+      {
+        "text": "triệu",
+        "startMs": 1095.5,
+        "endMs": 1328.541
+      },
+      {
+        "text": "yêu",
+        "startMs": 1328.541,
+        "endMs": 1476.832
+      },
+      {
+        "text": "thương",
+        "startMs": 1476.875,
+        "endMs": 1784.083
+      }
+    ],
+    "sourceTrim": {
+      "startMs": 85.0,
+      "endMs": 1894.0833333333333
+    },
+    "sourceFile": "audio/north-v6/Closing-source.wav",
+    "audioEdit": "Only the closing revoiced to the approved short slogan; other eight north-v5 scene files preserved byte-for-byte.",
+    "interWordGapEdits": [],
+    "maximumInterWordGapMs": 0.043,
+    "unspokenTypography": [
+      "–"
+    ],
+    "captionWordAlignment": "CareAI merges the spoken Ke Ai; standalone en dash is typographic and has no spoken word timing."
+  }
+]

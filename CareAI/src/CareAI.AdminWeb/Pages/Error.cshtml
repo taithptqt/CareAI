@@ -1,0 +1,4 @@
+@page
+@model CareAI.AdminWeb.Pages.ErrorModel
+@{ ViewData["Title"] = "Không thể tải trang"; }
+<section class="panel"><h1>Không thể tải trang</h1><p>Đã xảy ra lỗi khi xử lý yêu cầu. Không có dữ liệu nào được xác nhận là đã cập nhật.</p><p>Mã đối chiếu: <code>@Model.TraceId</code></p><a class="button" asp-page="/Overview">Về tổng quan</a></section>

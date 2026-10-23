@@ -1,0 +1,23 @@
+@model CareAI.AdminWeb.Pages.AdminModulePageModel
+<partial name="_PreviewNotice" />
+<form method="get" class="filters" role="search">
+    <div class="search-field"><label for="search">Tìm theo tên</label><input id="search" name="Search" value="@Model.Search" type="search" maxlength="120" /></div>
+    <button class="button primary" type="submit">Tìm kiếm</button><a href="@Context.Request.Path">Xóa bộ lọc</a>
+</form>
+<div class="result-meta"><strong>@Model.Data.TotalCount kết quả</strong><span>Cập nhật: @AdminDisplay.Time(Model.Data.AsOfUtc)</span></div>
+<section class="panel">
+@foreach (var row in Model.Data.Items)
+{
+    <article class="record-row">
+        <div class="panel-heading"><div><h2>@row.Title</h2><p>@row.Subtitle · @row.Status</p></div>
+        @if (!Model.Preview) { <a asp-page="/Manage" asp-route-kind="@Model.Kind" asp-route-id="@row.Id">Xem chi tiết →</a> }
+        </div>
+        <dl class="record-fields">@foreach (var field in row.Fields) { <div><dt>@field.Label</dt><dd>@field.Value</dd></div> }</dl>
+    </article>
+}
+@if (Model.Data.TotalCount == 0) { <p class="empty-state">Không có kết quả phù hợp.</p> }
+</section>
+<nav class="pagination" aria-label="Phân trang"><span>Trang @Model.Data.Page</span><div>
+@if (Model.Data.Page > 1) { <a class="button" asp-route-PageNumber="@(Model.Data.Page - 1)" asp-route-Search="@Model.Search">← Trước</a> }
+@if (Model.Data.Page * Model.Data.PageSize < Model.Data.TotalCount) { <a class="button" asp-route-PageNumber="@(Model.Data.Page + 1)" asp-route-Search="@Model.Search">Sau →</a> }
+</div></nav>

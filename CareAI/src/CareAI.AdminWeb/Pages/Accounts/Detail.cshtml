@@ -1,0 +1,19 @@
+@page "/Accounts/{id}"
+@model CareAI.AdminWeb.Pages.Accounts.DetailModel
+@{ ViewData["Title"] = Model.Account.FullName; }
+<a class="back-link" asp-page="/Accounts/Index">← Danh sách tài khoản</a>
+<div class="title-row"><div><h1>@Model.Account.FullName</h1><p>Thông tin tối thiểu phục vụ hỗ trợ.</p></div></div>
+<partial name="_PreviewNotice" />
+<section class="panel"><h2>Thông tin tài khoản</h2><dl class="detail-list">
+    <div><dt>ID</dt><dd>@Model.Account.Id</dd></div>
+    <div><dt>Email đã che</dt><dd>@Model.Account.MaskedEmail</dd></div>
+    <div><dt>Số điện thoại đã che</dt><dd>@Model.Account.MaskedPhone</dd></div>
+    <div><dt>Ngày tạo</dt><dd>@AdminDisplay.Time(Model.Account.CreatedAt)</dd></div>
+    <div><dt>Trạng thái hành chính</dt><dd>@AdminDisplay.Status(Model.Account.AdministrativeStatus)</dd></div>
+    <div><dt>Khóa đăng nhập tạm thời</dt><dd>@(Model.Account.LockoutEndUtc > Model.AsOfUtc ? $"Đến {AdminDisplay.Time(Model.Account.LockoutEndUtc)}" : "Không khóa tại thời điểm tải")</dd></div>
+    <div><dt>Liên kết đang hoạt động</dt><dd>@Model.Account.ActiveCareLinks</dd></div>
+</dl></section>
+<section class="panel compact"><h2>Thao tác quản trị</h2>
+@if (!WebMode.Preview && User.HasClaim("admin_permission", AdminPermissions.Manage))
+{ <a class="button" asp-page="/Manage" asp-route-kind="accounts" asp-route-id="@Model.Account.Id">Sửa thông tin / mở khóa đăng nhập</a> }
+<p>Đình chỉ và thu hồi JWT caregiver cần API ứng dụng hỗ trợ thu hồi phiên; không xác nhận đã thu hồi khi API Azure chưa thực thi.</p></section>

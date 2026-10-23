@@ -107,6 +107,10 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "Email hoặc mật khẩu không chính xác." });
         }
 
+        var adminState = _config.GetValue<bool>("AdminSecurity:EnforceCaregiverSessions")
+            ? await _db.Set<CareAI.Core.Entities.Admin.CaregiverAdminState>().AsNoTracking().SingleOrDefaultAsync(x => x.CaregiverId == caregiver.Id, ct) : null;
+        if (adminState?.IsSuspended == true) return StatusCode(403, new { error = "Tài khoản đang tạm ngưng. Vui lòng liên hệ hỗ trợ." });
+
         // KIỂM TRA KHÓA TÀI KHOẢN BRUTE-FORCE
         if (caregiver.LockoutEnd.HasValue && caregiver.LockoutEnd.Value > DateTime.UtcNow)
         {
@@ -160,7 +164,7 @@ public class AuthController : ControllerBase
         caregiver.LockoutEnd = null;
         await _db.SaveChangesAsync(ct);
 
-        var token = GenerateJwtToken(caregiver);
+        var token = GenerateJwtToken(caregiver, adminState?.SecurityVersion ?? 0);
         _logger.LogInformation("[AUTH] Người thân {CaregiverId} ({Email}) đăng nhập thành công.", caregiver.Id, caregiver.Email);
 
         return Ok(new AuthResponse(token, caregiver.Id, caregiver.FullName, caregiver.Email));
@@ -277,7 +281,7 @@ public class AuthController : ControllerBase
         return Ok(new ResetPasswordResponse("Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập với mật khẩu mới."));
     }
 
-    private string GenerateJwtToken(Caregiver caregiver)
+    private string GenerateJwtToken(Caregiver caregiver, int securityVersion = 0)
     {
         var jwtSecret = _config["Jwt:SecretKey"] ?? "CareAiSuperSecretKeyForDevelopment20261234567890!";
         var tokenHandler = new JwtSecurityTokenHandler();
@@ -290,7 +294,8 @@ public class AuthController : ControllerBase
                 new Claim(ClaimTypes.NameIdentifier, caregiver.Id),
                 new Claim(ClaimTypes.Name, caregiver.FullName),
                 new Claim(ClaimTypes.Email, caregiver.Email),
-                new Claim(ClaimTypes.Role, "Caregiver")
+                new Claim(ClaimTypes.Role, "Caregiver"),
+                new Claim("csv", securityVersion.ToString(System.Globalization.CultureInfo.InvariantCulture))
             }),
             Expires = DateTime.UtcNow.AddDays(30),
             Issuer = "CareAI.Server",

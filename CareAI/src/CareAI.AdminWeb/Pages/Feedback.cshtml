@@ -1,0 +1,30 @@
+@page
+@model CareAI.AdminWeb.Pages.FeedbackModel
+@{ ViewData["Title"] = "Phản hồi khách hàng"; }
+<div class="title-row"><div><h1>Phản hồi khách hàng</h1><p>Góp ý từ ứng dụng người thân, mới nhất trước. Mở từng phản hồi để đọc đầy đủ.</p></div></div>
+<partial name="_PreviewNotice" />
+<form method="get" class="filters" role="search" aria-label="Lọc phản hồi">
+    <div class="search-field"><label asp-for="Search">Tìm trong tiêu đề và nội dung</label><input asp-for="Search" type="search" maxlength="120" /></div>
+    <div><label asp-for="Category">Loại phản hồi</label><select asp-for="Category"><option value="">Tất cả</option><option value="Bug">Báo lỗi</option><option value="Suggestion">Đề xuất cải tiến</option><option value="Other">Góp ý khác</option></select></div>
+    <button class="button primary" type="submit">Áp dụng</button><a asp-page="/Feedback">Xóa bộ lọc</a>
+</form>
+<div class="result-meta"><strong>@Model.Data.TotalCount phản hồi</strong><span>Thời điểm dữ liệu: @AdminDisplay.Time(Model.Data.AsOfUtc)</span></div>
+<section class="panel feedback-inbox" aria-label="Danh sách phản hồi">
+@foreach (var item in Model.Data.Items)
+{
+    <details class="feedback-entry">
+        <summary><strong>@item.Subject</strong><span>@FeedbackModel.CategoryLabel(item.Category) · @item.SenderName · @AdminDisplay.Time(item.CreatedAtUtc)</span></summary>
+        <p class="feedback-message">@item.Message</p>
+        <small>ID phản hồi: @item.Id · ID người gửi: @item.CaregiverId</small>
+        <p>Trạng thái: @(item.Status == "Resolved" ? "Đã phản hồi" : item.Status == "InProgress" ? "Đang xử lý" : "Mới nhận")</p>
+        @if (item.AdminReply is not null) { <p class="feedback-message">Trả lời: @item.AdminReply</p> }
+        @if (!WebMode.Preview && User.HasClaim("admin_permission", AdminPermissions.Manage)) { <a class="button" asp-page="/Manage" asp-route-kind="feedback" asp-route-id="@item.Id">Xử lý / trả lời khách hàng</a> }
+    </details>
+}
+@if (Model.Data.Items.Count == 0) { <p class="empty-state">Chưa có phản hồi phù hợp. Thử xóa bộ lọc hoặc tải lại sau.</p> }
+</section>
+<nav class="pagination" aria-label="Phân trang phản hồi"><span>Trang @Model.Data.Page · Tối đa 25 phản hồi mỗi trang</span><div>
+@if (Model.Data.Page > 1) { <a class="button" asp-route-PageNumber="@(Model.Data.Page - 1)" asp-route-Search="@Model.Search" asp-route-Category="@Model.Category">← Trước</a> }
+@if (Model.Data.Page * Model.Data.PageSize < Model.Data.TotalCount) { <a class="button" asp-route-PageNumber="@(Model.Data.Page + 1)" asp-route-Search="@Model.Search" asp-route-Category="@Model.Category">Sau →</a> }
+</div></nav>
+<p class="panel-footnote">Đây là hộp thư góp ý, không phải kênh tiếp nhận SOS. Trả lời được lưu vào lịch sử feedback trên app; không tự gửi email hoặc push.</p>

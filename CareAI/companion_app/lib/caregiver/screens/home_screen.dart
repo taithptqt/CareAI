@@ -1,15 +1,21 @@
+import '../../theme/careai_theme.dart';
+import '../../widgets/careai_ui.dart';
+
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 import '../services/caregiver_push_service.dart';
 import '../services/power_optimization_service.dart';
 import '../services/place_search_service.dart';
 import '../widgets/home_address_field.dart';
+import '../widgets/family_overview.dart';
 import 'elder_dashboard_screen.dart';
 import 'incident_detail_screen.dart';
 import 'incident_history_screen.dart';
@@ -17,7 +23,10 @@ import 'login_screen.dart';
 import 'server_config_dialog.dart';
 import 'family_management_screen.dart';
 import 'elder_edit_dialog.dart';
+import 'feedback_screen.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../screens/device_pairing_screen.dart';
 import '../../screens/role_selection_screen.dart';
 import '../../screens/sos_button_screen.dart';
@@ -118,7 +127,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) {
         setState(() => _isLoadingElders = false);
         if (e.toString().contains('hết hạn')) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
         }
       }
     }
@@ -131,7 +143,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final list = await CaregiverApiService.instance.getActiveIncidents();
       debugPrint("[CAREGIVER-APP] Loaded `${list.length} incidents.");
       if (mounted) {
-        final emergencies = list.where((i) => i.isOpen && i.severity == 'Critical').toList();
+        final emergencies = list
+            .where((i) => i.isOpen && i.severity == 'Critical')
+            .toList();
         final first = emergencies.isEmpty ? null : emergencies.first;
         if (first != null && _currentEmergency?.id != first.id) {
           HapticFeedback.heavyImpact();
@@ -176,7 +190,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final cycle = _alarmCycles.remove(id)!;
       try {
         await _alarm.invokeMethod<void>('stop', {
-          'incidentId': id, 'alertCycleNumber': cycle,
+          'incidentId': id,
+          'alertCycleNumber': cycle,
         });
       } catch (error) {
         debugPrint('[CAREGIVER-APP] Không thể dừng còi: $error');
@@ -213,7 +228,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (type.contains('FALL')) {
       return 'TÉ NGÃ: ${incident.elderName}';
     }
-    if (type.contains('LOW_OXYGEN') || type.contains('LOWOXYGEN') || type.contains('OXYGEN') || type.contains('SPO2')) {
+    if (type.contains('LOW_OXYGEN') ||
+        type.contains('LOWOXYGEN') ||
+        type.contains('OXYGEN') ||
+        type.contains('SPO2')) {
       return 'SPO2 THẤP: ${incident.elderName}';
     }
     if (type.contains('TACHYCARDIA')) {
@@ -233,24 +251,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   String _emergencyDescription(Incident incident) {
     final type = incident.emergencyType.toUpperCase();
-    if (type.contains('FALL')) return '${incident.elderName} vừa bị ngã. Cần kiểm tra và tiếp nhận ngay.';
-    if (type.contains('LOW_OXYGEN') || type.contains('LOWOXYGEN') || type.contains('OXYGEN')) return '${incident.elderName} có nồng độ oxy máu SpO₂ thấp. Cần kiểm tra ngay.';
-    if (type.contains('TACHYCARDIA')) return '${incident.elderName} có nhịp tim nhanh nguy hiểm. Cần kiểm tra ngay.';
-    if (type.contains('BRADYCARDIA')) return '${incident.elderName} có nhịp tim chậm nguy hiểm. Cần kiểm tra ngay.';
-    if (type.contains('SURGE')) return '${incident.elderName} có nhịp tim tăng vọt bất thường. Cần kiểm tra ngay.';
-    if (type.contains('HYPERTENSION')) return '${incident.elderName} có dấu hiệu cơn tăng huyết áp nguy hiểm.';
-    if (type.contains('STALE') || type.contains('OFFLINE')) return 'Tất cả thiết bị của ${incident.elderName} đã mất tín hiệu kết nối.';
-    if (type.contains('SOS')) return '${incident.elderName} đã kích hoạt nút cứu hộ khẩn cấp SOS.';
+    if (type.contains('FALL')) {
+      return '${incident.elderName} vừa bị ngã. Cần kiểm tra và tiếp nhận ngay.';
+    }
+    if (type.contains('LOW_OXYGEN') ||
+        type.contains('LOWOXYGEN') ||
+        type.contains('OXYGEN')) {
+      return '${incident.elderName} có nồng độ oxy máu SpO₂ thấp. Cần kiểm tra ngay.';
+    }
+    if (type.contains('TACHYCARDIA')) {
+      return '${incident.elderName} có nhịp tim nhanh nguy hiểm. Cần kiểm tra ngay.';
+    }
+    if (type.contains('BRADYCARDIA')) {
+      return '${incident.elderName} có nhịp tim chậm nguy hiểm. Cần kiểm tra ngay.';
+    }
+    if (type.contains('SURGE')) {
+      return '${incident.elderName} có nhịp tim tăng vọt bất thường. Cần kiểm tra ngay.';
+    }
+    if (type.contains('HYPERTENSION')) {
+      return '${incident.elderName} có dấu hiệu cơn tăng huyết áp nguy hiểm.';
+    }
+    if (type.contains('STALE') || type.contains('OFFLINE')) {
+      return 'Tất cả thiết bị của ${incident.elderName} đã mất tín hiệu kết nối.';
+    }
+    if (type.contains('SOS')) {
+      return '${incident.elderName} đã kích hoạt nút cứu hộ khẩn cấp SOS.';
+    }
     return '${incident.elderName} đang cần trợ giúp khẩn cấp. Hãy tiếp nhận ngay.';
   }
 
   IconData _emergencyIcon(String type) {
     final upper = type.toUpperCase();
     if (upper.contains('FALL')) return Icons.warning_rounded;
-    if (upper.contains('OXYGEN') || upper.contains('SPO2')) return Icons.air_rounded;
-    if (upper.contains('TACHYCARDIA') || upper.contains('BRADYCARDIA') || upper.contains('SURGE') || upper.contains('HR') || upper.contains('HEART')) return Icons.monitor_heart_rounded;
-    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) return Icons.speed_rounded;
-    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.wifi_off_rounded;
+    if (upper.contains('OXYGEN') || upper.contains('SPO2')) {
+      return Icons.air_rounded;
+    }
+    if (upper.contains('TACHYCARDIA') ||
+        upper.contains('BRADYCARDIA') ||
+        upper.contains('SURGE') ||
+        upper.contains('HR') ||
+        upper.contains('HEART')) {
+      return Icons.monitor_heart_rounded;
+    }
+    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) {
+      return Icons.speed_rounded;
+    }
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) {
+      return Icons.wifi_off_rounded;
+    }
     if (upper.contains('SOS')) return Icons.emergency_rounded;
     return Icons.warning_amber_rounded;
   }
@@ -258,12 +306,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _emergencyLabel(String type) {
     final upper = type.toUpperCase();
     if (upper.contains('FALL')) return 'Té Ngã';
-    if (upper.contains('LOW_OXYGEN') || upper.contains('LOWOXYGEN') || upper.contains('OXYGEN')) return 'Oxy Máu Thấp';
+    if (upper.contains('LOW_OXYGEN') ||
+        upper.contains('LOWOXYGEN') ||
+        upper.contains('OXYGEN')) {
+      return 'Oxy Máu Thấp';
+    }
     if (upper.contains('TACHYCARDIA')) return 'Nhịp Tim Nhanh';
     if (upper.contains('BRADYCARDIA')) return 'Nhịp Tim Chậm';
     if (upper.contains('SURGE')) return 'Nhịp Tim Tăng Vọt';
     if (upper.contains('HYPERTENSION')) return 'Cơn Tăng Huyết Áp';
-    if (upper.contains('STALE') || upper.contains('OFFLINE')) return 'Mất Tín Hiệu';
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) {
+      return 'Mất Tín Hiệu';
+    }
     if (upper.contains('SOS')) return 'Nút Khẩn Cấp SOS';
     return type;
   }
@@ -280,19 +334,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDState) => AlertDialog(
-          title: const Text('Thêm Hồ Sơ Người Cao Tuổi'),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          title: const Text('Thêm người thân'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Họ và tên Người cao tuổi *', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Họ và tên *'),
                 ),
                 const SizedBox(height: 12),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Ngày sinh: ${DateFormat('dd/MM/yyyy').format(selectedDob)}'),
+                  title: Text(
+                    'Ngày sinh: ${DateFormat('dd/MM/yyyy').format(selectedDob)}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
                   trailing: const Icon(Icons.calendar_today, size: 20),
                   onTap: () async {
                     final picked = await showDatePicker(
@@ -309,13 +370,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 8),
                 TextField(
                   controller: notesCtrl,
-                  decoration: const InputDecoration(labelText: 'Tiền sử bệnh lý (tùy chọn)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Tiền sử bệnh lý',
+                    helperText: 'Không bắt buộc',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'SĐT khẩn cấp (tùy chọn)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Số khẩn cấp',
+                    helperText: 'Không bắt buộc',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 HomeAddressField(
@@ -326,9 +393,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4A3020),
+              ),
               onPressed: () async {
                 if (nameCtrl.text.trim().isEmpty) return;
                 Navigator.pop(ctx);
@@ -345,18 +417,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _loadElders();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã tạo hồ sơ Người cao tuổi thành công!'), backgroundColor: Colors.green),
+                      const SnackBar(
+                        content: Text(
+                          'Đã tạo hồ sơ Người cao tuổi thành công!',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
                     );
                   }
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text('Lỗi: $e'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 }
               },
-              child: const Text('Tạo Hồ Sơ', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Tạo hồ sơ',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -366,37 +449,53 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _editHomeAddress(ElderItem elder) async {
     var editedAddress = elder.homeAddress ?? '';
-    PlaceSuggestion? editedPlace = elder.homeLatitude != null &&
-            elder.homeLongitude != null
-        ? PlaceSuggestion(editedAddress,
-            latitude: elder.homeLatitude, longitude: elder.homeLongitude)
+    PlaceSuggestion? editedPlace =
+        elder.homeLatitude != null && elder.homeLongitude != null
+        ? PlaceSuggestion(
+            editedAddress,
+            latitude: elder.homeLatitude,
+            longitude: elder.homeLongitude,
+          )
         : null;
-    final address = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
-      title: Text('Địa chỉ nhà của ${elder.fullName}'),
-      content: SingleChildScrollView(
-        child: HomeAddressField(
-          initialValue: editedAddress,
-          initialLatitude: elder.homeLatitude,
-          initialLongitude: elder.homeLongitude,
-          onChanged: (value) => editedAddress = value,
-          onPlaceSelected: (place) => editedPlace = place,
+    final address = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Địa chỉ nhà của ${elder.fullName}'),
+        content: SingleChildScrollView(
+          child: HomeAddressField(
+            initialValue: editedAddress,
+            initialLatitude: elder.homeLatitude,
+            initialLongitude: elder.homeLongitude,
+            onChanged: (value) => editedAddress = value,
+            onPlaceSelected: (place) => editedPlace = place,
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, editedAddress.trim()),
+            child: const Text('Lưu địa chỉ'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, editedAddress.trim()),
-          child: const Text('Lưu địa chỉ')),
-      ],
-    ));
+    );
     if (address == null || !mounted) return;
     try {
-      await CaregiverApiService.instance.updateElderHomeAddress(elder.id, address,
-        latitude: editedPlace?.latitude, longitude: editedPlace?.longitude);
+      await CaregiverApiService.instance.updateElderHomeAddress(
+        elder.id,
+        address,
+        latitude: editedPlace?.latitude,
+        longitude: editedPlace?.longitude,
+      );
       if (mounted) await _loadElders();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể lưu địa chỉ: $error')));
+          SnackBar(content: Text('Không thể lưu địa chỉ: $error')),
+        );
       }
     }
   }
@@ -412,26 +511,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Nhập mã 6 số này vào ứng dụng Companion của Người cao tuổi:'),
+                const Text(
+                  'Nhập mã 6 số này vào ứng dụng Companion của Người cao tuổi:',
+                ),
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
+                    color: const Color(0xFFF8E5DC),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF0284C7), width: 2),
+                    border: Border.all(
+                      color: const Color(0xFF4A3020),
+                      width: 2,
+                    ),
                   ),
                   child: Text(
                     pin,
-                    style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold, letterSpacing: 8, color: Color(0xFF0284C7)),
+                    style: const TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 8,
+                      color: Color(0xFF4A3020),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text('Hiệu lực trong vòng 15 phút (Lưu băm SHA-256 an toàn)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text(
+                  'Hiệu lực trong vòng 15 phút (Lưu băm SHA-256 an toàn)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Đóng'),
+              ),
             ],
           ),
         );
@@ -468,7 +586,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         builder: (ctx, setDState) => AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.group_add, color: Color(0xFF0284C7)),
+              Icon(Icons.group_add, color: Color(0xFF4A3020)),
               SizedBox(width: 8),
               Text('Tham Gia Nhóm Gia Đình', style: TextStyle(fontSize: 16)),
             ],
@@ -479,14 +597,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               const Text(
                 'Nhập mã mời 6 ký tự do Người bảo hộ chính cung cấp:',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 12, color: Color(0xFF7D7168)),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: codeCtrl,
                 textCapitalization: TextCapitalization.characters,
                 maxLength: 6,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 4,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Mã Mời (VD: A3X7K2)',
                   border: OutlineInputBorder(),
@@ -494,13 +616,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               if (dialogError != null)
-                Text(dialogError!, style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                Text(
+                  dialogError!,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFDC2626),
+                  ),
+                ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4A3020),
+                foregroundColor: Colors.white,
+              ),
               onPressed: isAccepting
                   ? null
                   : () async {
@@ -511,13 +645,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         dialogError = null;
                       });
                       try {
-                        final res = await CaregiverApiService.instance.acceptFamilyInvitation(code);
+                        final res = await CaregiverApiService.instance
+                            .acceptFamilyInvitation(code);
                         if (ctx.mounted) Navigator.pop(ctx);
                         _loadElders();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Đã tham gia nhóm chăm sóc người cao tuổi ${res.elderName} thành công!'),
+                              content: Text(
+                                'Đã tham gia nhóm chăm sóc người cao tuổi ${res.elderName} thành công!',
+                              ),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -525,12 +662,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       } catch (e) {
                         setDState(() {
                           isAccepting = false;
-                          dialogError = e.toString().replaceAll('Exception:', '').trim();
+                          dialogError = e
+                              .toString()
+                              .replaceAll('Exception:', '')
+                              .trim();
                         });
                       }
                     },
               child: isAccepting
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Tham Gia'),
             ),
           ],
@@ -542,37 +689,60 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
-        title: const Text('CareAI Người Thân', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: const Color(0xFF0284C7),
-        foregroundColor: Colors.white,
+        toolbarHeight: 64,
+        titleSpacing: 20,
+        title: PopupMenuButton<String>(
+          tooltip: 'Mở menu CareAI',
+          offset: const Offset(0, 52),
+          onSelected: (action) {
+            switch (action) {
+              case 'history':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const IncidentHistoryScreen(),
+                  ),
+                );
+              case 'invite':
+                _showAcceptInvitationDialog();
+              case 'refresh':
+                _loadElders();
+                _loadActiveIncidents();
+              case 'settings':
+                showDialog(
+                  context: context,
+                  builder: (_) => const ServerConfigDialog(),
+                );
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'history', child: Text('Lịch sử sự cố')),
+            PopupMenuItem(value: 'invite', child: Text('Nhập mã mời gia đình')),
+            PopupMenuItem(value: 'refresh', child: Text('Làm mới dữ liệu')),
+            PopupMenuItem(value: 'settings', child: Text('Cài đặt kết nối')),
+          ],
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: CareAiBrand(),
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'Lịch sử sự cố',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.group_add_outlined),
-            tooltip: 'Nhập mã mời tham gia nhóm',
-            onPressed: _showAcceptInvitationDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              _loadElders();
-              _loadActiveIncidents();
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => const ServerConfigDialog(),
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: IconButton(
+              tooltip: 'Xem sự cố đang theo dõi',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: CareAiColors.muted),
+              ),
+              onPressed: () => setState(() => _currentIndex = 1),
+              icon: Badge(
+                isLabelVisible: _activeIncidents.any((i) => i.isOpen),
+                smallSize: 7,
+                child: const Icon(Icons.notifications_none_rounded, size: 22),
+              ),
             ),
           ),
         ],
@@ -599,55 +769,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people, color: Color(0xFF0284C7)),
-            label: 'Người Cao Tuổi',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: _activeIncidents.any((i) => i.isOpen),
-              label: Text('${_activeIncidents.where((i) => i.isOpen).length}'),
-              child: const Icon(Icons.notification_important_outlined),
-            ),
-            selectedIcon: const Icon(Icons.notification_important, color: Color(0xFFDC2626)),
-            label: 'Sự Cố Cứu Hộ',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: Color(0xFF0284C7)),
-            label: 'Tài Khoản',
-          ),
-        ],
+      bottomNavigationBar: CareAiFamilyDock(
+        index: _currentIndex,
+        onSelect: (idx) => setState(() => _currentIndex = idx),
+        onAdd: _showAddElderDialog,
+        onHistory: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
+        ),
+        openIncidents: _activeIncidents.where((i) => i.isOpen).length,
       ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton.extended(
-              backgroundColor: const Color(0xFF0284C7),
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.person_add),
-              label: const Text('Thêm Người Cao Tuổi'),
-              onPressed: _showAddElderDialog,
-            )
-          : null,
     );
   }
 
   Widget _buildStickyEmergencyAlert() {
     final inc = _currentEmergency!;
-    final count = _activeIncidents.where((i) => i.isOpen && i.severity == 'Critical').length;
+    final count = _activeIncidents
+        .where((i) => i.isOpen && i.severity == 'Critical')
+        .length;
     final type = inc.emergencyType.toUpperCase();
     final isStale = type.contains('STALE') || type.contains('OFFLINE');
     final isSilenced = _isEmergencySilenced(inc);
 
     final headerTitle = isStale ? 'CẢNH BÁO MẤT TÍN HIỆU' : 'BÁO ĐỘNG KHẨN CẤP';
-    final headerIcon = isStale ? Icons.wifi_off_rounded : Icons.notification_important;
-    final bannerBg = isStale ? const Color(0xFFB45309) : const Color(0xFFB91C1C);
-    final btnTextColor = isStale ? const Color(0xFF92400E) : const Color(0xFF991B1B);
-    final btnLabel = isStale ? 'KIỂM TRA VÀ TIẾP NHẬN SỰ CỐ' : 'XEM VÀ TIẾP NHẬN SỰ CỐ';
+    final headerIcon = isStale
+        ? Icons.wifi_off_rounded
+        : Icons.notification_important;
+    final bannerBg = isStale
+        ? const Color(0xFFB45309)
+        : const Color(0xFFB91C1C);
+    final btnTextColor = isStale
+        ? const Color(0xFF92400E)
+        : const Color(0xFF991B1B);
+    final btnLabel = isStale
+        ? 'KIỂM TRA VÀ TIẾP NHẬN SỰ CỐ'
+        : 'XEM VÀ TIẾP NHẬN SỰ CỐ';
 
     return Container(
       width: double.infinity,
@@ -656,16 +812,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(children: [
-            Icon(headerIcon, color: Colors.white, size: 22),
-            const SizedBox(width: 8),
-            Text(headerTitle, style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
-          ]),
+          Row(
+            children: [
+              Icon(headerIcon, color: Colors.white, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                headerTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
             '${inc.elderName} - ${_emergencyLabel(inc.emergencyType)}',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -684,11 +852,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       foregroundColor: Colors.white,
                       side: const BorderSide(color: Colors.white, width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: () => _silenceCurrentAlarm(inc),
                     icon: const Icon(Icons.volume_off_rounded, size: 18),
-                    label: const Text('TẮT CÒI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    label: const Text(
+                      'TẮT CÒI',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -699,22 +875,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       backgroundColor: Colors.white,
                       foregroundColor: btnTextColor,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: () async {
                       final changed = await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => IncidentDetailScreen(
-                          incident: inc,
-                          initialSilence: isSilenced,
-                        )),
+                        MaterialPageRoute(
+                          builder: (_) => IncidentDetailScreen(
+                            incident: inc,
+                            initialSilence: isSilenced,
+                          ),
+                        ),
                       );
                       if (changed == true) unawaited(_loadActiveIncidents());
                     },
                     icon: const Icon(Icons.open_in_new, size: 18),
-                    label: const Text('XEM & TIẾP NHẬN',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      overflow: TextOverflow.ellipsis),
+                    label: const Text(
+                      'XEM & TIẾP NHẬN',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],
@@ -726,7 +911,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 SizedBox(width: 6),
                 Text(
                   'Đã tạm tắt còi hú trên máy này',
-                  style: TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
             ),
@@ -736,21 +925,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 backgroundColor: Colors.white,
                 foregroundColor: btnTextColor,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () async {
                 final changed = await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => IncidentDetailScreen(
-                    incident: inc,
-                    initialSilence: true,
-                  )),
+                  MaterialPageRoute(
+                    builder: (_) => IncidentDetailScreen(
+                      incident: inc,
+                      initialSilence: true,
+                    ),
+                  ),
                 );
                 if (changed == true) unawaited(_loadActiveIncidents());
               },
               icon: const Icon(Icons.open_in_new),
-              label: Text(btnLabel,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+              label: Text(
+                btnLabel,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ],
@@ -762,155 +957,226 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isLoadingElders) {
       return const Center(child: CircularProgressIndicator());
     }
-
     if (_elders.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      return CareAiEmptyState(
+        icon: Icons.family_restroom_rounded,
+        title: 'Bắt đầu từ người thương',
+        description: 'Thêm hồ sơ người cao tuổi hoặc nhập mã mời để cùng gia đình chăm sóc.',
+        action: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.person_search, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 12),
-            const Text('Chưa có hồ sơ người cao tuổi nào', style: TextStyle(fontSize: 16, color: Colors.grey)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7)),
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Thêm Hồ Sơ Đầu Tiên', style: TextStyle(color: Colors.white)),
+            FilledButton.icon(
               onPressed: _showAddElderDialog,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Thêm hồ sơ đầu tiên'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _showAcceptInvitationDialog,
+              child: const Text('Tôi có mã mời gia đình'),
             ),
           ],
         ),
       );
     }
-
     return RefreshIndicator(
       onRefresh: _loadElders,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-        itemCount: _elders.length,
-        itemBuilder: (ctx, idx) {
-          final elder = _elders[idx];
-          final isOnline = elder.deviceStatus == 'ONLINE';
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 1,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ElderDashboardScreen(elderProfileId: elder.id, elderName: elder.fullName),
-                  ),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: const Color(0xFFE0F2FE),
-                          child: Text(
-                            elder.fullName.isNotEmpty ? elder.fullName[0].toUpperCase() : 'C',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0284C7)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                elder.fullName,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                              ),
-                              const SizedBox(height: 2),
-                              Text('${elder.age} tuổi', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isOnline ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isOnline ? const Color(0xFF86EFAC) : const Color(0xFFCBD5E1)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isOnline ? Colors.green : Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                isOnline ? 'Online' : 'Offline',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isOnline ? Colors.green[800] : Colors.grey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 20),
-                    Row(children: [
-                      const Icon(Icons.home_outlined, size: 17, color: Color(0xFF475569)),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(
-                        elder.homeAddress?.isNotEmpty == true
-                            ? elder.homeAddress! : 'Chưa có địa chỉ nhà để cứu hộ',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
-                      )),
-                      TextButton(onPressed: () => _editHomeAddress(elder),
-                        child: const Text('Sửa')),
-                    ]),
-                    const Divider(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton.icon(
-                          icon: const Icon(Icons.key, size: 16, color: Color(0xFF0284C7)),
-                          label: const Text('Mã PIN (15p)', style: TextStyle(color: Color(0xFF0284C7), fontSize: 12)),
-                          onPressed: () => _generatePinForElder(elder),
-                        ),
-                        TextButton.icon(
-                          icon: const Icon(Icons.groups_outlined, size: 16, color: Color(0xFF0284C7)),
-                          label: const Text('Gia Đình', style: TextStyle(color: Color(0xFF0284C7), fontSize: 12)),
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FamilyManagementScreen(elderId: elder.id, elderName: elder.fullName),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.settings_outlined, size: 18, color: Color(0xFF64748B)),
-                          tooltip: 'Chỉnh sửa / Quản trị',
-                          onPressed: () => _showEditElderDialog(elder),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
+        children: [
+          CareAiFamilyOverview(
+            caregiverName: _caregiverName,
+            elderCount: _elders.length,
+            openIncidents: _activeIncidents.where((i) => i.isOpen).length,
+            isLoadingIncidents: _isLoadingIncidents,
+            onIncidents: () => setState(() => _currentIndex = 1),
+          ),
+          const SizedBox(height: 24),
+          CareAiSectionHeading(
+            'Người thân yêu',
+            subtitle: 'Chọn hồ sơ để xem thông tin sức khỏe.',
+            trailing: IconButton(
+              onPressed: _showAddElderDialog,
+              tooltip: 'Thêm hồ sơ',
+              icon: const Icon(
+                Icons.add_circle_outline_rounded,
+                color: CareAiColors.brown,
               ),
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 16),
+          ..._elders.map((elder) {
+            final isOnline = elder.deviceStatus == 'ONLINE';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ElderDashboardScreen(
+                        elderProfileId: elder.id,
+                        elderName: elder.fullName,
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 27,
+                              backgroundColor: CareAiColors.peach,
+                              child: Text(
+                                elder.fullName.isNotEmpty
+                                    ? elder.fullName[0].toUpperCase()
+                                    : 'C',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: CareAiColors.brown,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    elder.fullName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: CareAiColors.ink,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    '${elder.age} tuổi',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: CareAiColors.secondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: CareAiColors.secondary,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Icon(
+                              isOnline
+                                  ? Icons.check_circle_outline_rounded
+                                  : Icons.wifi_off_rounded,
+                              size: 17,
+                              color: isOnline
+                                  ? CareAiColors.greenInk
+                                  : CareAiColors.secondary,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                isOnline
+                                    ? 'Thiết bị đang kết nối'
+                                    : 'Thiết bị chưa kết nối',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: isOnline
+                                      ? CareAiColors.greenInk
+                                      : CareAiColors.secondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.home_outlined,
+                              size: 18,
+                              color: CareAiColors.secondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                elder.homeAddress?.isNotEmpty == true
+                                    ? elder.homeAddress!
+                                    : 'Chưa thêm địa chỉ nhà',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  color: CareAiColors.secondary,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => _editHomeAddress(elder),
+                              tooltip: 'Sửa địa chỉ nhà',
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 19,
+                                color: CareAiColors.brown,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => _generatePinForElder(elder),
+                              icon: const Icon(Icons.key_rounded, size: 18),
+                              label: const Text('Ghép thiết bị'),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FamilyManagementScreen(
+                                    elderId: elder.id,
+                                    elderName: elder.fullName,
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(Icons.groups_outlined, size: 18),
+                              label: const Text('Gia đình'),
+                            ),
+                            IconButton(
+                              onPressed: () => _showEditElderDialog(elder),
+                              tooltip: 'Chỉnh sửa hồ sơ',
+                              icon: const Icon(
+                                Icons.more_horiz_rounded,
+                                color: CareAiColors.brown,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -921,25 +1187,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     if (_activeIncidents.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.shield_outlined, size: 64, color: Colors.green[400]),
-            const SizedBox(height: 12),
-            const Text('Hệ Thống An Toàn', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-            const SizedBox(height: 4),
-            const Text('Hiện không có sự cố khẩn cấp nào đang mở.', style: TextStyle(fontSize: 13, color: Colors.grey)),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.history),
-              label: const Text('Tra cứu lịch sử sự cố'),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
-              ),
-            ),
-          ],
+      return CareAiEmptyState(
+        icon: Icons.notifications_none_rounded,
+        title: 'Chưa có sự cố đang mở',
+        description: 'Các sự cố cần gia đình xử lý sẽ xuất hiện ở đây.',
+        action: OutlinedButton.icon(
+          icon: const Icon(Icons.history_rounded),
+          label: const Text('Xem lịch sử chăm sóc'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
+          ),
         ),
       );
     }
@@ -953,16 +1211,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (idx == 0) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
                 children: [
-                  const Text('Sự cố đang xử lý', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                  const Text(
+                    'Cần gia đình quan tâm',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF231811),
+                    ),
+                  ),
                   TextButton.icon(
-                    icon: const Icon(Icons.history, size: 16, color: Color(0xFF0284C7)),
-                    label: const Text('Xem lịch sử', style: TextStyle(fontSize: 12, color: Color(0xFF0284C7))),
+                    icon: const Icon(
+                      Icons.history,
+                      size: 16,
+                      color: Color(0xFF4A3020),
+                    ),
+                    label: const Text(
+                      'Xem lịch sử',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF4A3020)),
+                    ),
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const IncidentHistoryScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const IncidentHistoryScreen(),
+                      ),
                     ),
                   ),
                 ],
@@ -973,70 +1249,113 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final isOpen = inc.isOpen;
           final type = inc.emergencyType.toUpperCase();
           final isStale = type.contains('STALE') || type.contains('OFFLINE');
-          final isVitals = type.contains('OXYGEN') || type.contains('SPO2') || type.contains('TACHYCARDIA') || type.contains('BRADYCARDIA') || type.contains('SURGE') || type.contains('HYPERTENSION');
+          final isVitals =
+              type.contains('OXYGEN') ||
+              type.contains('SPO2') ||
+              type.contains('TACHYCARDIA') ||
+              type.contains('BRADYCARDIA') ||
+              type.contains('SURGE') ||
+              type.contains('HYPERTENSION');
 
-          final Color cardColor;
-          final Color iconBgColor;
-          if (isOpen) {
-            if (isStale) {
-              cardColor = const Color(0xFFFFFBEB); // Amber 50
-              iconBgColor = const Color(0xFFD97706); // Amber 600
-            } else if (isVitals) {
-              cardColor = const Color(0xFFFFF7ED); // Orange 50
-              iconBgColor = const Color(0xFFEA580C); // Orange 600
-            } else {
-              cardColor = const Color(0xFFFEF2F2); // Red 50
-              iconBgColor = const Color(0xFFDC2626); // Red 600
-            }
-          } else {
-            cardColor = Colors.white;
-            iconBgColor = const Color(0xFF059669); // Emerald 600 khi đã tiếp nhận
-          }
+          final accent = !isOpen
+              ? CareAiColors.greenInk
+              : isStale
+              ? CareAiColors.amber
+              : isVitals
+              ? CareAiColors.brown
+              : CareAiColors.danger;
+          final tint = !isOpen
+              ? CareAiColors.greenSurface
+              : isStale || isVitals
+              ? CareAiColors.peach
+              : CareAiColors.dangerSurface;
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: isOpen ? 3 : 1,
-            color: cardColor,
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(14),
-              leading: CircleAvatar(
-                backgroundColor: iconBgColor,
-                child: Icon(
-                  _emergencyIcon(inc.emergencyType),
-                  color: Colors.white,
-                  size: 20,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Material(
+              color: CareAiColors.surface,
+              borderRadius: BorderRadius.circular(24),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () async {
+                  final changed = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => IncidentDetailScreen(incident: inc),
+                    ),
+                  );
+                  if (changed == true) {
+                    _loadActiveIncidents();
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: tint,
+                            child: Icon(
+                              _emergencyIcon(inc.emergencyType),
+                              color: accent,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  inc.elderName,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _emergencyLabel(inc.emergencyType),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: accent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: CareAiColors.secondary,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      CareAiStatusLabel(
+                        label: isOpen ? 'Chưa tiếp nhận' : 'Đã tiếp nhận',
+                        icon: isOpen
+                            ? Icons.priority_high_rounded
+                            : Icons.check_rounded,
+                        color: accent,
+                        background: tint,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        DateFormat('HH:mm:ss · dd/MM')
+                            .format(inc.triggeredAt.toLocal()),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: CareAiColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              title: Text(
-                '${_emergencyLabel(inc.emergencyType)} - ${inc.elderName}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text('Thời gian: ${DateFormat('HH:mm:ss dd/MM').format(inc.triggeredAt.toLocal())}'),
-                  const SizedBox(height: 2),
-                  Text(
-                    isOpen ? 'Trạng thái: CHƯA TIẾP NHẬN' : 'Trạng thái: ĐÃ TIẾP NHẬN',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isOpen ? iconBgColor : const Color(0xFF059669),
-                    ),
-                  ),
-                ],
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () async {
-                final changed = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => IncidentDetailScreen(incident: inc)),
-                );
-                if (changed == true) {
-                  _loadActiveIncidents();
-                }
-              },
             ),
           );
         },
@@ -1044,109 +1363,192 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildProfileTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundColor: const Color(0xFFE0F2FE),
-            child: const Icon(Icons.person, size: 40, color: Color(0xFF0284C7)),
+  Widget _buildProfileTab() => SingleChildScrollView(
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Tài khoản của bạn',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: CareAiColors.peach,
+            borderRadius: BorderRadius.circular(26),
           ),
-          const SizedBox(height: 12),
-          Text(
-            _caregiverName,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-          ),
-          Text(_caregiverEmail, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-          const SizedBox(height: 24),
-
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.dns_outlined, color: Color(0xFF0284C7)),
-                  title: const Text('Cài đặt máy chủ Backend'),
-                  subtitle: Text(CaregiverApiService.instance.currentServerUrl, overflow: TextOverflow.ellipsis),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () => showDialog(
-                    context: context,
-                    builder: (_) => const ServerConfigDialog(),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.white,
+                child: Text(
+                  _caregiverName.isNotEmpty
+                      ? _caregiverName[0].toUpperCase()
+                      : 'C',
+                  style: const TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    color: CareAiColors.brown,
                   ),
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.shield_outlined, color: Color(0xFF0284C7)),
-                  title: const Text('Tuyên bố Y tế & Pháp lý'),
-                  subtitle: const Text('Định vị Non-SaMD, cấp cứu 115 & bảo vệ dữ liệu'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: _showMedicalDisclaimerDialog,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.battery_alert_outlined, color: Color(0xFFF59E0B)),
-                  title: const Text('Bảo vệ còi hú & Chống ngủ sâu'),
-                  subtitle: const Text('Hướng dẫn tắt tối ưu pin Samsung One UI & Android Doze'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: _showBatteryOptimizationGuide,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.info_outline, color: Color(0xFF0284C7)),
-                  title: const Text('Phiên bản hệ thống'),
-                  subtitle: const Text('CareAI v111.0 Production Edition'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.elderly_rounded, color: Color(0xFFEF4444)),
-                  title: const Text('Chuyển sang Chế độ Người cao tuổi'),
-                  subtitle: const Text('Kích hoạt nút SOS & Cảnh báo ngã trên máy này'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: _switchToElderMode,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.switch_account_rounded, color: Color(0xFF64748B)),
-                  title: const Text('Màn hình chọn vai trò'),
-                  subtitle: const Text('Quay lại màn hình khởi đầu để chọn vai trò khác'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: _goToRoleSelection,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              icon: const Icon(Icons.logout),
-              label: const Text('ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: () async {
-                await CaregiverPushService.instance.unregisterCurrentToken();
-                await CaregiverApiService.instance.logout();
-                if (mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                }
-              },
-            ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _caregiverName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: CareAiColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      _caregiverEmail,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: CareAiColors.brown,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 28),
-        ],
+        ),
+        const SizedBox(height: 28),
+        const CareAiSectionHeading('Cách bạn dùng CareAI'),
+        const SizedBox(height: 14),
+        Card(
+          child: Column(
+            children: [
+              _profileOption(
+                Icons.elderly_rounded,
+                'Dùng cho người cao tuổi',
+                'Mở nút SOS và theo dõi ngã trên thiết bị này.',
+                _switchToElderMode,
+              ),
+              const Divider(height: 1, indent: 18, endIndent: 18),
+              _profileOption(
+                Icons.switch_account_outlined,
+                'Chọn lại vai trò',
+                'Quay về màn hình lựa chọn ban đầu.',
+                _goToRoleSelection,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+        const CareAiSectionHeading('Kết nối & hỗ trợ'),
+        const SizedBox(height: 14),
+        Card(
+          child: Column(
+            children: [
+              _profileOption(
+                Icons.notifications_active_outlined,
+                'Thiết lập cảnh báo',
+                'Hướng dẫn quyền thông báo và hoạt động nền.',
+                _showBatteryOptimizationGuide,
+              ),
+              const Divider(height: 1, indent: 18, endIndent: 18),
+              _profileOption(
+                Icons.shield_outlined,
+                'Thông tin y tế & quyền riêng tư',
+                'Tìm hiểu phạm vi hỗ trợ và bảo vệ dữ liệu.',
+                _showMedicalDisclaimerDialog,
+              ),
+              const Divider(height: 1, indent: 18, endIndent: 18),
+              _profileOption(
+                Icons.feedback_outlined,
+                'Góp ý & phản hồi',
+                'Gửi góp ý và xem phản hồi bạn đã gửi.',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FeedbackScreen()),
+                ),
+              ),
+              const Divider(height: 1, indent: 18, endIndent: 18),
+              _profileOption(
+                Icons.settings_input_antenna_rounded,
+                'Cài đặt kết nối',
+                'Xem và thay đổi địa chỉ kết nối của ứng dụng.',
+                () => showDialog(
+                  context: context,
+                  builder: (_) => const ServerConfigDialog(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: CareAiColors.danger,
+            side: const BorderSide(color: CareAiColors.border),
+          ),
+          icon: const Icon(Icons.logout_rounded),
+          label: const Text('Đăng xuất'),
+          onPressed: () async {
+            await CaregiverPushService.instance.unregisterCurrentToken();
+            await CaregiverApiService.instance.logout();
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            }
+          },
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'CareAI · Một kết nối, triệu yêu thương',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: CareAiColors.secondary),
+        ),
+      ],
+    ),
+  );
+
+  Widget _profileOption(
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+    leading: Icon(icon, color: CareAiColors.brown, size: 23),
+    title: Text(
+      title,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: CareAiColors.ink,
       ),
-    );
-  }
+    ),
+    subtitle: Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Text(
+        subtitle,
+        style: const TextStyle(
+          fontSize: 13,
+          height: 1.5,
+          color: CareAiColors.secondary,
+        ),
+      ),
+    ),
+    trailing: const Icon(
+      Icons.chevron_right_rounded,
+      color: CareAiColors.secondary,
+    ),
+    onTap: onTap,
+  );
 
   Future<void> _switchToElderMode() async {
     final confirm = await showDialog<bool>(
@@ -1157,11 +1559,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           'Thiết bị sẽ chuyển sang màn hình Cứu nạn khẩn cấp SOS và kích hoạt cảm biến té ngã.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
-            child: const Text('CHẾ ĐỘ NGƯỜI CAO TUỔI', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+            child: const Text(
+              'CHẾ ĐỘ NGƯỜI CAO TUỔI',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1173,7 +1583,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await prefs.setString(RoleSelectionScreen.prefSelectedRole, 'elder');
 
       // Kiểm tra xem thiết bị này đã liên kết với người cao tuổi thuộc tài khoản Người thân hiện tại hay chưa
-      final currentElderProfileId = await ApiService.instance.getElderProfileId();
+      final currentElderProfileId = await ApiService.instance
+          .getElderProfileId();
       List<ElderItem> eldersToCheck = _elders;
       if (eldersToCheck.isEmpty) {
         try {
@@ -1181,7 +1592,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         } catch (_) {}
       }
 
-      final bool isLinkedToCurrentCaregiver = currentElderProfileId != null &&
+      final bool isLinkedToCurrentCaregiver =
+          currentElderProfileId != null &&
           eldersToCheck.any((e) => e.id == currentElderProfileId);
 
       if (!isLinkedToCurrentCaregiver) {
@@ -1200,7 +1612,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => isPaired ? const SosButtonScreen() : const DevicePairingScreen(),
+          builder: (_) =>
+              isPaired ? const SosButtonScreen() : const DevicePairingScreen(),
         ),
       );
     }
@@ -1224,7 +1637,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.health_and_safety_outlined, color: Color(0xFF0284C7)),
+            Icon(Icons.health_and_safety_outlined, color: Color(0xFF4A3020)),
             SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -1241,32 +1654,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               Text(
                 '1. Định Vị Ứng Dụng (Non-SaMD):',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF231811),
+                  fontSize: 13,
+                ),
               ),
               SizedBox(height: 4),
               Text(
                 'CareAI là Nền tảng Hỗ trợ Cảnh báo Chăm sóc Người cao tuổi (Non-SaMD). Hệ thống KHÔNG phải là thiết bị chẩn đoán y tế chuyên sâu và không đưa ra phán quyết điều trị bệnh.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                style: TextStyle(fontSize: 12, color: Color(0xFF4A3020)),
               ),
               SizedBox(height: 12),
               Text(
                 '2. Trường Hợp Cấp Cứu Sống Còn:',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF231811),
+                  fontSize: 13,
+                ),
               ),
               SizedBox(height: 4),
               Text(
                 'Trong trường hợp người thân gặp sự cố nguy kịch hoặc tai nạn bất tỉnh, vui lòng gọi ngay Tổng đài Cấp cứu Y tế 115 của Nhà nước hoặc đưa bệnh nhân đến cơ sở y tế gần nhất. CareAI đóng vai trò kênh báo động song song hỗ trợ gia đình.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                style: TextStyle(fontSize: 12, color: Color(0xFF4A3020)),
               ),
               SizedBox(height: 12),
               Text(
                 '3. Bảo Vệ Dữ Liệu Sức Khỏe:',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF231811),
+                  fontSize: 13,
+                ),
               ),
               SizedBox(height: 4),
               Text(
                 'Mọi dữ liệu sinh hiệu (nhịp tim, SpO2, gia tốc) đều được truyền mã hóa chuẩn TLS/HTTPS và bảo mật theo quy định tại Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân tại Việt Nam.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                style: TextStyle(fontSize: 12, color: Color(0xFF4A3020)),
               ),
             ],
           ),
@@ -1274,7 +1699,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('ĐÃ HIỂU & ĐỒNG Ý', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+            child: const Text(
+              'ĐÃ HIỂU & ĐỒNG Ý',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF4A3020),
+              ),
+            ),
           ),
         ],
       ),
@@ -1289,28 +1720,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       if (isFirst) {
         // 1. Popup mặc định của điện thoại: Quyền thông báo
-        final notifsEnabled = await PowerOptimizationService.instance.areNotificationsEnabled();
+        final notifsEnabled = await PowerOptimizationService.instance
+            .areNotificationsEnabled();
         if (!notifsEnabled) {
-          final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
+          final canDirect = await PowerOptimizationService.instance
+              .canRequestDirectNotificationPermission();
           if (canDirect) {
             // Chờ người dùng phản hồi xong trên popup thông báo của hệ điều hành
-            await PowerOptimizationService.instance.requestNotificationPermission();
+            await PowerOptimizationService.instance
+                .requestNotificationPermission();
             await Future.delayed(const Duration(milliseconds: 300));
           }
         }
 
         // 2. Popup mặc định 1-chạm của điện thoại: Bỏ tối ưu pin
         if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-          final batteryIgnored = await PowerOptimizationService.instance.isIgnoringBatteryOptimizations();
+          final batteryIgnored = await PowerOptimizationService.instance
+              .isIgnoringBatteryOptimizations();
           if (!batteryIgnored) {
             // Chờ người dùng phản hồi xong trên popup pin của hệ điều hành
-            await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+            await PowerOptimizationService.instance
+                .requestIgnoreBatteryOptimizations();
             await Future.delayed(const Duration(milliseconds: 300));
           }
         }
 
         if (!mounted) return;
-        final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+        final status = await PowerOptimizationService.instance
+            .checkCriticalPermissionsStatus();
 
         // 3. Popup list hướng dẫn các quyền còn lại (CHỈ HIỂN THỊ VÀO LẦN ĐẦU CÀI APP)
         if (_hasItemsToShow(status, isFirst: true) && mounted) {
@@ -1322,15 +1759,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       } else {
         // Các lần mở app sau: TUYỆT ĐỐI KHÔNG hiện popup list!
         // Chỉ nhắc lại nếu quyền tiết kiệm pin bị tắt (bị thu hồi)
-        final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
-        if (!status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-          await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+        final status = await PowerOptimizationService.instance
+            .checkCriticalPermissionsStatus();
+        if (!status.batteryOptimizationIgnored &&
+            !kIsWeb &&
+            defaultTargetPlatform == TargetPlatform.android) {
+          await PowerOptimizationService.instance
+              .requestIgnoreBatteryOptimizations();
         }
       }
 
       if (!mounted) return;
-      final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
-      final hasDismissed = await PowerOptimizationService.instance.hasUserDismissedOnboarding();
+      final status = await PowerOptimizationService.instance
+          .checkCriticalPermissionsStatus();
+      final hasDismissed = await PowerOptimizationService.instance
+          .hasUserDismissedOnboarding();
       setState(() {
         _permissionStatus = status;
         _hasUserCompletedOrDismissedOnboarding = hasDismissed;
@@ -1340,11 +1783,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  bool _hasItemsToShow(CriticalPermissionsStatus status, {bool isFirst = false}) {
+  bool _hasItemsToShow(
+    CriticalPermissionsStatus status, {
+    bool isFirst = false,
+  }) {
     if (isFirst) {
       final mfg = status.manufacturer.toLowerCase();
       final isSamsung = mfg.contains('samsung');
-      final isChineseOem = mfg.contains('xiaomi') ||
+      final isChineseOem =
+          mfg.contains('xiaomi') ||
           mfg.contains('redmi') ||
           mfg.contains('poco') ||
           mfg.contains('oppo') ||
@@ -1368,12 +1815,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _showBatteryOptimizationGuide() async {
-    final status = _permissionStatus ?? await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+    final status =
+        _permissionStatus ??
+        await PowerOptimizationService.instance
+            .checkCriticalPermissionsStatus();
     await _showPermissionGuideDialog(status, isFirstLaunch: false);
   }
 
-  Future<void> _showPermissionGuideDialog(CriticalPermissionsStatus status, {bool isFirstLaunch = false}) async {
-    if (_isPermissionDialogShowing || !mounted || !_hasItemsToShow(status, isFirst: isFirstLaunch)) return;
+  Future<void> _showPermissionGuideDialog(
+    CriticalPermissionsStatus status, {
+    bool isFirstLaunch = false,
+  }) async {
+    if (_isPermissionDialogShowing ||
+        !mounted ||
+        !_hasItemsToShow(status, isFirst: isFirstLaunch)) {
+      return;
+    }
     _isPermissionDialogShowing = true;
     try {
       await showDialog<bool>(
@@ -1390,25 +1847,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _checkCriticalPermissionsRealtime({bool showPopupIfMissing = false}) async {
+  Future<void> _checkCriticalPermissionsRealtime({
+    bool showPopupIfMissing = false,
+  }) async {
     if (!mounted) return;
-    final status = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
-    final hasDismissed = await PowerOptimizationService.instance.hasUserDismissedOnboarding();
+    final status = await PowerOptimizationService.instance
+        .checkCriticalPermissionsStatus();
+    final hasDismissed = await PowerOptimizationService.instance
+        .hasUserDismissedOnboarding();
     if (!mounted) return;
     setState(() {
       _permissionStatus = status;
       _hasUserCompletedOrDismissedOnboarding = hasDismissed;
     });
 
-    if (status.hasMissingCriticalPermissions && showPopupIfMissing && !_isPermissionDialogShowing && !_isRequestingPermissions) {
+    if (status.hasMissingCriticalPermissions &&
+        showPopupIfMissing &&
+        !_isPermissionDialogShowing &&
+        !_isRequestingPermissions) {
       if (status.onlyBatteryOptimizationMissing) {
-        await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+        await PowerOptimizationService.instance
+            .requestIgnoreBatteryOptimizations();
         return;
       }
       if (status.onlyNotificationsMissing) {
-        final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
+        final canDirect = await PowerOptimizationService.instance
+            .canRequestDirectNotificationPermission();
         if (canDirect) {
-          await PowerOptimizationService.instance.requestNotificationPermission();
+          await PowerOptimizationService.instance
+              .requestNotificationPermission();
           return;
         }
       }
@@ -1421,13 +1888,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _handleFixPermission(CriticalPermissionsStatus status) async {
     // 1. Nếu chỉ thiếu pin: bung popup 1-chạm mặc định của Android
     if (status.onlyBatteryOptimizationMissing) {
-      await PowerOptimizationService.instance.requestIgnoreBatteryOptimizations();
+      await PowerOptimizationService.instance
+          .requestIgnoreBatteryOptimizations();
       await _checkCriticalPermissionsRealtime(showPopupIfMissing: false);
       return;
     }
     // 2. Nếu chỉ thiếu thông báo: bung popup mặc định của điện thoại nếu có thể
     if (status.onlyNotificationsMissing) {
-      final canDirect = await PowerOptimizationService.instance.canRequestDirectNotificationPermission();
+      final canDirect = await PowerOptimizationService.instance
+          .canRequestDirectNotificationPermission();
       if (canDirect) {
         await PowerOptimizationService.instance.requestNotificationPermission();
         await _checkCriticalPermissionsRealtime(showPopupIfMissing: false);
@@ -1480,7 +1949,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             ),
             onPressed: () => _handleFixPermission(status),
-            child: const Text('CÀI ĐẶT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            child: const Text(
+              'CÀI ĐẶT',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
           ),
         ],
       ),
@@ -1497,16 +1969,14 @@ class _ShakeWidget extends StatefulWidget {
   final Widget child;
   final _ShakeController controller;
 
-  const _ShakeWidget({
-    required this.child,
-    required this.controller,
-  });
+  const _ShakeWidget({required this.child, required this.controller});
 
   @override
   State<_ShakeWidget> createState() => _ShakeWidgetState();
 }
 
-class _ShakeWidgetState extends State<_ShakeWidget> with SingleTickerProviderStateMixin {
+class _ShakeWidgetState extends State<_ShakeWidget>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _animCtrl;
 
   @override
@@ -1538,10 +2008,7 @@ class _ShakeWidgetState extends State<_ShakeWidget> with SingleTickerProviderSta
       builder: (context, child) {
         final progress = _animCtrl.value;
         final offset = sin(progress * pi * 6) * (8.0 * (1.0 - progress));
-        return Transform.translate(
-          offset: Offset(offset, 0),
-          child: child,
-        );
+        return Transform.translate(offset: Offset(offset, 0), child: child);
       },
       child: widget.child,
     );
@@ -1558,10 +2025,12 @@ class _SimplePermissionGuideDialog extends StatefulWidget {
   });
 
   @override
-  State<_SimplePermissionGuideDialog> createState() => _SimplePermissionGuideDialogState();
+  State<_SimplePermissionGuideDialog> createState() =>
+      _SimplePermissionGuideDialogState();
 }
 
-class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDialog>
+class _SimplePermissionGuideDialogState
+    extends State<_SimplePermissionGuideDialog>
     with WidgetsBindingObserver {
   late CriticalPermissionsStatus _status;
   final _backgroundDataShakeCtrl = _ShakeController();
@@ -1590,7 +2059,8 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
 
   Future<void> _refresh() async {
     if (!mounted) return;
-    final updated = await PowerOptimizationService.instance.checkCriticalPermissionsStatus();
+    final updated = await PowerOptimizationService.instance
+        .checkCriticalPermissionsStatus();
     if (!mounted) return;
     setState(() => _status = updated);
     // Giữ nguyên dialog, người dùng chủ động bấm Đóng
@@ -1607,7 +2077,9 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
       _notificationShakeCtrl.shake();
       canClose = false;
     }
-    if (!_status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!_status.batteryOptimizationIgnored &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android) {
       _batteryShakeCtrl.shake();
       canClose = false;
     }
@@ -1621,7 +2093,8 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
   Widget build(BuildContext context) {
     final mfg = _status.manufacturer.toLowerCase();
     final isSamsung = mfg.contains('samsung');
-    final isChineseOem = mfg.contains('xiaomi') ||
+    final isChineseOem =
+        mfg.contains('xiaomi') ||
         mfg.contains('redmi') ||
         mfg.contains('poco') ||
         mfg.contains('oppo') ||
@@ -1636,22 +2109,29 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
     // Hiển thị nếu:
     // a) Đang bị Android hạn chế dữ liệu nền (status.backgroundDataRestricted == true)
     // b) HOẶC là lần đầu cài đặt (widget.isFirstLaunch == true) trên Android để hướng dẫn bật phòng ngừa
-    if (_status.backgroundDataRestricted || (widget.isFirstLaunch && !kIsWeb && defaultTargetPlatform == TargetPlatform.android)) {
+    if (_status.backgroundDataRestricted ||
+        (widget.isFirstLaunch &&
+            !kIsWeb &&
+            defaultTargetPlatform == TargetPlatform.android)) {
       items.add(
         _ShakeWidget(
           controller: _backgroundDataShakeCtrl,
           child: _buildItem(
             title: 'Quyền dữ liệu nền & Tiết kiệm pin',
-            badgeText: _status.backgroundDataRestricted ? 'Bắt buộc' : 'Khuyến nghị',
-            badgeColor: _status.backgroundDataRestricted ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+            badgeText: _status.backgroundDataRestricted
+                ? 'Bắt buộc'
+                : 'Khuyến nghị',
+            badgeColor: _status.backgroundDataRestricted
+                ? const Color(0xFFDC2626)
+                : const Color(0xFFD97706),
             description: 'Bật "Cho phép dùng dữ liệu nền" và "Cho phép dùng dữ liệu khi bật Tiết kiệm dữ liệu / Tiết kiệm pin" để nhận tín hiệu cấp cứu.',
             buttonText: 'Mở cài đặt',
-            onPressed: () => PowerOptimizationService.instance.openBackgroundDataSettings(),
+            onPressed: () =>
+                PowerOptimizationService.instance.openBackgroundDataSettings(),
           ),
         ),
       );
     }
-
 
     // 2. Quyền thông báo (Quét được - Bắt buộc nếu chưa cấp)
     if (!_status.notificationsEnabled) {
@@ -1662,16 +2142,20 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
             title: 'Quyền thông báo',
             badgeText: 'Bắt buộc',
             badgeColor: const Color(0xFFDC2626),
-            description: 'Cần bật thông báo để chuông cấp cứu kêu khi có sự cố.',
+            description:
+                'Cần bật thông báo để chuông cấp cứu kêu khi có sự cố.',
             buttonText: 'Mở cài đặt',
-            onPressed: () => PowerOptimizationService.instance.openNotificationSettings(),
+            onPressed: () =>
+                PowerOptimizationService.instance.openNotificationSettings(),
           ),
         ),
       );
     }
 
     // 3. Quyền chạy ngầm pin chuẩn (Quét được - Bắt buộc nếu chưa cấp)
-    if (!_status.batteryOptimizationIgnored && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!_status.batteryOptimizationIgnored &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android) {
       items.add(
         _ShakeWidget(
           controller: _batteryShakeCtrl,
@@ -1681,7 +2165,8 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
             badgeColor: const Color(0xFFDC2626),
             description: 'Chọn "Không hạn chế" để ứng dụng không bị đóng băng khi tắt màn hình.',
             buttonText: 'Cho phép',
-            onPressed: () => PowerOptimizationService.instance.requestIgnoreBatteryOptimizations(),
+            onPressed: () => PowerOptimizationService.instance
+                .requestIgnoreBatteryOptimizations(),
           ),
         ),
       );
@@ -1693,11 +2178,12 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
         _buildItem(
           title: 'Ứng dụng không bao giờ ngủ (Samsung)',
           badgeText: 'Tùy chọn',
-          badgeColor: const Color(0xFF0284C7),
+          badgeColor: const Color(0xFF4A3020),
           description: 'Cài đặt > Pin > Giới hạn sử dụng dưới nền > Ứng dụng không bao giờ ngủ > Thêm CareAI.',
           reason: 'Lý do: Giúp chuông báo cấp cứu không bị hãng điện thoại tự động tắt khi không mở ứng dụng trong nhiều ngày.',
           buttonText: 'Mở cài đặt',
-          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+          onPressed: () =>
+              PowerOptimizationService.instance.openAutostartSettings(),
         ),
       );
     } else if (isChineseOem) {
@@ -1705,17 +2191,22 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
         _buildItem(
           title: 'Tự khởi chạy (${_status.manufacturer})',
           badgeText: 'Tùy chọn',
-          badgeColor: const Color(0xFF0284C7),
-          description: 'Cài đặt > Quản lý ứng dụng > Tự khởi chạy > Bật CareAI.',
+          badgeColor: const Color(0xFF4A3020),
+          description:
+              'Cài đặt > Quản lý ứng dụng > Tự khởi chạy > Bật CareAI.',
           reason: 'Lý do: Giúp hệ thống duy trì kết nối cứu hộ và không tắt chuông báo động khi bạn vuốt dọn dẹp app.',
           buttonText: 'Mở cài đặt',
-          onPressed: () => PowerOptimizationService.instance.openAutostartSettings(),
+          onPressed: () =>
+              PowerOptimizationService.instance.openAutostartSettings(),
         ),
       );
     }
 
     return AlertDialog(
-      title: const Text('Cài đặt quyền ứng dụng', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+      title: const Text(
+        'Cài đặt quyền ứng dụng',
+        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1728,13 +2219,18 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
           width: double.infinity,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0284C7),
+              backgroundColor: const Color(0xFF4A3020),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: _handleClose,
-            child: const Text('Đóng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            child: const Text(
+              'Đóng',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
           ),
         ),
       ],
@@ -1760,7 +2256,10 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
               Container(
@@ -1768,29 +2267,40 @@ class _SimplePermissionGuideDialogState extends State<_SimplePermissionGuideDial
                 decoration: BoxDecoration(
                   color: badgeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: badgeColor.withValues(alpha: 0.4), width: 0.8),
+                  border: Border.all(
+                    color: badgeColor.withValues(alpha: 0.4),
+                    width: 0.8,
+                  ),
                 ),
                 child: Text(
                   badgeText,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeColor),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: badgeColor,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+          Text(
+            description,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF4A3020)),
+          ),
           if (reason != null) ...[
             const SizedBox(height: 4),
             Text(
               reason,
-              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
+              style: const TextStyle(
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: Color(0xFF7D7168),
+              ),
             ),
           ],
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: onPressed,
-            child: Text(buttonText),
-          ),
+          OutlinedButton(onPressed: onPressed, child: Text(buttonText)),
         ],
       ),
     );

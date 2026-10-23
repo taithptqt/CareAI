@@ -1,10 +1,15 @@
+import '../../theme/careai_theme.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
 import '../../services/location_service.dart';
+
 import 'package:url_launcher/url_launcher.dart';
+
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 import '../services/caregiver_push_service.dart';
@@ -23,7 +28,8 @@ class IncidentDetailScreen extends StatefulWidget {
   State<IncidentDetailScreen> createState() => _IncidentDetailScreenState();
 }
 
-class _IncidentDetailScreenState extends State<IncidentDetailScreen> with WidgetsBindingObserver {
+class _IncidentDetailScreenState extends State<IncidentDetailScreen>
+    with WidgetsBindingObserver {
   static const _alarm = MethodChannel('vn.careai.companion/caregiver_alarm');
   late Incident _incident;
   late bool _userSilenced;
@@ -48,10 +54,15 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     _heartRateWindow = widget.incident.heartRateSeries;
     CaregiverPushService.instance.visibleIncidentId = _incident.id;
     WidgetsBinding.instance.addObserver(this);
-    _pushSubscription = CaregiverPushService.instance.incidentsChanged.listen((id) {
+    _pushSubscription = CaregiverPushService.instance.incidentsChanged.listen((
+      id,
+    ) {
       if (id == _incident.id) unawaited(_refresh());
     });
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) => unawaited(_refresh()));
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => unawaited(_refresh()),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_refresh());
       unawaited(_loadContact());
@@ -97,7 +108,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     if (_isLoadingHeartRate) return;
     _isLoadingHeartRate = true;
     try {
-      final series = await CaregiverApiService.instance.getIncidentHeartRateSeries(_incident.id);
+      final series = await CaregiverApiService.instance
+          .getIncidentHeartRateSeries(_incident.id);
       if (mounted) setState(() => _heartRateWindow = series);
     } catch (error) {
       debugPrint('[CareAI] Tải chuỗi nhịp tim thất bại: $error');
@@ -110,7 +122,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     if (_loadingPhoto || _photoBytes != null) return;
     _loadingPhoto = true;
     try {
-      final bytes = await CaregiverApiService.instance.getIncidentPhoto(_incident.id);
+      final bytes = await CaregiverApiService.instance.getIncidentPhoto(
+        _incident.id,
+      );
       if (mounted && bytes != null) setState(() => _photoBytes = bytes);
     } catch (error) {
       debugPrint('[CareAI] Không thể tải ảnh sự cố: $error');
@@ -123,7 +137,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     if (_refreshing || !mounted) return;
     _refreshing = true;
     try {
-      final incident = await CaregiverApiService.instance.getIncident(_incident.id);
+      final incident = await CaregiverApiService.instance.getIncident(
+        _incident.id,
+      );
       if (!mounted) return;
       setState(() {
         _incident = incident;
@@ -159,7 +175,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
 
   Future<void> _dial(String number) async {
     final uri = Uri(scheme: 'tel', path: number);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không mở được ứng dụng gọi điện.')),
       );
@@ -174,16 +191,15 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
       await HapticFeedback.lightImpact();
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã tiếp nhận sự cố.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Đã tiếp nhận sự cố.')));
       }
     } catch (error) {
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tiếp nhận thất bại: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Tiếp nhận thất bại: $error')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -207,94 +223,113 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
           ? '$caregiverName đã kiểm tra kết nối thiết bị bình thường.'
           : 'Người thân đã kiểm tra kết nối thiết bị bình thường.';
     } else {
-      final defaultNote = (caregiverName != null && caregiverName.trim().isNotEmpty)
+      final defaultNote =
+          (caregiverName != null && caregiverName.trim().isNotEmpty)
           ? '$caregiverName đã tiếp nhận và hỗ trợ an toàn.'
           : 'Người thân đã tiếp nhận và hỗ trợ an toàn.';
       _notes.text = defaultNote;
 
-    final quickChips = [
-      'Cụ đã an toàn',
-      'Báo động nhầm / Cụ ổn',
-      'Đang có mặt hỗ trợ',
-      'Đã liên hệ 115',
-    ];
+      final quickChips = [
+        'Cụ đã an toàn',
+        'Báo động nhầm / Cụ ổn',
+        'Đang có mặt hỗ trợ',
+        'Đã liên hệ 115',
+      ];
 
-    if (!mounted) return;
-    final notes = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Giải quyết sự cố'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Chọn nhanh lý do hoặc bấm xác nhận để đóng sự cố:',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: quickChips.map((chip) {
-                    final isSelected = _notes.text == chip;
-                    return ActionChip(
-                      backgroundColor: isSelected ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                      side: BorderSide(
-                        color: isSelected ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
-                      ),
-                      label: Text(
-                        chip,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? const Color(0xFF15803D) : const Color(0xFF334155),
+      if (!mounted) return;
+      final notes = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('Giải quyết sự cố'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Chọn nhanh lý do hoặc bấm xác nhận để đóng sự cố:',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF7D7168)),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: quickChips.map((chip) {
+                      final isSelected = _notes.text == chip;
+                      return ActionChip(
+                        backgroundColor: isSelected
+                            ? const Color(0xFFDCFCE7)
+                            : const Color(0xFFF2ECE4),
+                        side: BorderSide(
+                          color: isSelected
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFE4DACD),
                         ),
-                      ),
-                      onPressed: () {
-                        setDialogState(() {
-                          _notes.text = chip;
-                        });
-                      },
-                    );
-                  }).toList(),
+                        label: Text(
+                          chip,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? const Color(0xFF15803D)
+                                : const Color(0xFF5C493B),
+                          ),
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            _notes.text = chip;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _notes,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Nội dung xử lý (đã điền sẵn)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text(
+                  'Hủy',
+                  style: TextStyle(color: Color(0xFF7D7168)),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _notes,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Nội dung xử lý (đã điền sẵn)',
-                    border: OutlineInputBorder(),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Hủy', style: TextStyle(color: Color(0xFF64748B))),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                onPressed: () {
+                  final trimmed = _notes.text.trim();
+                  Navigator.pop(
+                    dialogContext,
+                    trimmed.isEmpty ? defaultNote : trimmed,
+                  );
+                },
+                child: const Text('Xác nhận Giải Quyết'),
               ),
-              onPressed: () {
-                final trimmed = _notes.text.trim();
-                Navigator.pop(dialogContext, trimmed.isEmpty ? defaultNote : trimmed);
-              },
-              child: const Text('Xác nhận Giải Quyết'),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
       if (notes == null || !mounted) return;
       finalNotes = notes.trim().isEmpty ? defaultNote : notes.trim();
     }
@@ -318,9 +353,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     } catch (error) {
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Giải quyết thất bại: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Giải quyết thất bại: $error')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -342,25 +377,58 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     super.dispose();
   }
 
-  String _metric(double? value, String unit) =>
-      value == null ? 'Chưa có dữ liệu' : '${value.toStringAsFixed(value % 1 == 0 ? 0 : 1)} $unit';
+  String _metric(double? value, String unit) => value == null
+      ? 'Chưa có dữ liệu'
+      : '${value.toStringAsFixed(value % 1 == 0 ? 0 : 1)} $unit';
 
-  Widget _row(String label, String? value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Row(children: [
-      Expanded(child: Text(label, style: const TextStyle(color: Colors.black54))),
-      Expanded(child: Text(value?.isNotEmpty == true ? value! : 'Chưa có dữ liệu',
-        textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600))),
-    ]),
-  );
+  Widget _row(String label, String? value) {
+    final stacked = MediaQuery.textScalerOf(context).scale(14) > 20;
+    final labelText = Text(
+      label,
+      style: const TextStyle(color: CareAiColors.secondary),
+    );
+    final valueText = Text(
+      value?.isNotEmpty == true ? value! : 'Chưa có dữ liệu',
+      textAlign: stacked ? TextAlign.start : TextAlign.end,
+      style: const TextStyle(fontWeight: FontWeight.w600),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: stacked
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [labelText, const SizedBox(height: 4), valueText],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: labelText),
+                const SizedBox(width: 12),
+                Expanded(child: valueText),
+              ],
+            ),
+    );
+  }
 
   IconData _emergencyIcon(String type) {
     final upper = type.toUpperCase();
     if (upper.contains('FALL')) return Icons.warning_rounded;
-    if (upper.contains('OXYGEN') || upper.contains('SPO2')) return Icons.air_rounded;
-    if (upper.contains('TACHYCARDIA') || upper.contains('BRADYCARDIA') || upper.contains('SURGE') || upper.contains('HR') || upper.contains('HEART')) return Icons.monitor_heart_rounded;
-    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) return Icons.speed_rounded;
-    if (upper.contains('STALE') || upper.contains('OFFLINE')) return Icons.wifi_off_rounded;
+    if (upper.contains('OXYGEN') || upper.contains('SPO2')) {
+      return Icons.air_rounded;
+    }
+    if (upper.contains('TACHYCARDIA') ||
+        upper.contains('BRADYCARDIA') ||
+        upper.contains('SURGE') ||
+        upper.contains('HR') ||
+        upper.contains('HEART')) {
+      return Icons.monitor_heart_rounded;
+    }
+    if (upper.contains('HYPERTENSION') || upper.contains('BLOOD_PRESSURE')) {
+      return Icons.speed_rounded;
+    }
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) {
+      return Icons.wifi_off_rounded;
+    }
     if (upper.contains('SOS')) return Icons.emergency_rounded;
     return Icons.warning_amber_rounded;
   }
@@ -368,32 +436,47 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
   String _emergencyLabel(String type) {
     final upper = type.toUpperCase();
     if (upper.contains('FALL')) return 'Té ngã';
-    if (upper.contains('LOW_OXYGEN') || upper.contains('LOWOXYGEN') || upper.contains('OXYGEN')) return 'Oxy máu (SpO₂) thấp';
+    if (upper.contains('LOW_OXYGEN') ||
+        upper.contains('LOWOXYGEN') ||
+        upper.contains('OXYGEN')) {
+      return 'Oxy máu (SpO₂) thấp';
+    }
     if (upper.contains('TACHYCARDIA')) return 'Nhịp tim quá nhanh';
     if (upper.contains('BRADYCARDIA')) return 'Nhịp tim quá chậm';
     if (upper.contains('SURGE')) return 'Nhịp tim tăng đột biến';
     if (upper.contains('HYPERTENSION')) return 'Cơn tăng huyết áp';
-    if (upper.contains('STALE') || upper.contains('OFFLINE')) return 'Mất tín hiệu thiết bị';
+    if (upper.contains('STALE') || upper.contains('OFFLINE')) {
+      return 'Mất tín hiệu thiết bị';
+    }
     if (upper.contains('SOS')) return 'Nút khẩn cấp SOS';
     return type;
   }
 
   String _statusLabel(String status) {
     switch (status.toUpperCase()) {
-      case 'OPEN': return 'Đang mở';
-      case 'ACKNOWLEDGED': return 'Đã tiếp nhận';
-      case 'RESOLVED': return 'Đã giải quyết';
-      default: return status;
+      case 'OPEN':
+        return 'Đang mở';
+      case 'ACKNOWLEDGED':
+        return 'Đã tiếp nhận';
+      case 'RESOLVED':
+        return 'Đã giải quyết';
+      default:
+        return status;
     }
   }
 
   String _severityLabel(String severity) {
     switch (severity.toUpperCase()) {
-      case 'CRITICAL': return 'Nguy kịch';
-      case 'HIGH': return 'Cao';
-      case 'MEDIUM': return 'Trung bình';
-      case 'LOW': return 'Thấp';
-      default: return severity;
+      case 'CRITICAL':
+        return 'Nguy kịch';
+      case 'HIGH':
+        return 'Cao';
+      case 'MEDIUM':
+        return 'Trung bình';
+      case 'LOW':
+        return 'Thấp';
+      default:
+        return severity;
     }
   }
 
@@ -413,7 +496,13 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
 
     final type = _incident.emergencyType.toUpperCase();
     final isStaleIncident = type.contains('STALE') || type.contains('OFFLINE');
-    final isVitalIncident = type.contains('OXYGEN') || type.contains('SPO2') || type.contains('TACHYCARDIA') || type.contains('BRADYCARDIA') || type.contains('SURGE') || type.contains('HYPERTENSION');
+    final isVitalIncident =
+        type.contains('OXYGEN') ||
+        type.contains('SPO2') ||
+        type.contains('TACHYCARDIA') ||
+        type.contains('BRADYCARDIA') ||
+        type.contains('SURGE') ||
+        type.contains('HYPERTENSION');
 
     Color appBarColor;
     if (isResolved) {
@@ -427,7 +516,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     } else if (isVitalIncident) {
       appBarColor = const Color(0xFFEA580C);
     } else {
-      appBarColor = const Color(0xFF0284C7);
+      appBarColor = const Color(0xFF4A3020);
     }
 
     final String appBarTitle;
@@ -444,12 +533,16 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     return Scaffold(
       appBar: AppBar(
         title: Text(appBarTitle),
-        backgroundColor: appBarColor,
-        foregroundColor: Colors.white,
+        backgroundColor: CareAiColors.canvas,
+        foregroundColor: CareAiColors.ink,
         actions: [
           if (_urgent)
             IconButton(
-              icon: Icon(_userSilenced ? Icons.volume_off_rounded : Icons.volume_up_rounded),
+              icon: Icon(
+                _userSilenced
+                    ? Icons.volume_off_rounded
+                    : Icons.volume_up_rounded,
+              ),
               tooltip: _userSilenced ? 'Bật lại còi hú' : 'Tắt còi hú',
               onPressed: () async {
                 setState(() {
@@ -475,57 +568,109 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 1. Thẻ Tiêu đề Sự Cố
             Card(
               color: isResolved
-                  ? const Color(0xFFF0FDF4)
-                  : (isStaleIncident
-                      ? const Color(0xFFFFFBEB)
-                      : (_urgent ? Colors.red.shade50 : (isVitalIncident ? const Color(0xFFFFF7ED) : Colors.orange.shade50))),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ? CareAiColors.greenSurface
+                  : _urgent
+                  ? CareAiColors.dangerSurface
+                  : CareAiColors.peach,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(26),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(22),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      _emergencyIcon(_incident.emergencyType),
-                      color: isResolved
-                          ? const Color(0xFF16A34A)
-                          : (isStaleIncident
-                              ? const Color(0xFFD97706)
-                              : (_urgent ? Colors.red.shade700 : (isVitalIncident ? const Color(0xFFEA580C) : Colors.orange.shade800))),
-                      size: 44,
+                    Row(
+                      children: [
+                        Icon(
+                          _emergencyIcon(_incident.emergencyType),
+                          color: appBarColor,
+                          size: 26,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _statusLabel(_incident.status),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: appBarColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      _incident.elderName,
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 8),
-                    Text(_incident.elderName, style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 4),
                     Text(
-                      '${_emergencyLabel(_incident.emergencyType)} · Mức ${_severityLabel(_incident.severity)} · ${_statusLabel(_incident.status)}',
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      DateFormat('HH:mm:ss dd/MM/yyyy').format(_incident.triggeredAt.toLocal()),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                    if (_urgent) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        'CẦN TIẾP NHẬN NGAY',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                      _emergencyLabel(_incident.emergencyType),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: CareAiColors.brown,
                       ),
-                    ] else if (isStaleIncident && !isResolved) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        'CẦN KIỂM TRA KẾT NỐI VÀ TIẾP NHẬN',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFD97706), fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 6,
+                      children: [
+                        Text(
+                          DateFormat('HH:mm · dd/MM/yyyy')
+                              .format(_incident.triggeredAt.toLocal()),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: CareAiColors.secondary,
+                          ),
+                        ),
+                        Text(
+                          'Mức ${_severityLabel(_incident.severity)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: CareAiColors.brown,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_urgent || (isStaleIncident && !isResolved)) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        _urgent
+                            ? 'Cần người thân tiếp nhận ngay.'
+                            : 'Cần kiểm tra kết nối thiết bị.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: appBarColor,
+                        ),
                       ),
                     ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _contactNumber?.isNotEmpty == true
+                            ? () => _dial(_contactNumber!)
+                            : null,
+                        icon: const Icon(Icons.phone_outlined, size: 20),
+                        label: Text(
+                          _contactNumber?.isNotEmpty == true
+                              ? 'Gọi người cao tuổi'
+                              : 'Chưa có số liên hệ',
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
             // 2. Banner Cảnh báo Tái mở / Nhắc nhở SLA (nếu có)
             if (alertState != null && alertState.cycleNumber > 1) ...[
@@ -539,7 +684,11 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.sync_problem, color: Color(0xFFD97706), size: 24),
+                    const Icon(
+                      Icons.sync_problem,
+                      color: Color(0xFFD97706),
+                      size: 24,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -547,12 +696,19 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                         children: [
                           Text(
                             'Cảnh Báo Tái Mở / Nhắc Lại (Chu kỳ ${alertState.cycleNumber})',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF92400E)),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Color(0xFF92400E),
+                            ),
                           ),
                           const SizedBox(height: 2),
                           const Text(
                             'Sự cố đã được nhắc lại do vượt quá thời hạn SLA hoặc tái mở do nhịp tim xấu đi sau khi tiếp nhận.',
-                            style: TextStyle(fontSize: 12, color: Color(0xFFB45309)),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFB45309),
+                            ),
                           ),
                         ],
                       ),
@@ -565,7 +721,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
             // 3. Thông tin Tiếp nhận (nếu có)
             if (_incident.acknowledgedAt != null) ...[
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -573,15 +731,34 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.check_circle, color: Color(0xFFD97706), size: 18),
+                          Icon(
+                            Icons.check_circle,
+                            color: Color(0xFFD97706),
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
-                          Text('Thông Tin Tiếp Nhận (ACK)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Expanded(
+                            child: Text(
+                              'Thông tin tiếp nhận',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const Divider(height: 16),
-                      _row('Thời điểm tiếp nhận', DateFormat('HH:mm:ss dd/MM/yyyy').format(_incident.acknowledgedAt!.toLocal())),
+                      _row(
+                        'Thời điểm tiếp nhận',
+                        DateFormat('HH:mm:ss dd/MM/yyyy')
+                            .format(_incident.acknowledgedAt!.toLocal()),
+                      ),
                       if (_incident.acknowledgedByCaregiverId != null)
-                        _row('Mã người thân tiếp nhận', _incident.acknowledgedByCaregiverId),
+                        _row(
+                          'Mã người thân tiếp nhận',
+                          _incident.acknowledgedByCaregiverId,
+                        ),
                       if (!isResolved) ...[
                         const SizedBox(height: 10),
                         Container(
@@ -594,12 +771,20 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                           child: const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.info_outline, color: Color(0xFF16A34A), size: 18),
+                              Icon(
+                                Icons.info_outline,
+                                color: Color(0xFF16A34A),
+                                size: 18,
+                              ),
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Ưu tiên hỗ trợ, chăm sóc cụ trước. Bạn không bắt buộc phải đóng sự cố ngay lúc này. Khi cụ đã an toàn và ổn định, hãy bấm "Giải quyết sự cố" bên dưới.',
-                                  style: TextStyle(fontSize: 12, color: Color(0xFF15803D), height: 1.3),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF15803D),
+                                    height: 1.3,
+                                  ),
                                 ),
                               ),
                             ],
@@ -616,7 +801,9 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
             // 4. Thông tin Giải Quyết (nếu có)
             if (isResolved && _incident.resolvedAt != null) ...[
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 color: const Color(0xFFF0FDF4),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -625,17 +812,44 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.verified, color: Color(0xFF16A34A), size: 20),
+                          Icon(
+                            Icons.verified,
+                            color: Color(0xFF16A34A),
+                            size: 20,
+                          ),
                           SizedBox(width: 8),
-                          Text('Thông Tin Đóng Sự Cố (Resolved)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF14532D))),
+                          Expanded(
+                            child: Text(
+                              'Thông tin giải quyết',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Color(0xFF14532D),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const Divider(height: 16),
-                      _row('Thời điểm giải quyết', DateFormat('HH:mm:ss dd/MM/yyyy').format(_incident.resolvedAt!.toLocal())),
+                      _row(
+                        'Thời điểm giải quyết',
+                        DateFormat('HH:mm:ss dd/MM/yyyy')
+                            .format(_incident.resolvedAt!.toLocal()),
+                      ),
                       if (_incident.resolvedByCaregiverId != null)
-                        _row('Mã người giải quyết', _incident.resolvedByCaregiverId),
+                        _row(
+                          'Mã người giải quyết',
+                          _incident.resolvedByCaregiverId,
+                        ),
                       const SizedBox(height: 8),
-                      const Text('Ghi chú lâm sàng giải quyết:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+                      const Text(
+                        'Ghi chú lâm sàng giải quyết:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF166534),
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Container(
                         width: double.infinity,
@@ -649,7 +863,11 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                           _incident.resolutionNotes?.isNotEmpty == true
                               ? _incident.resolutionNotes!
                               : '(Không có ghi chú)',
-                          style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Color(0xFF1E293B)),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            color: Color(0xFF4A3020),
+                          ),
                         ),
                       ),
                     ],
@@ -661,23 +879,38 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
 
             // 5. Sinh hiệu khi xảy ra sự cố (Snapshot)
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Sinh hiệu khi xảy ra sự cố', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Sinh hiệu khi xảy ra sự cố',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const Divider(height: 16),
                     _row('Nhịp tim', _metric(snapshot?.heartRateBpm, 'bpm')),
                     _row('SpO₂', _metric(snapshot?.spO2Percent, '%')),
-                    _row('Huyết áp tâm thu', _metric(snapshot?.bpSystolic, 'mmHg')),
-                    _row('Huyết áp tâm trương', _metric(snapshot?.bpDiastolic, 'mmHg')),
+                    _row(
+                      'Huyết áp tâm thu',
+                      _metric(snapshot?.bpSystolic, 'mmHg'),
+                    ),
+                    _row(
+                      'Huyết áp tâm trương',
+                      _metric(snapshot?.bpDiastolic, 'mmHg'),
+                    ),
                     _row(
                       'Đo lúc',
                       snapshot?.vitalsMeasuredAt == null
                           ? null
-                          : DateFormat('HH:mm:ss dd/MM/yyyy').format(snapshot!.vitalsMeasuredAt!.toLocal()),
+                          : DateFormat('HH:mm:ss dd/MM/yyyy')
+                                .format(snapshot!.vitalsMeasuredAt!.toLocal()),
                     ),
                   ],
                 ),
@@ -687,27 +920,48 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
 
             // 6. Vị trí cứu hộ
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Vị trí cứu hộ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Vị trí cứu hộ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const Divider(height: 16),
-                    _row(snapshot?.currentGpsIsSimulated == true
-                            ? 'GPS MÔ PHỎNG'
-                            : 'GPS mới nhất', rescueGps ??
-                        'Chưa nhận được GPS từ điện thoại người cao tuổi'),
+                    _row(
+                      snapshot?.currentGpsIsSimulated == true
+                          ? 'GPS MÔ PHỎNG'
+                          : 'GPS mới nhất',
+                      rescueGps ??
+                          'Chưa nhận được GPS từ điện thoại người cao tuổi',
+                    ),
                     if (snapshot?.currentGpsIsSimulated == true)
-                      const Text('Vị trí do emulator hoặc ứng dụng mô phỏng cung cấp; không phải vị trí thật của người cao tuổi.',
-                        style: TextStyle(color: Color(0xFFB45309), fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Vị trí do emulator hoặc ứng dụng mô phỏng cung cấp; không phải vị trí thật của người cao tuổi.',
+                        style: TextStyle(
+                          color: Color(0xFFB45309),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     if (snapshot?.currentGpsAccuracyMeters != null)
-                      _row('Sai số ước tính',
-                        '±${snapshot!.currentGpsAccuracyMeters!.round()} m'),
+                      _row(
+                        'Sai số ước tính',
+                        '±${snapshot!.currentGpsAccuracyMeters!.round()} m',
+                      ),
                     if (snapshot?.currentGpsMeasuredAt != null)
-                      _row('Đo lúc', DateFormat('HH:mm:ss dd/MM/yyyy').format(
-                          snapshot!.currentGpsMeasuredAt!.toLocal())),
+                      _row(
+                        'Đo lúc',
+                        DateFormat('HH:mm:ss dd/MM/yyyy')
+                            .format(snapshot!.currentGpsMeasuredAt!.toLocal()),
+                      ),
                     if (snapshot?.gpsLocation != null &&
                         snapshot?.gpsLocation != rescueGps)
                       _row('GPS lúc đầu', snapshot?.gpsLocation),
@@ -717,21 +971,29 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0284C7),
+                            backgroundColor: const Color(0xFF4A3020),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           icon: const Icon(Icons.directions_rounded, size: 18),
-                          label: const Text('CHỈ ĐƯỜNG ĐẾN VỊ TRÍ CỤ (GPS)',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          label: const Text(
+                            'CHỈ ĐƯỜNG ĐẾN VỊ TRÍ CỤ (GPS)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
                           onPressed: () {
                             final parts = rescueGps.split(',');
                             if (parts.length == 2) {
                               final lat = double.tryParse(parts[0].trim());
                               final lng = double.tryParse(parts[1].trim());
                               if (lat != null && lng != null) {
-                                LocationService.instance.openGoogleMapsDirections(lat, lng);
+                                LocationService.instance
+                                    .openGoogleMapsDirections(lat, lng);
                               }
                             }
                           },
@@ -740,7 +1002,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                       const SizedBox(height: 6),
                     ],
                     _row('Địa chỉ nhà', snapshot?.homeAddress),
-                    if (snapshot?.homeAddress != null && snapshot!.homeAddress!.trim().isNotEmpty) ...[
+                    if (snapshot?.homeAddress != null &&
+                        snapshot!.homeAddress!.trim().isNotEmpty) ...[
                       const SizedBox(height: 8),
                       if (rescueGps == null)
                         SizedBox(
@@ -750,22 +1013,42 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
                               backgroundColor: const Color(0xFF0F766E),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                             icon: const Icon(Icons.home_rounded, size: 18),
-                            label: const Text('CHỈ ĐƯỜNG ĐẾN NHÀ CỤ',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            onPressed: () => LocationService.instance.openDirectionsToAddress(snapshot.homeAddress!),
+                            label: const Text(
+                              'CHỈ ĐƯỜNG ĐẾN NHÀ CỤ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            onPressed: () => LocationService.instance
+                                .openDirectionsToAddress(snapshot.homeAddress!),
                           ),
                         )
                       else
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
-                            style: TextButton.styleFrom(foregroundColor: const Color(0xFF0F766E)),
-                            icon: const Icon(Icons.directions_car_rounded, size: 16),
-                            label: const Text('Chỉ đường về nhà', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                            onPressed: () => LocationService.instance.openDirectionsToAddress(snapshot.homeAddress!),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF0F766E),
+                            ),
+                            icon: const Icon(
+                              Icons.directions_car_rounded,
+                              size: 16,
+                            ),
+                            label: const Text(
+                              'Chỉ đường về nhà',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            onPressed: () => LocationService.instance
+                                .openDirectionsToAddress(snapshot.homeAddress!),
                           ),
                         ),
                     ],
@@ -777,20 +1060,34 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
 
             // 7. Biểu Đồ Nhịp Tim T-15..T+15 Phút
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Ảnh hiện trường sự cố', style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 8),
-                  if (_photoBytes == null)
-                    const Text('Chưa có ảnh. Ảnh sẽ xuất hiện nếu điện thoại của người cao tuổi được cấp quyền camera và đang mở ứng dụng.',
-                      style: TextStyle(color: Color(0xFF64748B)))
-                  else
-                    ClipRRect(borderRadius: BorderRadius.circular(10),
-                      child: Image.memory(_photoBytes!, fit: BoxFit.contain)),
-                ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ảnh hiện trường sự cố',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_photoBytes == null)
+                      const Text(
+                        'Chưa có ảnh. Ảnh sẽ xuất hiện nếu điện thoại của người cao tuổi được cấp quyền camera và đang mở ứng dụng.',
+                        style: TextStyle(color: Color(0xFF7D7168)),
+                      )
+                    else
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.memory(_photoBytes!, fit: BoxFit.contain),
+                      ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -802,41 +1099,50 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
             ),
             const SizedBox(height: 16),
 
-            // 8. Các nút hành động khẩn cấp
-            FilledButton.icon(
-              onPressed: _contactNumber?.isNotEmpty == true ? () => _dial(_contactNumber!) : null,
-              icon: const Icon(Icons.phone),
-              label: Text(
-                _contactNumber?.isNotEmpty == true
-                    ? 'Gọi số liên hệ của người cao tuổi: $_contactNumber'
-                    : 'Chưa có số liên hệ của người cao tuổi',
-              ),
-            ),
-            const SizedBox(height: 16),
-
             // 9. Dòng thời gian chi tiết (Timeline Events)
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
-                        const Text('Dòng thời gian sự kiện', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text('${_sortedTimeline.length} mốc', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        const Text(
+                          'Dòng thời gian sự kiện',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        Text(
+                          '${_sortedTimeline.length} mốc',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF7D7168),
+                          ),
+                        ),
                       ],
                     ),
                     const Divider(height: 16),
                     if (_sortedTimeline.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Chưa có sự kiện nào được ghi nhận.', style: TextStyle(color: Colors.grey)),
+                        child: Text(
+                          'Chưa có sự kiện nào được ghi nhận.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       )
                     else
-                      ..._sortedTimeline.map((event) => _buildTimelineItem(event)),
+                      ..._sortedTimeline.map(
+                        (event) => _buildTimelineItem(event),
+                      ),
                   ],
                 ),
               ),
@@ -852,7 +1158,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
     if (_incident.isResolved) return null;
 
     final isAck = _incident.isAcknowledged;
-    final primaryBgColor = isAck ? const Color(0xFF16A34A) : const Color(0xFFD97706);
+    final primaryBgColor = isAck ? CareAiColors.greenInk : CareAiColors.brown;
     final primaryIcon = isAck ? Icons.task_alt : Icons.check_circle;
     final primaryLabel = isAck ? 'Giải quyết sự cố' : 'Tiếp nhận sự cố';
     final primaryAction = isAck ? _resolve : _acknowledge;
@@ -862,7 +1168,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: CareAiColors.brown.withValues(alpha: 0.05),
             offset: const Offset(0, -3),
             blurRadius: 8,
           ),
@@ -872,51 +1178,78 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
         top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFDC2626),
-                    side: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = MediaQuery.textScalerOf(context).scale(14) > 20;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  SizedBox(
+                    width: stacked
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) * 0.4,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFDC2626),
+                        side: const BorderSide(
+                          color: Color(0xFFDC2626),
+                          width: 1.5,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: const StadiumBorder(),
+                      ),
+                      onPressed: () => _dial('115'),
+                      icon: const Icon(
+                        Icons.emergency,
+                        color: Color(0xFFDC2626),
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Gọi 115',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFFDC2626),
+                        ),
+                        softWrap: true,
+                      ),
+                    ),
                   ),
-                  onPressed: () => _dial('115'),
-                  icon: const Icon(Icons.emergency, color: Color(0xFFDC2626), size: 18),
-                  label: const Text(
-                    'Gọi cấp cứu 115',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFDC2626)),
-                    overflow: TextOverflow.ellipsis,
+                  SizedBox(
+                    width: stacked
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) * 0.6,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: primaryBgColor,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: const StadiumBorder(),
+                      ),
+                      onPressed: _busy ? null : primaryAction,
+                      icon: _busy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(primaryIcon, size: 18),
+                      label: Text(
+                        primaryLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        softWrap: true,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 3,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: primaryBgColor,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _busy ? null : primaryAction,
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Icon(primaryIcon, size: 18),
-                  label: Text(
-                    primaryLabel,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -925,10 +1258,13 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
 
   Widget _buildTimelineItem(IncidentTimeline event) {
     IconData iconData = Icons.circle;
-    Color iconColor = const Color(0xFF64748B);
+    Color iconColor = const Color(0xFF7D7168);
 
     final type = event.eventType.toUpperCase();
-    if (type.contains('CRITICAL') || type.contains('SOS') || type.contains('FALL') || type.contains('CREATED')) {
+    if (type.contains('CRITICAL') ||
+        type.contains('SOS') ||
+        type.contains('FALL') ||
+        type.contains('CREATED')) {
       iconData = Icons.warning_amber_rounded;
       iconColor = const Color(0xFFDC2626);
     } else if (type.contains('ACK')) {
@@ -939,7 +1275,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
       iconColor = const Color(0xFF16A34A);
     } else if (type.contains('NOTIF') || type.contains('FCM')) {
       iconData = Icons.notifications_active;
-      iconColor = const Color(0xFF0284C7);
+      iconColor = const Color(0xFF4A3020);
     } else if (type.contains('SLA') || type.contains('REMIND')) {
       iconData = Icons.timer_outlined;
       iconColor = const Color(0xFFEA580C);
@@ -968,12 +1304,20 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> with Widget
               children: [
                 Text(
                   event.description,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4A3020),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  DateFormat('HH:mm:ss dd/MM/yyyy').format(event.recordedAt.toLocal()),
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  DateFormat('HH:mm:ss dd/MM/yyyy')
+                      .format(event.recordedAt.toLocal()),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF7D7168),
+                  ),
                 ),
               ],
             ),

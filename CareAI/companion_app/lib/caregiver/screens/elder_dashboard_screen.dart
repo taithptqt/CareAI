@@ -1,9 +1,13 @@
+import '../../theme/careai_theme.dart';
+
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+
 import '../../services/location_service.dart';
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
@@ -27,7 +31,8 @@ class ElderDashboardScreen extends StatefulWidget {
   State<ElderDashboardScreen> createState() => _ElderDashboardScreenState();
 }
 
-class _ElderDashboardScreenState extends State<ElderDashboardScreen> with WidgetsBindingObserver {
+class _ElderDashboardScreenState extends State<ElderDashboardScreen>
+    with WidgetsBindingObserver {
   ElderDashboard? _dashboard;
   HeartRate24hData? _heartRate24h;
   ThresholdData? _thresholdData;
@@ -35,7 +40,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   Spo224hData? _spo224h;
   HourlyStepsData? _hourlySteps24h;
   SleepSummaryData? _sleepSummary;
-  int _selectedChartTab = 0; // 0: HeartRate, 1: BloodPressure, 2: SpO2, 3: HourlySteps
+  int _selectedChartTab =
+      0; // 0: HeartRate, 1: BloodPressure, 2: SpO2, 3: HourlySteps
   bool _isLoading = true;
   String? _errorMessage;
   Timer? _vitalsRefreshTimer;
@@ -106,13 +112,27 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     });
 
     try {
-      final dashFuture = CaregiverApiService.instance.getElderDashboard(widget.elderProfileId);
-      final hrFuture = CaregiverApiService.instance.getHeartRate24h(widget.elderProfileId);
-      final thresholdFuture = CaregiverApiService.instance.getElderThresholds(widget.elderProfileId);
-      final bpFuture = CaregiverApiService.instance.getBloodPressureHistory(widget.elderProfileId);
-      final spo2Future = CaregiverApiService.instance.getSpo224h(widget.elderProfileId);
-      final stepsFuture = CaregiverApiService.instance.getHourlySteps24h(widget.elderProfileId);
-      final sleepFuture = CaregiverApiService.instance.getElderSleepSummary(widget.elderProfileId);
+      final dashFuture = CaregiverApiService.instance.getElderDashboard(
+        widget.elderProfileId,
+      );
+      final hrFuture = CaregiverApiService.instance.getHeartRate24h(
+        widget.elderProfileId,
+      );
+      final thresholdFuture = CaregiverApiService.instance.getElderThresholds(
+        widget.elderProfileId,
+      );
+      final bpFuture = CaregiverApiService.instance.getBloodPressureHistory(
+        widget.elderProfileId,
+      );
+      final spo2Future = CaregiverApiService.instance.getSpo224h(
+        widget.elderProfileId,
+      );
+      final stepsFuture = CaregiverApiService.instance.getHourlySteps24h(
+        widget.elderProfileId,
+      );
+      final sleepFuture = CaregiverApiService.instance.getElderSleepSummary(
+        widget.elderProfileId,
+      );
 
       final results = await Future.wait([
         dashFuture,
@@ -149,7 +169,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   Future<void> _generatePin() async {
     setState(() => _isGeneratingPin = true);
     try {
-      final pin = await CaregiverApiService.instance.generatePin(widget.elderProfileId);
+      final pin = await CaregiverApiService.instance.generatePin(
+        widget.elderProfileId,
+      );
       if (mounted) {
         setState(() {
           _generatedPin = pin;
@@ -159,7 +181,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Mã PIN ghép nối: $pin (Hiệu lực 10 phút)'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: const Color(0xFF456624),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -179,7 +201,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   }
 
   LatLng? _parseGpsLocation(String? loc) {
-    if (loc == null || loc.isEmpty || loc == 'Chưa có dữ liệu' || loc == 'Chưa có GPS') {
+    if (loc == null ||
+        loc.isEmpty ||
+        loc == 'Chưa có dữ liệu' ||
+        loc == 'Chưa có GPS') {
       return null;
     }
     try {
@@ -198,26 +223,31 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFFFAF7F2),
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               widget.elderName,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.white),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+                color: CareAiColors.ink,
+              ),
             ),
             const Text(
-              'Bảng Điều Khiển Sinh Hiệu & Vị Trí',
-              style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              'Sức khỏe & kết nối',
+              style: TextStyle(fontSize: 11, color: Color(0xFF7D7168)),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: CareAiColors.canvas,
+        foregroundColor: CareAiColors.ink,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.history_rounded, color: Color(0xFF38BDF8)),
+            icon: const Icon(Icons.history_rounded, color: Color(0xFF456624)),
             tooltip: 'Lịch sử sự cố của người cao tuổi',
             onPressed: () => Navigator.push(
               context,
@@ -231,53 +261,68 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           ),
           IconButton(
             tooltip: 'Góc Sức Khỏe AI',
-            icon: const Icon(Icons.auto_awesome, color: Color(0xFF38BDF8)),
+            icon: const Icon(Icons.auto_awesome, color: Color(0xFF456624)),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => HealthCornerScreen(elderId: widget.elderProfileId),
+                builder: (_) =>
+                    HealthCornerScreen(elderId: widget.elderProfileId),
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF38BDF8)),
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF456624)),
             tooltip: 'Làm mới dữ liệu',
             onPressed: _loadDashboard,
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF456624)),
+            )
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 56, color: Color(0xFFEF4444)),
-                        const SizedBox(height: 14),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 14),
-                        ),
-                        const SizedBox(height: 18),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0284C7),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('Thử Lại'),
-                          onPressed: _loadDashboard,
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 56,
+                      color: Color(0xFFEF4444),
                     ),
-                  ),
-                )
-              : _buildDashboardContent(),
+                    const SizedBox(height: 14),
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF5C493B),
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4A3020),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Thử Lại'),
+                      onPressed: _loadDashboard,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _buildDashboardContent(),
     );
   }
 
@@ -290,8 +335,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       top: false,
       bottom: true,
       child: RefreshIndicator(
-        color: const Color(0xFF38BDF8),
-        backgroundColor: const Color(0xFF1E293B),
+        color: const Color(0xFF456624),
+        backgroundColor: const Color(0xFFFFFFFF),
         onRefresh: _loadDashboard,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -350,7 +395,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 Center(
                   child: Text(
                     'Đồng bộ dữ liệu lúc: ${VietnamTimeHelper.formatFull(d.lastSyncedAt)} (Giờ VN)',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF7D7168),
+                    ),
                   ),
                 ),
               const SizedBox(height: 36),
@@ -365,12 +413,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   Widget _buildElderProfileCard(ElderDashboard d, bool isOnline) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: CareAiColors.brown.withValues(alpha: 0.035),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -387,15 +435,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: CareAiColors.peach,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                      color: const Color(0xFF4A3020).withValues(alpha: 0.04),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -404,7 +448,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 child: Center(
                   child: Text(
                     d.fullName.isNotEmpty ? d.fullName[0].toUpperCase() : 'C',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: CareAiColors.ink,
+                    ),
                   ),
                 ),
               ),
@@ -415,25 +463,39 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   children: [
                     Text(
                       d.fullName,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: CareAiColors.ink,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       '${d.age} tuổi · Người cao tuổi',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF7D7168),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: isOnline ? const Color(0xFF064E3B) : const Color(0xFF334155),
+                  color: isOnline
+                      ? const Color(0xFFE2EDD3)
+                      : const Color(0xFFE4DACD),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isOnline ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                    color: isOnline
+                        ? const Color(0xFF456624)
+                        : const Color(0xFF7D7168),
                     width: 1,
                   ),
                 ),
@@ -445,7 +507,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       height: 7,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isOnline ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                        color: isOnline
+                            ? const Color(0xFF456624)
+                            : const Color(0xFF7D7168),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -454,7 +518,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isOnline ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
+                        color: isOnline
+                            ? const Color(0xFF456624)
+                            : const Color(0xFF7D7168),
                       ),
                     ),
                   ],
@@ -489,84 +555,92 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
       if (isCharging) {
         iconData = Icons.battery_charging_full_rounded;
-        iconColor = const Color(0xFF38BDF8);
-        badgeBg = const Color(0xFF0C4A6E);
-        badgeBorder = const Color(0xFF38BDF8);
-        badgeTextColor = const Color(0xFF7DD3FC);
-        badgeText = batteryPct == 100 ? 'Sạc đầy 100%' : 'Đang sạc ${batteryPct != null ? "$batteryPct%" : ""}';
+        iconColor = const Color(0xFF456624);
+        badgeBg = const Color(0xFFF0F4E4);
+        badgeBorder = const Color(0xFF456624);
+        badgeTextColor = const Color(0xFF456624);
+        badgeText = batteryPct == 100
+            ? 'Sạc đầy 100%'
+            : 'Đang sạc ${batteryPct != null ? "$batteryPct%" : ""}';
       } else if (isWorn == false) {
         if (batteryPct != null && batteryPct <= 20) {
           iconData = Icons.battery_alert_rounded;
           iconColor = const Color(0xFFEF4444);
-          badgeBg = const Color(0xFF7F1D1D);
+          badgeBg = const Color(0xFFFFEDE7);
           badgeBorder = const Color(0xFFEF4444);
-          badgeTextColor = const Color(0xFFFCA5A5);
+          badgeTextColor = const Color(0xFFC93B2B);
           badgeText = 'Đã tháo · Pin $batteryPct%';
         } else {
           iconData = Icons.watch_off_outlined;
           iconColor = const Color(0xFFF59E0B);
-          badgeBg = const Color(0xFF78350F);
+          badgeBg = const Color(0xFFFAEFE5);
           badgeBorder = const Color(0xFFF59E0B);
-          badgeTextColor = const Color(0xFFFDE68A);
+          badgeTextColor = const Color(0xFF916018);
           badgeText = 'Đã tháo${batteryPct != null ? " · $batteryPct%" : ""}';
         }
       } else {
         if (batteryPct != null && batteryPct <= 10) {
           iconData = Icons.battery_alert_rounded;
           iconColor = const Color(0xFFEF4444);
-          badgeBg = const Color(0xFF7F1D1D);
+          badgeBg = const Color(0xFFFFEDE7);
           badgeBorder = const Color(0xFFEF4444);
-          badgeTextColor = const Color(0xFFFCA5A5);
+          badgeTextColor = const Color(0xFFC93B2B);
           badgeText = 'Pin sắp cạn · $batteryPct%';
         } else if (batteryPct != null && batteryPct <= 20) {
           iconData = Icons.battery_alert_rounded;
           iconColor = const Color(0xFFF59E0B);
-          badgeBg = const Color(0xFF78350F);
+          badgeBg = const Color(0xFFFAEFE5);
           badgeBorder = const Color(0xFFF59E0B);
-          badgeTextColor = const Color(0xFFFDE68A);
+          badgeTextColor = const Color(0xFF916018);
           badgeText = 'Pin yếu · $batteryPct%';
         } else {
           iconData = Icons.watch_rounded;
-          iconColor = const Color(0xFF10B981);
-          badgeBg = const Color(0xFF064E3B);
-          badgeBorder = const Color(0xFF10B981);
-          badgeTextColor = const Color(0xFF6EE7B7);
-          badgeText = 'Trên cổ tay${batteryPct != null ? " · $batteryPct%" : ""}';
+          iconColor = const Color(0xFF456624);
+          badgeBg = const Color(0xFFE2EDD3);
+          badgeBorder = const Color(0xFF456624);
+          badgeTextColor = const Color(0xFF456624);
+          badgeText =
+              'Trên cổ tay${batteryPct != null ? " · $batteryPct%" : ""}';
         }
       }
 
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+          color: const Color(0xFFFAF7F2).withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.8)),
+          border: Border.all(
+            color: const Color(0xFFE4DACD).withValues(alpha: 0.8),
+          ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(iconData, size: 16, color: iconColor),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                d.watchModel ?? 'Apple Watch / Galaxy Watch',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFFE2E8F0),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.1,
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(iconData, size: 16, color: iconColor),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    d.watchModel ?? 'Apple Watch / Galaxy Watch',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF4A3020),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -576,7 +650,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               ),
               child: Text(
                 badgeText,
-                style: TextStyle(fontSize: 11, color: badgeTextColor, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: badgeTextColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -589,10 +667,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+          color: const Color(0xFFFAF7F2).withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isBtOff ? const Color(0xFF7F1D1D) : const Color(0xFF78350F),
+            color: isBtOff ? const Color(0xFFFFEDE7) : const Color(0xFFFAEFE5),
             width: 0.8,
           ),
         ),
@@ -601,13 +679,21 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: (isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B)).withValues(alpha: 0.15),
+                color:
+                    (isBtOff
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFFF59E0B))
+                        .withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isBtOff ? Icons.bluetooth_disabled_rounded : Icons.watch_off_outlined,
+                isBtOff
+                    ? Icons.bluetooth_disabled_rounded
+                    : Icons.watch_off_outlined,
                 size: 16,
-                color: isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                color: isBtOff
+                    ? const Color(0xFFEF4444)
+                    : const Color(0xFFF59E0B),
               ),
             ),
             const SizedBox(width: 10),
@@ -616,7 +702,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 d.watchModel ?? 'Đồng hồ thông minh',
                 style: const TextStyle(
                   fontSize: 13,
-                  color: Color(0xFFE2E8F0),
+                  color: Color(0xFF4A3020),
                   fontWeight: FontWeight.w600,
                 ),
                 maxLines: 1,
@@ -627,10 +713,14 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: isBtOff ? const Color(0xFF7F1D1D) : const Color(0xFF78350F),
+                color: isBtOff
+                    ? const Color(0xFFFFEDE7)
+                    : const Color(0xFFFAEFE5),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isBtOff ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                  color: isBtOff
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFFF59E0B),
                   width: 0.8,
                 ),
               ),
@@ -638,7 +728,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 isBtOff ? 'Đã tắt Bluetooth' : 'Mất tín hiệu',
                 style: TextStyle(
                   fontSize: 11,
-                  color: isBtOff ? const Color(0xFFFECACA) : const Color(0xFFFDE68A),
+                  color: isBtOff
+                      ? const Color(0xFFC93B2B)
+                      : const Color(0xFF916018),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -651,19 +743,25 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+        color: const Color(0xFFFAF7F2).withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.8)),
+        border: Border.all(
+          color: const Color(0xFFE4DACD).withValues(alpha: 0.8),
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
-              color: const Color(0xFF64748B).withValues(alpha: 0.15),
+              color: const Color(0xFF7D7168).withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.watch_rounded, size: 16, color: Color(0xFF64748B)),
+            child: const Icon(
+              Icons.watch_rounded,
+              size: 16,
+              color: Color(0xFF7D7168),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -671,7 +769,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               d.watchModel ?? 'Chưa ghép nối đồng hồ',
               style: const TextStyle(
                 fontSize: 13,
-                color: Color(0xFF94A3B8),
+                color: Color(0xFF7D7168),
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
@@ -687,132 +785,188 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   Widget _buildHealthCornerCard() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
       ),
       child: Material(
         type: MaterialType.transparency,
         child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0284C7).withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(10),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4A3020).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Color(0xFF456624),
+              size: 22,
+            ),
           ),
-          child: const Icon(Icons.auto_awesome, color: Color(0xFF38BDF8), size: 22),
-        ),
-        title: const Text(
-          'Góc Sức Khỏe AI',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-        ),
-        subtitle: const Text(
-          'Nhận định xu hướng & Báo cáo tổng kết tuần',
-          style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => HealthCornerScreen(elderId: widget.elderProfileId),
+          title: const Text(
+            'Góc Sức Khỏe AI',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: CareAiColors.ink,
+            ),
           ),
-        ),
+          subtitle: const Text(
+            'Nhận định xu hướng & Báo cáo tổng kết tuần',
+            style: TextStyle(fontSize: 12, color: Color(0xFF7D7168)),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Color(0xFF7D7168)),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  HealthCornerScreen(elderId: widget.elderProfileId),
+            ),
+          ),
         ),
       ),
     );
   }
 
   // --- LƯỚI SINH HIỆU ---
-  Widget _buildVitalsHeader() {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _dashboardHeading(
+    String title, {
+    required IconData icon,
+    Color color = CareAiColors.greenInk,
+    Widget? trailing,
+  }) {
+    final heading = Row(
       children: [
-        Row(
-          children: [
-            Icon(Icons.monitor_heart_rounded, color: Color(0xFF38BDF8), size: 18),
-            SizedBox(width: 8),
-            Text(
-              'Chỉ Số Sinh Hiệu Thời Gian Thực',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: CareAiColors.ink,
             ),
-          ],
+          ),
         ),
-        Text(
-          'Chuẩn y tế',
-          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-        ),
+      ],
+    );
+    if (MediaQuery.textScalerOf(context).scale(14) > 20) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          heading,
+          if (trailing != null) ...[const SizedBox(height: 8), trailing],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: heading),
+        if (trailing != null) ...[const SizedBox(width: 12), trailing],
       ],
     );
   }
 
+  Widget _buildVitalsHeader() => _dashboardHeading(
+    'Thông tin sức khỏe',
+    icon: Icons.monitor_heart_rounded,
+    trailing: const Text(
+      'Theo thiết bị',
+      style: TextStyle(fontSize: 12, color: CareAiColors.secondary),
+    ),
+  );
+
   Widget _buildVitalsGrid(ElderDashboard d) {
-    return Column(
-      children: [
-        Row(
+    final cards = <Widget>[
+      _buildVitalCard(
+        title: 'Nhịp tim',
+        value: d.latestHeartRate != null
+            ? '${d.latestHeartRate!.value.toInt()}'
+            : '--',
+        unit: 'bpm',
+        icon: Icons.favorite_rounded,
+        iconColor: const Color(0xFFEF4444),
+        accentColor: const Color(0xFFEF4444),
+        timestamp: d.latestHeartRate?.timestamp,
+        statusText: d.latestHeartRate != null
+            ? (d.latestHeartRate!.value > 100
+                  ? 'Nhịp nhanh'
+                  : (d.latestHeartRate!.value < 50
+                        ? 'Nhịp chậm'
+                        : 'Bình thường'))
+            : 'Chưa có mẫu',
+      ),
+      _buildVitalCard(
+        title: 'Oxy Máu (SpO2)',
+        value: d.latestSpO2 != null
+            ? d.latestSpO2!.value.toStringAsFixed(1)
+            : '--',
+        unit: '%',
+        icon: Icons.air_rounded,
+        iconColor: const Color(0xFF7A9850),
+        accentColor: const Color(0xFF7A9850),
+        timestamp: d.latestSpO2?.timestamp,
+        statusText: d.latestSpO2 != null
+            ? (d.latestSpO2!.value < 95 ? 'Oxy thấp' : 'Tối ưu')
+            : 'Chưa có mẫu',
+      ),
+      _buildVitalCard(
+        title: 'Huyết Áp',
+        value: d.latestBloodPressure != null
+            ? '${d.latestBloodPressure!.value.toInt()}'
+            : '--',
+        unit: 'mmHg',
+        icon: Icons.speed_rounded,
+        iconColor: const Color(0xFF645796),
+        accentColor: const Color(0xFF645796),
+        timestamp: d.latestBloodPressure?.timestamp,
+        statusText: d.latestBloodPressure == null
+            ? 'Chưa có mẫu'
+            : 'Đã cập nhật',
+      ),
+      _buildVitalCard(
+        title: 'Vận Động Hôm Nay',
+        value: '${d.todaySteps}',
+        unit: 'bước',
+        icon: Icons.directions_walk_rounded,
+        iconColor: const Color(0xFF456624),
+        accentColor: const Color(0xFF456624),
+        timestamp: null,
+        statusText: 'Mục tiêu: ${d.stepGoal}',
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final largeText = MediaQuery.textScalerOf(context).scale(14) > 19;
+        final columns = largeText || constraints.maxWidth < 330
+            ? 1
+            : constraints.maxWidth >= 900
+            ? 4
+            : 2;
+        return Column(
           children: [
-            Expanded(
-              child: _buildVitalCard(
-                title: 'Nhịp tim',
-                value: d.latestHeartRate != null ? '${d.latestHeartRate!.value.toInt()}' : '--',
-                unit: 'bpm',
-                icon: Icons.favorite_rounded,
-                iconColor: const Color(0xFFEF4444),
-                accentColor: const Color(0xFFEF4444),
-                timestamp: d.latestHeartRate?.timestamp,
-                statusText: d.latestHeartRate != null
-                    ? (d.latestHeartRate!.value > 100
-                        ? 'Nhịp nhanh'
-                        : (d.latestHeartRate!.value < 50 ? 'Nhịp chậm' : 'Bình thường'))
-                    : 'Chưa có mẫu',
+            for (var first = 0; first < cards.length; first += columns) ...[
+              if (first > 0) const SizedBox(height: 12),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (
+                      var offset = 0;
+                      offset < columns && first + offset < cards.length;
+                      offset++
+                    ) ...[
+                      if (offset > 0) const SizedBox(width: 12),
+                      Expanded(child: cards[first + offset]),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildVitalCard(
-                title: 'Oxy Máu (SpO2)',
-                value: d.latestSpO2 != null ? d.latestSpO2!.value.toStringAsFixed(1) : '--',
-                unit: '%',
-                icon: Icons.air_rounded,
-                iconColor: const Color(0xFF0EA5E9),
-                accentColor: const Color(0xFF0EA5E9),
-                timestamp: d.latestSpO2?.timestamp,
-                statusText: d.latestSpO2 != null
-                    ? (d.latestSpO2!.value < 95 ? 'Oxy thấp' : 'Tối ưu')
-                    : 'Chưa có mẫu',
-              ),
-            ),
+            ],
           ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildVitalCard(
-                title: 'Huyết Áp',
-                value: d.latestBloodPressure != null ? '${d.latestBloodPressure!.value.toInt()}' : '--',
-                unit: 'mmHg',
-                icon: Icons.speed_rounded,
-                iconColor: const Color(0xFFA855F7),
-                accentColor: const Color(0xFFA855F7),
-                timestamp: d.latestBloodPressure?.timestamp,
-                statusText: d.latestBloodPressure == null ? 'Chưa có mẫu' : 'Đã cập nhật',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildVitalCard(
-                title: 'Vận Động Hôm Nay',
-                value: '${d.todaySteps}',
-                unit: 'bước',
-                icon: Icons.directions_walk_rounded,
-                iconColor: const Color(0xFF10B981),
-                accentColor: const Color(0xFF10B981),
-                timestamp: null,
-                statusText: 'Mục tiêu: ${d.stepGoal}',
-              ),
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -822,25 +976,36 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF422006),
+        color: const Color(0xFFFAEFE5),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFF59E0B)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('CẢNH BÁO TRÌNH DIỄN · DỮ LIỆU GIẢ LẬP',
-              style: TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.bold)),
+          const Text(
+            'CẢNH BÁO TRÌNH DIỄN · DỮ LIỆU GIẢ LẬP',
+            style: TextStyle(
+              color: Color(0xFF916018),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           if (heartRate != null)
-            Text('Nhịp tim tăng: ${heartRate.value.toStringAsFixed(0)} bpm · '
-                '${VietnamTimeHelper.formatHms(heartRate.timestamp)} (Giờ VN)',
-                style: const TextStyle(color: Colors.white)),
+            Text(
+              'Nhịp tim tăng: ${heartRate.value.toStringAsFixed(0)} bpm · '
+              '${VietnamTimeHelper.formatHms(heartRate.timestamp)} (Giờ VN)',
+              style: const TextStyle(color: CareAiColors.ink),
+            ),
           if (spo2 != null)
-            Text('SpO₂ giảm: ${spo2.value.toStringAsFixed(0)}% · '
-                '${VietnamTimeHelper.formatHms(spo2.timestamp)} (Giờ VN)',
-                style: const TextStyle(color: Colors.white)),
-          const Text('Chỉ dùng để thử luồng đồng bộ. Không phải số đo lâm sàng từ thiết bị.',
-              style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12)),
+            Text(
+              'SpO₂ giảm: ${spo2.value.toStringAsFixed(0)}% · '
+              '${VietnamTimeHelper.formatHms(spo2.timestamp)} (Giờ VN)',
+              style: const TextStyle(color: CareAiColors.ink),
+            ),
+          const Text(
+            'Chỉ dùng để thử luồng đồng bộ. Không phải số đo lâm sàng từ thiết bị.',
+            style: TextStyle(color: Color(0xFF916018), fontSize: 12),
+          ),
         ],
       ),
     );
@@ -855,102 +1020,121 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     if (d.watchStatus == 'DISCONNECTED') {
       final model = d.watchModel ?? 'Đồng hồ';
       if (d.watchDisconnectReason == 'BLUETOOTH_OFF') {
-        messages.add('Bluetooth trên điện thoại của ${d.fullName} đang bị tắt. Hãy nhắc người thân bật lại Bluetooth trên điện thoại để đồng hồ $model kết nối bảo vệ.');
+        messages.add(
+          'Bluetooth trên điện thoại của ${d.fullName} đang bị tắt. Hãy nhắc người thân bật lại Bluetooth trên điện thoại để đồng hồ $model kết nối bảo vệ.',
+        );
       } else {
-        messages.add('Đồng hồ $model đang mất tín hiệu kết nối. Hãy nhắc người thân kiểm tra (đồng hồ hết pin, quên đeo hoặc để xa điện thoại >10m).');
+        messages.add(
+          'Đồng hồ $model đang mất tín hiệu kết nối. Hãy nhắc người thân kiểm tra (đồng hồ hết pin, quên đeo hoặc để xa điện thoại >10m).',
+        );
       }
     } else if (d.watchStatus == 'NOT_PAIRED') {
-      messages.add('Chưa ghép nối đồng hồ đeo tay. Hãy ghép nối Galaxy Watch hoặc Apple Watch để theo dõi nhịp tim và cảnh báo té ngã.');
+      messages.add(
+        'Chưa ghép nối đồng hồ đeo tay. Hãy ghép nối Galaxy Watch hoặc Apple Watch để theo dõi nhịp tim và cảnh báo té ngã.',
+      );
     } else if (d.watchStatus == 'ONLINE') {
       final model = d.watchModel ?? 'Đồng hồ';
       if (d.isWatchCharging == true) {
         if (d.watchBatteryLevel == 100) {
-          messages.add('Đồng hồ $model đã sạc đầy 100%. Hãy nhắc người thân đeo lại vào cổ tay để tiếp tục giám sát an toàn.');
+          messages.add(
+            'Đồng hồ $model đã sạc đầy 100%. Hãy nhắc người thân đeo lại vào cổ tay để tiếp tục giám sát an toàn.',
+          );
         } else {
-          messages.add('Đồng hồ $model đang được cắm sạc (${d.watchBatteryLevel ?? 0}%). Tính năng đo sinh hiệu tạm dừng trong lúc sạc.');
+          messages.add(
+            'Đồng hồ $model đang được cắm sạc (${d.watchBatteryLevel ?? 0}%). Tính năng đo sinh hiệu tạm dừng trong lúc sạc.',
+          );
         }
       } else if (d.isWatchWorn == false) {
-        messages.add('Đồng hồ $model đang được tháo khỏi cổ tay${d.watchBatteryLevel != null ? " (Pin ${d.watchBatteryLevel}%)" : ""}. Hãy nhắc người thân đeo lại để hệ thống bảo vệ liên tục.');
+        messages.add(
+          'Đồng hồ $model đang được tháo khỏi cổ tay${d.watchBatteryLevel != null ? " (Pin ${d.watchBatteryLevel}%)" : ""}. Hãy nhắc người thân đeo lại để hệ thống bảo vệ liên tục.',
+        );
       }
     }
 
     if (hr == null && oxygen == null) {
       if (d.watchStatus != 'DISCONNECTED' && d.watchStatus != 'NOT_PAIRED') {
-        messages.add('Chưa có mẫu sinh hiệu từ thiết bị. Kiểm tra kết nối đồng hồ và quyền truy cập cảm biến.');
+        messages.add(
+          'Chưa có mẫu sinh hiệu từ thiết bị. Kiểm tra kết nối đồng hồ và quyền truy cập cảm biến.',
+        );
       }
     } else {
       if (hr != null) {
         if (now.toUtc().difference(hr.timestamp.toUtc()).inHours >= 2) {
-          messages.add('Mẫu nhịp tim đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.');
+          messages.add(
+            'Mẫu nhịp tim đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.',
+          );
         } else if (hr.value < 50 || hr.value > 100) {
-          messages.add('Nhịp tim gần nhất nằm ngoài khoảng tham chiếu trên app. Hãy hỏi thăm cảm giác của người thân.');
+          messages.add(
+            'Nhịp tim gần nhất nằm ngoài khoảng tham chiếu trên app. Hãy hỏi thăm cảm giác của người thân.',
+          );
         }
       }
       if (oxygen != null) {
         if (now.toUtc().difference(oxygen.timestamp.toUtc()).inHours >= 2) {
-          messages.add('Mẫu SpO₂ đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.');
+          messages.add(
+            'Mẫu SpO₂ đã cũ. Kiểm tra đồng hồ và thời điểm đồng bộ.',
+          );
         } else if (oxygen.value < 95) {
-          messages.add('SpO₂ gần nhất thấp: hỏi thăm triệu chứng, kiểm tra lại phép đo và liên hệ nhân viên y tế nếu mức thấp lặp lại.');
+          messages.add(
+            'SpO₂ gần nhất thấp: hỏi thăm triệu chứng, kiểm tra lại phép đo và liên hệ nhân viên y tế nếu mức thấp lặp lại.',
+          );
         }
       }
       if (messages.isEmpty) {
-        messages.add('Chỉ số mới nhất đã được cập nhật. Tiếp tục theo dõi xu hướng và hỏi thăm người thân.');
+        messages.add(
+          'Chỉ số mới nhất đã được cập nhật. Tiếp tục theo dõi xu hướng và hỏi thăm người thân.',
+        );
       }
     }
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.lightbulb_outline, color: Color(0xFF38BDF8), size: 18),
-                SizedBox(width: 6),
-                Text('Nhận định cho gia đình',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-              ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _dashboardHeading(
+            'Nhận định cho gia đình',
+            icon: Icons.lightbulb_outline,
+            trailing: TextButton.icon(
+              onPressed: () =>
+                  setState(() => _isAdviceExpanded = !_isAdviceExpanded),
+              icon: Icon(
+                _isAdviceExpanded
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
+                size: 18,
+              ),
+              label: Text(
+                _isAdviceExpanded ? 'Thu gọn' : 'Xem (${messages.length})',
+              ),
             ),
-            InkWell(
-              onTap: () => setState(() => _isAdviceExpanded = !_isAdviceExpanded),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _isAdviceExpanded ? 'Thu gọn' : 'Xem (${messages.length})',
-                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(
-                      _isAdviceExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      color: const Color(0xFF94A3B8),
-                      size: 16,
-                    ),
-                  ],
+          ),
+          if (_isAdviceExpanded) ...[
+            const SizedBox(height: 8),
+            ...messages.map(
+              (message) => Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Text(
+                  '• $message',
+                  style: const TextStyle(
+                    color: Color(0xFF5C493B),
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
+            const SizedBox(height: 2),
+            const Text(
+              'Chỉ hỗ trợ theo dõi, không thay thế đánh giá y tế.',
+              style: TextStyle(color: Color(0xFF7D7168), fontSize: 11),
+            ),
           ],
-        ),
-        if (_isAdviceExpanded) ...[
-          const SizedBox(height: 8),
-          ...messages.map((message) => Padding(
-            padding: const EdgeInsets.only(bottom: 5),
-            child: Text('• $message', style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12)),
-          )),
-          const SizedBox(height: 2),
-          const Text('Chỉ hỗ trợ theo dõi, không thay thế đánh giá y tế.',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
         ],
-      ]),
+      ),
     );
   }
 
@@ -965,74 +1149,78 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     required String statusText,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF334155)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        color: CareAiColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: CareAiColors.muted),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
-              ),
-              Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: CareAiColors.secondary,
+                  ),
                 ),
-                child: Icon(icon, color: iconColor, size: 16),
               ),
+              const SizedBox(width: 8),
+              Icon(icon, size: 20, color: iconColor),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.end,
             children: [
               Text(
                 value,
-                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(width: 4),
-              Text(unit, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  height: 1.15,
+                  letterSpacing: -0.7,
+                  color: CareAiColors.ink,
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
-                  statusText,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: accentColor),
+                  unit,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: CareAiColors.secondary,
+                  ),
                 ),
               ),
-              if (timestamp != null)
-                Text(
-                  VietnamTimeHelper.formatHm(timestamp),
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                ),
             ],
           ),
+          const SizedBox(height: 14),
+          Text(
+            statusText,
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: CareAiColors.brown,
+            ),
+          ),
+          if (timestamp != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              'Đo lúc ${VietnamTimeHelper.formatHm(timestamp)}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: CareAiColors.secondary,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1043,12 +1231,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: CareAiColors.brown.withValues(alpha: 0.035),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -1078,63 +1266,103 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
   Widget _buildChartTabBar() {
     final tabs = [
-      (index: 0, label: 'Nhịp tim', icon: Icons.favorite_rounded, color: const Color(0xFFEF4444)),
-      (index: 1, label: 'Huyết áp', icon: Icons.speed_rounded, color: const Color(0xFFA855F7)),
-      (index: 2, label: 'SpO2', icon: Icons.air_rounded, color: const Color(0xFF0EA5E9)),
-      (index: 3, label: 'Vận động', icon: Icons.directions_walk_rounded, color: const Color(0xFF10B981)),
+      (
+        index: 0,
+        label: 'Nhịp tim',
+        icon: Icons.favorite_rounded,
+        color: const Color(0xFFEF4444),
+      ),
+      (
+        index: 1,
+        label: 'Huyết áp',
+        icon: Icons.speed_rounded,
+        color: const Color(0xFF645796),
+      ),
+      (
+        index: 2,
+        label: 'SpO2',
+        icon: Icons.air_rounded,
+        color: const Color(0xFF7A9850),
+      ),
+      (
+        index: 3,
+        label: 'Vận động',
+        icon: Icons.directions_walk_rounded,
+        color: const Color(0xFF456624),
+      ),
     ];
 
-    return Row(
-      children: tabs.map((t) {
-        final isSelected = _selectedChartTab == t.index;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: t.index < 3 ? 6 : 0),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _selectedChartTab = t.index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? t.color.withValues(alpha: 0.2) : const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected ? t.color : const Color(0xFF334155),
-                    width: isSelected ? 1.5 : 1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 600 ? 4 : 2;
+        final width = (constraints.maxWidth - (columns - 1) * 8) / columns;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: tabs.map((tab) {
+            final selected = _selectedChartTab == tab.index;
+            return SizedBox(
+              width: width,
+              child: Semantics(
+                selected: selected,
+                child: TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _selectedChartTab = tab.index),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 12,
+                    ),
+                    backgroundColor: selected
+                        ? tab.color.withValues(alpha: 0.12)
+                        : CareAiColors.canvas,
+                    foregroundColor: selected
+                        ? CareAiColors.brown
+                        : CareAiColors.secondary,
+                    side: BorderSide(
+                      color: selected ? tab.color : CareAiColors.border,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    textStyle: const TextStyle(
+                      fontFamily: 'BeVietnamPro',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      t.icon,
-                      size: 14,
-                      color: isSelected ? t.color : const Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        t.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ),
-                  ],
+                  icon: Icon(tab.icon, size: 18),
+                  label: Text(tab.label),
                 ),
               ),
-            ),
-          ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
+
+  Widget _accessibleChart(Widget chart) => LayoutBuilder(
+    builder: (context, constraints) {
+      final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+      final largeText = scale > 1.4;
+      return SizedBox(
+        height: 190 * scale,
+        child: largeText
+            ? SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: constraints.maxWidth < 520
+                      ? 520
+                      : constraints.maxWidth,
+                  child: chart,
+                ),
+              )
+            : chart,
+      );
+    },
+  );
 
   Widget _buildHeartRateChartContent() {
     final hrData = _heartRate24h;
@@ -1143,14 +1371,20 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     if (points.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 36),
-        child: Center(child: Text('Chưa có mẫu nhịp tim trong 24 giờ qua',
-            style: TextStyle(color: Color(0xFF94A3B8)))),
+        child: Center(
+          child: Text(
+            'Chưa có mẫu nhịp tim trong 24 giờ qua',
+            style: TextStyle(color: Color(0xFF7D7168)),
+          ),
+        ),
       );
     }
 
     List<FlSpot> spots = [];
     if (points.isNotEmpty) {
-      final todayPoints = points.where((p) => VietnamTimeHelper.isTodayInVietnam(p.timestamp)).toList();
+      final todayPoints = points
+          .where((p) => VietnamTimeHelper.isTodayInVietnam(p.timestamp))
+          .toList();
       final activePoints = todayPoints.isNotEmpty ? todayPoints : points;
 
       for (int i = 0; i < activePoints.length; i++) {
@@ -1165,8 +1399,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final double avgVal = hrData?.avgHeartRate ?? 74.0;
 
     // Tính cận trên và cận dưới linh hoạt theo dữ liệu thực tế
-    final double computedMaxY = (((maxVal > 120 ? maxVal : 120) + 15) / 10).ceil() * 10.0;
-    final double computedMinY = (((minVal < 50 ? minVal : 50) - 15) / 10).floor() * 10.0;
+    final double computedMaxY =
+        (((maxVal > 120 ? maxVal : 120) + 15) / 10).ceil() * 10.0;
+    final double computedMinY =
+        (((minVal < 50 ? minVal : 50) - 15) / 10).floor() * 10.0;
     final double chartMaxY = computedMaxY.clamp(130.0, 320.0);
     final double chartMinY = computedMinY.clamp(0.0, 60.0);
     final double yInterval = ((chartMaxY - chartMinY) / 4).clamp(15.0, 40.0);
@@ -1174,63 +1410,62 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.show_chart_rounded, color: Color(0xFFEF4444), size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Biến Thiên Nhịp Tim (24h)',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF334155)),
-              ),
-              child: const Text('Theo giờ VN', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-            ),
-          ],
+        _dashboardHeading(
+          'Biến Thiên Nhịp Tim (24h)',
+          icon: Icons.show_chart_rounded,
+          color: CareAiColors.danger,
+          trailing: const Text(
+            'Theo giờ VN',
+            style: TextStyle(fontSize: 12, color: CareAiColors.secondary),
+          ),
         ),
         const SizedBox(height: 12),
 
         // 3 Thẻ thống kê Min / TB / Max
-        Row(
-          children: [
-            _buildStatPill('Thấp nhất', '${minVal.toInt()} bpm', const Color(0xFF10B981)),
-            const SizedBox(width: 8),
-            _buildStatPill('Trung bình', '${avgVal.toStringAsFixed(1)} bpm', const Color(0xFF38BDF8)),
-            const SizedBox(width: 8),
-            _buildStatPill('Cao nhất', '${maxVal.toInt()} bpm', const Color(0xFFF97316)),
-          ],
-        ),
+        _statGroup([
+          _buildStatPill(
+            'Thấp nhất',
+            '${minVal.toInt()} bpm',
+            const Color(0xFF456624),
+          ),
+          _buildStatPill(
+            'Trung bình',
+            '${avgVal.toStringAsFixed(1)} bpm',
+            const Color(0xFF456624),
+          ),
+          _buildStatPill(
+            'Cao nhất',
+            '${maxVal.toInt()} bpm',
+            const Color(0xFFF97316),
+          ),
+        ]),
         const SizedBox(height: 18),
 
         // Khung vẽ biểu đồ
-        SizedBox(
-          height: 190,
-          child: LineChart(
+        _accessibleChart(
+          LineChart(
             LineChartData(
               lineTouchData: LineTouchData(
                 handleBuiltInTouches: true,
                 touchTooltipData: LineTouchTooltipData(
                   fitInsideHorizontally: true,
                   fitInsideVertically: true,
-                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  getTooltipColor: (_) => const Color(0xFFFAF7F2),
                   tooltipBorderRadius: BorderRadius.circular(8),
-                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
-                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  tooltipBorder: const BorderSide(
+                    color: Color(0xFFE4DACD),
+                    width: 1,
+                  ),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
                       final h = spot.x.floor();
                       final m = ((spot.x - h) * 60).round();
-                      final timeStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+                      final timeStr =
+                          '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
                       return LineTooltipItem(
                         '${spot.y.toInt()} bpm\n$timeStr (Giờ VN)',
                         const TextStyle(
@@ -1244,88 +1479,100 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 ),
               ),
               gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: yInterval,
-                  getDrawingHorizontalLine: (value) => const FlLine(
-                    color: Color(0xFF334155),
-                    strokeWidth: 1,
-                    dashArray: [4, 4],
-                  ),
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: yInterval,
+                getDrawingHorizontalLine: (value) => const FlLine(
+                  color: Color(0xFFE4DACD),
+                  strokeWidth: 1,
+                  dashArray: [4, 4],
                 ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 22,
-                      interval: 6,
-                      getTitlesWidget: (value, meta) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            '${value.toInt()}h',
-                            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 32,
-                      interval: yInterval,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          '${value.toInt()}',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: 24,
-                minY: chartMinY,
-                maxY: chartMaxY,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: spots.length > 2,
-                    curveSmoothness: 0.25,
-                    color: const Color(0xFFEF4444),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(show: spots.length <= 5),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFEF4444).withValues(alpha: 0.3),
-                          const Color(0xFFEF4444).withValues(alpha: 0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                ],
               ),
+              titlesData: FlTitlesData(
+                show: true,
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(22),
+                    interval: 6,
+                    getTitlesWidget: (value, meta) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '${value.toInt()}h',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(32),
+                    interval: yInterval,
+                    getTitlesWidget: (value, meta) {
+                      return Text(
+                        '${value.toInt()}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF7D7168),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              minX: 0,
+              maxX: 24,
+              minY: chartMinY,
+              maxY: chartMaxY,
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: spots.length > 2,
+                  curveSmoothness: 0.25,
+                  color: const Color(0xFFEF4444),
+                  barWidth: 3,
+                  isStrokeCapRound: true,
+                  dotData: FlDotData(show: spots.length <= 5),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFEF4444).withValues(alpha: 0.3),
+                        const Color(0xFFEF4444).withValues(alpha: 0.0),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
         ),
         const SizedBox(height: 10),
         const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shield_outlined, size: 12, color: Color(0xFF10B981)),
+            Icon(Icons.shield_outlined, size: 12, color: Color(0xFF456624)),
             SizedBox(width: 4),
-            Text(
-              'Dải an toàn lâm sàng: 60 - 100 bpm (Nghỉ ngơi)',
-              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+            Flexible(
+              child: Text(
+                'Dải an toàn lâm sàng: 60 - 100 bpm (Nghỉ ngơi)',
+                style: TextStyle(fontSize: 12, color: CareAiColors.secondary),
+              ),
             ),
           ],
         ),
@@ -1343,7 +1590,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         child: Center(
           child: Text(
             'Chưa có dữ liệu đo huyết áp',
-            style: TextStyle(color: Color(0xFF94A3B8)),
+            style: TextStyle(color: Color(0xFF7D7168)),
           ),
         ),
       );
@@ -1362,13 +1609,13 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final String classification = bp?.classification ?? 'Chưa có dữ liệu';
     final String statusColor = bp?.statusColor ?? 'GRAY';
 
-    Color badgeColor = const Color(0xFF10B981);
+    Color badgeColor = const Color(0xFF456624);
     if (statusColor == 'RED') {
       badgeColor = const Color(0xFFEF4444);
     } else if (statusColor == 'YELLOW') {
       badgeColor = const Color(0xFFF59E0B);
     } else if (statusColor == 'GRAY') {
-      badgeColor = const Color(0xFF64748B);
+      badgeColor = const Color(0xFF7D7168);
     }
 
     final double maxX = (points.length - 1).toDouble().clamp(1.0, 30.0);
@@ -1376,67 +1623,67 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: Row(
-                children: [
-                  Icon(Icons.speed_rounded, color: Color(0xFFA855F7), size: 18),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Xu Hướng Huyết Áp (14 Ngày)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+        _dashboardHeading(
+          'Xu Hướng Huyết Áp (14 Ngày)',
+          icon: Icons.speed_rounded,
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: badgeColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
+            ),
+            child: Text(
+              classification,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: badgeColor,
               ),
             ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: badgeColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
-              ),
-              child: Text(
-                classification,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: badgeColor),
-              ),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 12),
 
         // 3 Thẻ thống kê
-        Row(
-          children: [
-            _buildStatPill('Mới nhất', '${latestSys.toInt()}/${latestDia.toInt()} mmHg', const Color(0xFFA855F7)),
-            const SizedBox(width: 8),
-            _buildStatPill('Tâm thu Max', '${points.map((p) => p.systolic).reduce((a, b) => a > b ? a : b).toInt()} mmHg', const Color(0xFFEF4444)),
-            const SizedBox(width: 8),
-            _buildStatPill('Tâm trương Max', '${points.map((p) => p.diastolic).reduce((a, b) => a > b ? a : b).toInt()} mmHg', const Color(0xFF06B6D4)),
-          ],
-        ),
+        _statGroup([
+          _buildStatPill(
+            'Mới nhất',
+            '${latestSys.toInt()}/${latestDia.toInt()} mmHg',
+            const Color(0xFF645796),
+          ),
+          _buildStatPill(
+            'Tâm thu Max',
+            '${points.map((p) => p.systolic).reduce((a, b) => a > b ? a : b).toInt()} mmHg',
+            const Color(0xFFEF4444),
+          ),
+          _buildStatPill(
+            'Tâm trương Max',
+            '${points.map((p) => p.diastolic).reduce((a, b) => a > b ? a : b).toInt()} mmHg',
+            const Color(0xFF7A9850),
+          ),
+        ]),
         const SizedBox(height: 18),
 
         // Khung vẽ biểu đồ 2 đường
-        SizedBox(
-          height: 190,
-          child: LineChart(
+        _accessibleChart(
+          LineChart(
             LineChartData(
               lineTouchData: LineTouchData(
                 handleBuiltInTouches: true,
                 touchTooltipData: LineTouchTooltipData(
                   fitInsideHorizontally: true,
                   fitInsideVertically: true,
-                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  getTooltipColor: (_) => const Color(0xFFFAF7F2),
                   tooltipBorderRadius: BorderRadius.circular(8),
-                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
-                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  tooltipBorder: const BorderSide(
+                    color: Color(0xFFE4DACD),
+                    width: 1,
+                  ),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
                       final isSys = spot.barIndex == 0;
@@ -1447,7 +1694,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       return LineTooltipItem(
                         '${isSys ? "Tâm thu" : "Tâm trương"}: ${spot.y.toInt()} mmHg$dateStr',
                         TextStyle(
-                          color: isSys ? const Color(0xFFEF4444) : const Color(0xFF06B6D4),
+                          color: isSys
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF7A9850),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -1466,7 +1715,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   ),
                   HorizontalLine(
                     y: 80,
-                    color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                    color: const Color(0xFF456624).withValues(alpha: 0.4),
                     strokeWidth: 1,
                     dashArray: [4, 4],
                   ),
@@ -1477,34 +1726,49 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 drawVerticalLine: false,
                 horizontalInterval: 20,
                 getDrawingHorizontalLine: (value) => const FlLine(
-                  color: Color(0xFF334155),
+                  color: Color(0xFFE4DACD),
                   strokeWidth: 1,
                   dashArray: [4, 4],
                 ),
               ),
               titlesData: FlTitlesData(
                 show: true,
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 22,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(22),
                     interval: points.length > 7 ? 2 : 1,
                     getTitlesWidget: (value, meta) {
                       final idx = value.toInt();
-                      if (points.isNotEmpty && idx >= 0 && idx < points.length) {
+                      if (points.isNotEmpty &&
+                          idx >= 0 &&
+                          idx < points.length) {
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             VietnamTimeHelper.formatDm(points[idx].timestamp),
-                            style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: Color(0xFF7D7168),
+                            ),
                           ),
                         );
                       } else if (points.isEmpty && idx >= 0 && idx <= 6) {
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
-                          child: Text('N${idx + 1}', style: const TextStyle(fontSize: 9, color: Color(0xFF64748B))),
+                          child: Text(
+                            'N${idx + 1}',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: Color(0xFF7D7168),
+                            ),
+                          ),
                         );
                       }
                       return const SizedBox.shrink();
@@ -1514,12 +1778,15 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 32,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(32),
                     interval: 20,
                     getTitlesWidget: (value, meta) {
                       return Text(
                         '${value.toInt()}',
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF7D7168),
+                        ),
                       );
                     },
                   ),
@@ -1541,12 +1808,13 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   isStrokeCapRound: true,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
-                      radius: 3,
-                      color: const Color(0xFFEF4444),
-                      strokeWidth: 1.5,
-                      strokeColor: Colors.white,
-                    ),
+                    getDotPainter: (spot, percent, barData, index) =>
+                        FlDotCirclePainter(
+                          radius: 3,
+                          color: const Color(0xFFEF4444),
+                          strokeWidth: 1.5,
+                          strokeColor: Colors.white,
+                        ),
                   ),
                 ),
                 // Đường Tâm trương (Diastolic - Xanh ngọc)
@@ -1554,46 +1822,42 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   spots: diaSpots,
                   isCurved: true,
                   curveSmoothness: 0.3,
-                  color: const Color(0xFF06B6D4),
+                  color: const Color(0xFF7A9850),
                   barWidth: 3,
                   isStrokeCapRound: true,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
-                      radius: 3,
-                      color: const Color(0xFF06B6D4),
-                      strokeWidth: 1.5,
-                      strokeColor: Colors.white,
-                    ),
+                    getDotPainter: (spot, percent, barData, index) =>
+                        FlDotCirclePainter(
+                          radius: 3,
+                          color: const Color(0xFF7A9850),
+                          strokeWidth: 1.5,
+                          strokeColor: Colors.white,
+                        ),
                   ),
                 ),
               ],
             ),
           ),
-      ),
-      const SizedBox(height: 10),
+        ),
+        const SizedBox(height: 10),
 
         // Chú thích 2 đường & ngưỡng
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          spacing: 14,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
           children: [
-            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-            const Text('Tâm thu', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
-            const SizedBox(width: 14),
-            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF06B6D4), shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-            const Text('Tâm trương', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
-            const SizedBox(width: 14),
-            const Icon(Icons.horizontal_rule_rounded, size: 14, color: Color(0xFFF59E0B)),
-            const Text('Chuẩn 120/80', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+            _chartLegend(const Color(0xFFEF4444), 'Tâm thu'),
+            _chartLegend(const Color(0xFF7A9850), 'Tâm trương'),
+            _chartLegend(const Color(0xFFF59E0B), 'Chuẩn 120/80', isLine: true),
           ],
         ),
         const SizedBox(height: 6),
         const Center(
           child: Text(
             'Phân loại WHO: Tối ưu < 120/80 | Tiền THA: 120-139 / 80-89 | THA: >= 140/90 mmHg',
-            style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 10, color: Color(0xFF7D7168)),
           ),
         ),
       ],
@@ -1607,14 +1871,20 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     if (points.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 36),
-        child: Center(child: Text('Chưa có mẫu SpO₂ trong 24 giờ qua',
-            style: TextStyle(color: Color(0xFF94A3B8)))),
+        child: Center(
+          child: Text(
+            'Chưa có mẫu SpO₂ trong 24 giờ qua',
+            style: TextStyle(color: Color(0xFF7D7168)),
+          ),
+        ),
       );
     }
 
     List<FlSpot> spots = [];
     if (points.isNotEmpty) {
-      final todayPoints = points.where((p) => VietnamTimeHelper.isTodayInVietnam(p.timestamp)).toList();
+      final todayPoints = points
+          .where((p) => VietnamTimeHelper.isTodayInVietnam(p.timestamp))
+          .toList();
       final activePoints = todayPoints.isNotEmpty ? todayPoints : points;
 
       for (int i = 0; i < activePoints.length; i++) {
@@ -1631,82 +1901,87 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: Row(
-                children: [
-                  Icon(Icons.air_rounded, color: Color(0xFF0EA5E9), size: 18),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Nồng Độ Oxy Máu (SpO2 24h)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+        _dashboardHeading(
+          'Nồng Độ Oxy Máu (SpO2 24h)',
+          icon: Icons.air_rounded,
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: dipsCount > 0
+                  ? CareAiColors.peach
+                  : const Color(0xFFE2EDD3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: dipsCount > 0
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF456624),
               ),
             ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: dipsCount > 0 ? const Color(0xFF451A03) : const Color(0xFF064E3B),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: dipsCount > 0 ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                ),
-              ),
-              child: Text(
-                dipsCount > 0 ? 'Có $dipsCount cơn tụt oxy' : 'Bão hòa tốt · Giờ VN',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: dipsCount > 0 ? const Color(0xFFFDE68A) : const Color(0xFF6EE7B7),
-                ),
+            child: Text(
+              dipsCount > 0
+                  ? 'Có $dipsCount cơn tụt oxy'
+                  : 'Bão hòa tốt · Giờ VN',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: dipsCount > 0
+                    ? const Color(0xFF916018)
+                    : const Color(0xFF456624),
               ),
             ),
-          ],
+          ),
         ),
         const SizedBox(height: 12),
 
         // 3 Thẻ thống kê
-        Row(
-          children: [
-            _buildStatPill('Thấp nhất', '${minVal.toStringAsFixed(1)}%', minVal < 95 ? const Color(0xFFF59E0B) : const Color(0xFF10B981)),
-            const SizedBox(width: 8),
-            _buildStatPill('Trung bình', '${avgVal.toStringAsFixed(1)}%', const Color(0xFF0EA5E9)),
-            const SizedBox(width: 8),
-            _buildStatPill('Cơn tụt <95%', '$dipsCount lần', dipsCount > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981)),
-          ],
-        ),
+        _statGroup([
+          _buildStatPill(
+            'Thấp nhất',
+            '${minVal.toStringAsFixed(1)}%',
+            minVal < 95 ? const Color(0xFFF59E0B) : const Color(0xFF456624),
+          ),
+          _buildStatPill(
+            'Trung bình',
+            '${avgVal.toStringAsFixed(1)}%',
+            const Color(0xFF7A9850),
+          ),
+          _buildStatPill(
+            'Cơn tụt <95%',
+            '$dipsCount lần',
+            dipsCount > 0 ? const Color(0xFFEF4444) : const Color(0xFF456624),
+          ),
+        ]),
         const SizedBox(height: 18),
 
         // Khung vẽ biểu đồ SpO2
-        SizedBox(
-          height: 190,
-          child: LineChart(
+        _accessibleChart(
+          LineChart(
             LineChartData(
               lineTouchData: LineTouchData(
                 handleBuiltInTouches: true,
                 touchTooltipData: LineTouchTooltipData(
                   fitInsideHorizontally: true,
                   fitInsideVertically: true,
-                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  getTooltipColor: (_) => const Color(0xFFFAF7F2),
                   tooltipBorderRadius: BorderRadius.circular(8),
-                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
-                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  tooltipBorder: const BorderSide(
+                    color: Color(0xFFE4DACD),
+                    width: 1,
+                  ),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
                       final h = spot.x.floor();
                       final m = ((spot.x - h) * 60).round();
-                      final timeStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+                      final timeStr =
+                          '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
                       return LineTooltipItem(
                         'SpO₂: ${spot.y.toStringAsFixed(1)}%\n$timeStr (Giờ VN)',
                         const TextStyle(
-                          color: Color(0xFF0EA5E9),
+                          color: Color(0xFF7A9850),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -1736,26 +2011,33 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 drawVerticalLine: false,
                 horizontalInterval: 5,
                 getDrawingHorizontalLine: (value) => const FlLine(
-                  color: Color(0xFF334155),
+                  color: Color(0xFFE4DACD),
                   strokeWidth: 1,
                   dashArray: [4, 4],
                 ),
               ),
               titlesData: FlTitlesData(
                 show: true,
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 22,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(22),
                     interval: 6,
                     getTitlesWidget: (value, meta) {
                       return Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           '${value.toInt()}h',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                          ),
                         ),
                       );
                     },
@@ -1764,12 +2046,15 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 32,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(32),
                     interval: 5,
                     getTitlesWidget: (value, meta) {
                       return Text(
                         '${value.toInt()}%',
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF7D7168),
+                        ),
                       );
                     },
                   ),
@@ -1785,7 +2070,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   spots: spots,
                   isCurved: true,
                   curveSmoothness: 0.35,
-                  color: const Color(0xFF0EA5E9),
+                  color: const Color(0xFF7A9850),
                   barWidth: 3,
                   isStrokeCapRound: true,
                   dotData: FlDotData(show: spots.length == 1),
@@ -1793,8 +2078,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     show: true,
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF0EA5E9).withValues(alpha: 0.35),
-                        const Color(0xFF0EA5E9).withValues(alpha: 0.0),
+                        const Color(0xFF7A9850).withValues(alpha: 0.35),
+                        const Color(0xFF7A9850).withValues(alpha: 0.0),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -1804,25 +2089,32 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               ],
             ),
           ),
-      ),
-      const SizedBox(height: 10),
+        ),
+        const SizedBox(height: 10),
 
         // Chú thích các vạch cảnh báo
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          spacing: 14,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
           children: [
-            Icon(Icons.horizontal_rule_rounded, size: 14, color: Color(0xFFF59E0B)),
-            Text('Vạch vàng < 95% (Cảnh báo)', style: TextStyle(fontSize: 10, color: Color(0xFFF59E0B))),
-            SizedBox(width: 14),
-            Icon(Icons.horizontal_rule_rounded, size: 14, color: Color(0xFFEF4444)),
-            Text('Vạch đỏ < 90% (Cấp cứu)', style: TextStyle(fontSize: 10, color: Color(0xFFEF4444))),
+            _chartLegend(
+              const Color(0xFFF59E0B),
+              'Vạch vàng < 95% (Cảnh báo)',
+              isLine: true,
+            ),
+            _chartLegend(
+              const Color(0xFFEF4444),
+              'Vạch đỏ < 90% (Cấp cứu)',
+              isLine: true,
+            ),
           ],
         ),
         const SizedBox(height: 6),
         const Center(
           child: Text(
             'Ngưỡng an toàn: >= 95%. Cơn tụt oxy lặp lại về đêm là dấu hiệu nguy hiểm (ngưng thở khi ngủ)',
-            style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 10, color: Color(0xFF7D7168)),
           ),
         ),
       ],
@@ -1842,7 +2134,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         child: Center(
           child: Text(
             'Chưa có dữ liệu bước chân trong ngày',
-            style: TextStyle(color: Color(0xFF94A3B8)),
+            style: TextStyle(color: Color(0xFF7D7168)),
           ),
         ),
       );
@@ -1857,76 +2149,82 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           barRods: [
             BarChartRodData(
               toY: item.steps.toDouble(),
-              color: isPeak ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
+              color: isPeak ? const Color(0xFF456624) : const Color(0xFF456624),
               width: 7,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(3),
+              ),
             ),
           ],
         ),
       );
     }
 
-    final double maxY = ((peakSteps > 0 ? peakSteps : 100) * 1.25).clamp(100.0, 10000.0);
+    final double maxY = ((peakSteps > 0 ? peakSteps : 100) * 1.25).clamp(
+      100.0,
+      10000.0,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.directions_walk_rounded, color: Color(0xFF10B981), size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Phân Bố Vận Động (24 Giờ)',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ],
+        _dashboardHeading(
+          'Phân Bố Vận Động (24 Giờ)',
+          icon: Icons.directions_walk_rounded,
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAF7F2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE4DACD)),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF334155)),
-              ),
-              child: const Text('Theo giờ VN', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+            child: const Text(
+              'Theo giờ VN',
+              style: TextStyle(fontSize: 11, color: Color(0xFF7D7168)),
             ),
-          ],
+          ),
         ),
         const SizedBox(height: 12),
 
         // 3 Thẻ thống kê
-        Row(
-          children: [
-            _buildStatPill('Tổng bước', '$totalSteps', const Color(0xFF10B981)),
-            const SizedBox(width: 8),
-            _buildStatPill('Cao điểm', '${peakHour}h ($peakSteps)', const Color(0xFF38BDF8)),
-            const SizedBox(width: 8),
-            _buildStatPill('Mục tiêu ngày', '${((totalSteps / 6000) * 100).clamp(0, 100).toInt()}%', const Color(0xFFA855F7)),
-          ],
-        ),
+        _statGroup([
+          _buildStatPill('Tổng bước', '$totalSteps', const Color(0xFF456624)),
+          _buildStatPill(
+            'Cao điểm',
+            '${peakHour}h ($peakSteps)',
+            const Color(0xFF456624),
+          ),
+          _buildStatPill(
+            'Mục tiêu ngày',
+            '${((totalSteps / 6000) * 100).clamp(0, 100).toInt()}%',
+            const Color(0xFF645796),
+          ),
+        ]),
         const SizedBox(height: 18),
 
         // Khung vẽ BarChart
-        SizedBox(
-          height: 190,
-          child: BarChart(
+        _accessibleChart(
+          BarChart(
             BarChartData(
               barTouchData: BarTouchData(
                 touchTooltipData: BarTouchTooltipData(
                   fitInsideHorizontally: true,
                   fitInsideVertically: true,
-                  getTooltipColor: (_) => const Color(0xFF0F172A),
+                  getTooltipColor: (_) => const Color(0xFFFAF7F2),
                   tooltipBorderRadius: BorderRadius.circular(8),
-                  tooltipBorder: const BorderSide(color: Color(0xFF334155), width: 1),
-                  tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  tooltipBorder: const BorderSide(
+                    color: Color(0xFFE4DACD),
+                    width: 1,
+                  ),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     return BarTooltipItem(
                       '${group.x}h00 - ${group.x}h59 (Giờ VN)\n${rod.toY.toInt()} bước',
                       const TextStyle(
-                        color: Color(0xFF38BDF8),
+                        color: Color(0xFF456624),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -1939,19 +2237,23 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 drawVerticalLine: false,
                 horizontalInterval: maxY / 4,
                 getDrawingHorizontalLine: (value) => const FlLine(
-                  color: Color(0xFF334155),
+                  color: Color(0xFFE4DACD),
                   strokeWidth: 1,
                   dashArray: [4, 4],
                 ),
               ),
               titlesData: FlTitlesData(
                 show: true,
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 22,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(22),
                     interval: 4,
                     getTitlesWidget: (value, meta) {
                       final v = value.toInt();
@@ -1962,7 +2264,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           '${v}h',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                          ),
                         ),
                       );
                     },
@@ -1971,12 +2276,15 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 32,
+                    reservedSize: MediaQuery.textScalerOf(context).scale(32),
                     interval: maxY / 4,
                     getTitlesWidget: (value, meta) {
                       return Text(
                         '${value.toInt()}',
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF7D7168),
+                        ),
                       );
                     },
                   ),
@@ -1992,48 +2300,89 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
         const SizedBox(height: 10),
 
         // Chú thích
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          spacing: 14,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
           children: [
-            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-            const Text('Giờ cao điểm', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
-            const SizedBox(width: 14),
-            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF38BDF8), shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-            const Text('Vận động thường', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
+            _chartLegend(CareAiColors.greenInk, 'Giờ cao điểm'),
+            _chartLegend(CareAiColors.greenInk, 'Vận động thường'),
           ],
         ),
         const SizedBox(height: 6),
         const Center(
           child: Text(
             'Nhịp sinh học: Phát hiện thói quen thức giấc đêm hoặc suy giảm vận động đột ngột',
-            style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 10, color: Color(0xFF7D7168)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatPill(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+  Widget _chartLegend(Color color, String label, {bool isLine = false}) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: isLine ? 14 : 8,
+        height: isLine ? 2 : 8,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: color,
+          shape: isLine ? BoxShape.rectangle : BoxShape.circle,
         ),
-        child: Column(
-          children: [
-            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+      ),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: CareAiColors.secondary),
+        ),
+      ),
+    ],
+  );
+
+  Widget _statGroup(List<Widget> stats) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stacked =
+          constraints.maxWidth < 300 ||
+          MediaQuery.textScalerOf(context).scale(14) > 20;
+      final width = stacked
+          ? constraints.maxWidth
+          : (constraints.maxWidth - 16) / 3;
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: stats
+            .map((stat) => SizedBox(width: width, child: stat))
+            .toList(),
+      );
+    },
+  );
+
+  Widget _buildStatPill(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAF7F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: CareAiColors.secondary),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -2043,59 +2392,52 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     if (coord == null) {
       return Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
+          color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF334155)),
+          border: Border.all(color: const Color(0xFFE4DACD)),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.location_on_rounded, color: Color(0xFF94A3B8), size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Vị Trí Định Vị Trực Tiếp (GPS)',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF334155),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text('Chưa có GPS', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
-                ),
-              ],
+            _dashboardHeading(
+              'Vị trí từ thiết bị',
+              icon: Icons.location_on_rounded,
+              trailing: const Text(
+                'Chưa có GPS',
+                style: TextStyle(fontSize: 12, color: CareAiColors.secondary),
+              ),
             ),
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: const Color(0xFFFAF7F2),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF1E293B)),
+                border: Border.all(color: const Color(0xFFFFFFFF)),
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.location_off_rounded, size: 36, color: Color(0xFF64748B)),
+                  Icon(
+                    Icons.location_off_rounded,
+                    size: 36,
+                    color: Color(0xFF7D7168),
+                  ),
                   SizedBox(height: 10),
                   Text(
                     'Chưa nhận được vị trí GPS thực tế',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: CareAiColors.ink,
+                    ),
                   ),
                   SizedBox(height: 6),
                   Text(
                     'Khi thiết bị người cao tuổi bật GPS hoặc phát sinh sự cố, vị trí sẽ hiển thị trực tiếp trên bản đồ tại đây.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF7D7168)),
                   ),
                 ],
               ),
@@ -2110,12 +2452,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: CareAiColors.brown.withValues(alpha: 0.035),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -2130,26 +2472,48 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             children: [
               const Row(
                 children: [
-                  Icon(Icons.location_on_rounded, color: Color(0xFF38BDF8), size: 20),
+                  Icon(
+                    Icons.location_on_rounded,
+                    color: Color(0xFF456624),
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Vị Trí Định Vị Trực Tiếp (GPS)',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: CareAiColors.ink,
+                    ),
                   ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF064E3B),
+                  color: const Color(0xFFE2EDD3),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+                  border: Border.all(
+                    color: const Color(0xFF456624),
+                    width: 0.8,
+                  ),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.gps_fixed_rounded, size: 10, color: Color(0xFF10B981)),
+                    Icon(
+                      Icons.gps_fixed_rounded,
+                      size: 10,
+                      color: Color(0xFF456624),
+                    ),
                     SizedBox(width: 4),
-                    Text('Trực tuyến', style: TextStyle(fontSize: 10, color: Color(0xFF6EE7B7), fontWeight: FontWeight.bold)),
+                    Text(
+                      'Trực tuyến',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF456624),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -2161,7 +2525,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFFFAF7F2),
               height: 220,
               child: Stack(
                 children: [
@@ -2182,7 +2546,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       // Lớp 2: Khẳng định chủ quyền 2 quần đảo Hoàng Sa và Trường Sa của Việt Nam khi dùng bản đồ quốc tế
                       if (!MapSovereigntyHelper.hasVietmapKey)
                         MarkerLayer(
-                          markers: MapSovereigntyHelper.buildSovereigntyMarkers(),
+                          markers:
+                              MapSovereigntyHelper.buildSovereigntyMarkers(),
                         ),
 
                       // Marker định vị người cao tuổi
@@ -2201,7 +2566,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                                   height: 44,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                                    color: const Color(0xFF4A3020)
+                                        .withValues(alpha: 0.25),
                                   ),
                                 ),
                                 // Vòng tròn pin chính
@@ -2209,19 +2575,28 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                                   width: 24,
                                   height: 24,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF0284C7),
+                                    color: const Color(0xFF4A3020),
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2.5),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2.5,
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.3),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.3,
+                                        ),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       ),
                                     ],
                                   ),
                                   child: const Center(
-                                    child: Icon(Icons.person, size: 12, color: Colors.white),
+                                    child: Icon(
+                                      Icons.person,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -2238,42 +2613,70 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     left: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                        color: const Color(0xFFFAF7F2).withValues(alpha: 0.92),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF334155)),
+                        border: Border.all(color: const Color(0xFFE4DACD)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.pin_drop, color: Color(0xFF38BDF8), size: 14),
+                          const Icon(
+                            Icons.pin_drop,
+                            color: Color(0xFF456624),
+                            size: 14,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'Tọa độ: ${coord.latitude.toStringAsFixed(6)}, ${coord.longitude.toStringAsFixed(6)}',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0), fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF4A3020),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                           InkWell(
                             onTap: () {
-                              Clipboard.setData(ClipboardData(text: googleMapsLink));
+                              Clipboard.setData(
+                                ClipboardData(text: googleMapsLink),
+                              );
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Đã sao chép link Google Maps vào bộ nhớ tạm!'),
-                                  backgroundColor: Color(0xFF0284C7),
+                                  content: Text(
+                                    'Đã sao chép link Google Maps vào bộ nhớ tạm!',
+                                  ),
+                                  backgroundColor: Color(0xFF4A3020),
                                   duration: Duration(seconds: 2),
                                 ),
                               );
                             },
                             borderRadius: BorderRadius.circular(4),
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.copy, size: 12, color: Color(0xFF94A3B8)),
+                                  Icon(
+                                    Icons.copy,
+                                    size: 12,
+                                    color: Color(0xFF7D7168),
+                                  ),
                                   SizedBox(width: 2),
-                                  Text('Sao chép', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  Text(
+                                    'Sao chép',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF7D7168),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -2295,10 +2698,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 flex: 3,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0284C7),
+                    backgroundColor: const Color(0xFF4A3020),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   icon: const Icon(Icons.map_rounded, size: 18),
                   label: const Text(
@@ -2317,20 +2722,26 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 flex: 2,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF38BDF8),
-                    side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
+                    foregroundColor: const Color(0xFF456624),
+                    side: const BorderSide(
+                      color: Color(0xFF456624),
+                      width: 1.2,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   icon: const Icon(Icons.directions_rounded, size: 18),
                   label: const Text(
                     'Chỉ Đường',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
-                  onPressed: () => LocationService.instance.openGoogleMapsDirections(
-                    coord.latitude,
-                    coord.longitude,
-                  ),
+                  onPressed: () =>
+                      LocationService.instance.openGoogleMapsDirections(
+                        coord.latitude,
+                        coord.longitude,
+                      ),
                 ),
               ),
             ],
@@ -2347,12 +2758,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: CareAiColors.brown.withValues(alpha: 0.035),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -2362,45 +2773,30 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.bedtime_rounded, color: Color(0xFF818CF8), size: 20),
+          _dashboardHeading(
+            'Theo Dõi Giấc Ngủ Đêm Qua',
+            icon: Icons.bedtime_rounded,
+            color: CareAiColors.lavenderInk,
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: CareAiColors.lavender,
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Theo Dõi Giấc Ngủ Đêm Qua',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    Text(
-                      'Khung giờ ngủ: ${_thresholdData?.sleepWindowStart ?? '22:00'} - ${_thresholdData?.sleepWindowEnd ?? '06:00'}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
+              child: Text(
+                hasData ? s.sleepQuality : 'Chưa có dữ liệu',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: CareAiColors.lavenderInk,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF6366F1)),
-                ),
-                child: Text(
-                  s?.sleepQuality ?? 'Chưa có',
-                  style: const TextStyle(color: Color(0xFFA5B4FC), fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Khung giờ ngủ: ${_thresholdData?.sleepWindowStart ?? '22:00'} - ${_thresholdData?.sleepWindowEnd ?? '06:00'}',
+            style: const TextStyle(fontSize: 12, color: CareAiColors.secondary),
           ),
           const SizedBox(height: 14),
 
@@ -2408,18 +2804,22 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: const Color(0xFFFAF7F2),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF334155)),
+                border: Border.all(color: const Color(0xFFE4DACD)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.info_outline_rounded, color: Color(0xFF94A3B8), size: 20),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF7D7168),
+                    size: 20,
+                  ),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Chưa ghi nhận phiên ngủ đêm qua từ thiết bị đeo hoặc người cao tuổi đang trong khung giờ thức ban ngày.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF7D7168)),
                     ),
                   ),
                 ],
@@ -2429,9 +2829,9 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: const Color(0xFFFAF7F2),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF334155)),
+                border: Border.all(color: const Color(0xFFE4DACD)),
               ),
               child: Row(
                 children: [
@@ -2439,26 +2839,52 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('TỔNG THỜI GIAN NGỦ', style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        const Text(
+                          'TỔNG THỜI GIAN NGỦ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           s.formattedDuration,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFA5B4FC)),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF645796),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Container(width: 1, height: 40, color: const Color(0xFF334155)),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: const Color(0xFFE4DACD),
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('GIẤC NGỦ SÂU (DEEP)', style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        const Text(
+                          'GIẤC NGỦ SÂU (DEEP)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           s.formattedDeepSleep,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF456624),
+                          ),
                         ),
                       ],
                     ),
@@ -2478,17 +2904,17 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     if (s.deepSleepMinutes > 0)
                       Expanded(
                         flex: s.deepSleepMinutes,
-                        child: Container(color: const Color(0xFF4F46E5)),
+                        child: Container(color: const Color(0xFF645796)),
                       ),
                     if (s.lightSleepMinutes > 0)
                       Expanded(
                         flex: s.lightSleepMinutes,
-                        child: Container(color: const Color(0xFF38BDF8)),
+                        child: Container(color: const Color(0xFF456624)),
                       ),
                     if ((s.remSleepMinutes ?? 0) > 0)
                       Expanded(
                         flex: s.remSleepMinutes!,
-                        child: Container(color: const Color(0xFF818CF8)),
+                        child: Container(color: const Color(0xFF645796)),
                       ),
                     if ((s.awakeMinutes ?? 0) > 0)
                       Expanded(
@@ -2514,50 +2940,108 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF4F46E5), shape: BoxShape.circle)),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF645796),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 4),
-                    Text('Sâu: ${s.formattedDeepSleep}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                    Text(
+                      'Sâu: ${s.formattedDeepSleep}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF7D7168),
+                      ),
+                    ),
                   ],
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF38BDF8), shape: BoxShape.circle)),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF456624),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 4),
-                    Text('Nông: ${s.formattedLightSleep}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                    Text(
+                      'Nông: ${s.formattedLightSleep}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF7D7168),
+                      ),
+                    ),
                   ],
                 ),
                 if ((s.remSleepMinutes ?? 0) > 0)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF818CF8), shape: BoxShape.circle)),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF645796),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                       const SizedBox(width: 4),
-                      Text('REM: ${s.formattedRemSleep}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                      Text(
+                        'REM: ${s.formattedRemSleep}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF7D7168),
+                        ),
+                      ),
                     ],
                   ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFF59E0B), shape: BoxShape.circle)),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF59E0B),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 4),
-                    Text('Thức: ${(s.awakeMinutes ?? 0) > 0 ? '${s.formattedAwake} (${s.wakeCount} lần)' : '${s.wakeCount} lần'}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                    Text(
+                      'Thức: ${(s.awakeMinutes ?? 0) > 0 ? '${s.formattedAwake} (${s.wakeCount} lần)' : '${s.wakeCount} lần'}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF7D7168),
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
 
             // Chỉ số sinh hiệu ban đêm & Cảnh báo ngưng thở khi ngủ từ đồng hồ cao cấp
-            if (s.minSleepingHeartRate != null || s.minNightSpo2 != null || s.breathingDisturbances != null) ...[
+            if (s.minSleepingHeartRate != null ||
+                s.minNightSpo2 != null ||
+                s.breathingDisturbances != null) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: s.hasApneaWarning ? const Color(0x22EF4444) : const Color(0xFF0F172A),
+                  color: s.hasApneaWarning
+                      ? const Color(0x22EF4444)
+                      : const Color(0xFFFAF7F2),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: s.hasApneaWarning ? const Color(0xFFEF4444) : const Color(0xFF334155),
+                    color: s.hasApneaWarning
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFFE4DACD),
                     width: 0.8,
                   ),
                 ),
@@ -2567,17 +3051,25 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                     Row(
                       children: [
                         Icon(
-                          s.hasApneaWarning ? Icons.warning_amber_rounded : Icons.health_and_safety_outlined,
+                          s.hasApneaWarning
+                              ? Icons.warning_amber_rounded
+                              : Icons.health_and_safety_outlined,
                           size: 14,
-                          color: s.hasApneaWarning ? const Color(0xFFEF4444) : const Color(0xFF38BDF8),
+                          color: s.hasApneaWarning
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF456624),
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          s.hasApneaWarning ? 'CẢNH BÁO: NGUY CƠ RỐI LOẠN THỞ KHI NGỦ' : 'CHỈ SỐ SINH HIỆU TRONG GIẤC NGỦ',
+                          s.hasApneaWarning
+                              ? 'CẢNH BÁO: NGUY CƠ RỐI LOẠN THỞ KHI NGỦ'
+                              : 'CHỈ SỐ SINH HIỆU TRONG GIẤC NGỦ',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: s.hasApneaWarning ? const Color(0xFFEF4444) : const Color(0xFF94A3B8),
+                            color: s.hasApneaWarning
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFF7D7168),
                           ),
                         ),
                       ],
@@ -2588,14 +3080,34 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       runSpacing: 4,
                       children: [
                         if (s.minSleepingHeartRate != null)
-                          Text('❤️ Tim ngủ: ${s.minSleepingHeartRate!.toInt()}${s.avgSleepingHeartRate != null ? ' - ${s.avgSleepingHeartRate!.toInt()}' : ''} BPM',
-                              style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                          Text(
+                            '❤️ Tim ngủ: ${s.minSleepingHeartRate!.toInt()}${s.avgSleepingHeartRate != null ? ' - ${s.avgSleepingHeartRate!.toInt()}' : ''} BPM',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: CareAiColors.secondary,
+                            ),
+                          ),
                         if (s.minNightSpo2 != null)
-                          Text('🫁 SpO2 ngủ: ${s.minNightSpo2!.toStringAsFixed(0)}%${(s.nightSpo2DipsCount ?? 0) > 0 ? ' (Tụt: ${s.nightSpo2DipsCount})' : ''}',
-                              style: TextStyle(fontSize: 11, color: s.minNightSpo2! < 90 ? const Color(0xFFEF4444) : Colors.white70)),
+                          Text(
+                            '🫁 SpO2 ngủ: ${s.minNightSpo2!.toStringAsFixed(0)}%${(s.nightSpo2DipsCount ?? 0) > 0 ? ' (Tụt: ${s.nightSpo2DipsCount})' : ''}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: s.minNightSpo2! < 90
+                                  ? const Color(0xFFEF4444)
+                                  : CareAiColors.secondary,
+                            ),
+                          ),
                         if (s.breathingDisturbances != null)
-                          Text('Rối loạn thở: ${s.breathingDisturbances == "ELEVATED" ? "Có dấu hiệu tăng cao" : "Bình thường"}',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: s.breathingDisturbances == "ELEVATED" ? const Color(0xFFEF4444) : const Color(0xFF10B981))),
+                          Text(
+                            'Rối loạn thở: ${s.breathingDisturbances == "ELEVATED" ? "Có dấu hiệu tăng cao" : "Bình thường"}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: s.breathingDisturbances == "ELEVATED"
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF456624),
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -2620,12 +3132,12 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: CareAiColors.brown.withValues(alpha: 0.035),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -2643,7 +3155,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   color: const Color(0xFF0D9488).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.tune_rounded, color: Color(0xFF2DD4BF), size: 20),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: CareAiColors.greenInk,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               const Expanded(
@@ -2652,11 +3168,15 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   children: [
                     Text(
                       'Ngưỡng Nhịp Tim Sinh Học (AI)',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: CareAiColors.ink,
+                      ),
                     ),
                     Text(
                       'Tự động phân tách Ngày vs Đêm chống báo động giả',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                      style: TextStyle(fontSize: 11, color: Color(0xFF7D7168)),
                     ),
                   ],
                 ),
@@ -2669,41 +3189,70 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFFFAF7F2),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF334155)),
+              border: Border.all(color: const Color(0xFFE4DACD)),
             ),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.wb_sunny_rounded, color: Color(0xFFFBBF24), size: 15),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Ban Ngày ($sleepEnd - $sleepStart)',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFFBBF24)),
+                _dashboardHeading(
+                  'Ban ngày ($sleepEnd - $sleepStart)',
+                  icon: Icons.wb_sunny_rounded,
+                  color: CareAiColors.amber,
+                  trailing: const Text(
+                    'Chuẩn hoạt động',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: CareAiColors.secondary,
                     ),
-                    const Spacer(),
-                    const Text('Chuẩn hoạt động', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  spacing: 24,
+                  runSpacing: 16,
                   children: [
                     Column(
                       children: [
-                        const Text('NGƯỠNG DƯỚI', style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        const Text(
+                          'NGƯỠNG DƯỚI',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text('${dayMinBpm.toStringAsFixed(0)} bpm', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8))),
+                        Text(
+                          '${dayMinBpm.toStringAsFixed(0)} bpm',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF456624),
+                          ),
+                        ),
                       ],
                     ),
-                    Container(width: 1, height: 28, color: const Color(0xFF334155)),
                     Column(
                       children: [
-                        const Text('NGƯỠNG TRÊN', style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        const Text(
+                          'NGƯỠNG TRÊN',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text('${dayMaxBpm.toStringAsFixed(0)} bpm', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF87171))),
+                        Text(
+                          '${dayMaxBpm.toStringAsFixed(0)} bpm',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFC93B2B),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -2717,60 +3266,77 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFFFAF7F2),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
+              border: Border.all(
+                color: CareAiColors.lavenderInk.withValues(alpha: 0.3),
+              ),
             ),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.nights_stay_rounded, color: Color(0xFF818CF8), size: 15),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Ban Đêm ($sleepStart - $sleepEnd)',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF818CF8)),
+                _dashboardHeading(
+                  'Ban đêm ($sleepStart - $sleepEnd)',
+                  icon: Icons.nights_stay_rounded,
+                  color: CareAiColors.lavenderInk,
+                  trailing: TextButton.icon(
+                    onPressed: () => _showSleepWindowDialog(
+                      sleepStart,
+                      sleepEnd,
+                      dayMinBpm,
+                      dayMaxBpm,
+                      nightMinBpm,
+                      nightMaxBpm,
                     ),
-                    const Spacer(),
-                    InkWell(
-                      onTap: () => _showSleepWindowDialog(sleepStart, sleepEnd, dayMinBpm, dayMaxBpm, nightMinBpm, nightMaxBpm),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF818CF8).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF818CF8).withValues(alpha: 0.4)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.edit_calendar_rounded, color: Color(0xFF818CF8), size: 12),
-                            SizedBox(width: 4),
-                            Text('Đổi giờ', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                    icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                    label: const Text('Đổi giờ'),
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  spacing: 24,
+                  runSpacing: 16,
                   children: [
                     Column(
                       children: [
-                        const Text('NGƯỠNG DƯỚI ĐÊM', style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        const Text(
+                          'NGƯỠNG DƯỚI ĐÊM',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text('${nightMinBpm.toStringAsFixed(0)} bpm', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF818CF8))),
+                        Text(
+                          '${nightMinBpm.toStringAsFixed(0)} bpm',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: CareAiColors.lavenderInk,
+                          ),
+                        ),
                       ],
                     ),
-                    Container(width: 1, height: 28, color: const Color(0xFF334155)),
                     Column(
                       children: [
-                        const Text('NGƯỠNG TRÊN ĐÊM', style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                        const Text(
+                          'NGƯỠNG TRÊN ĐÊM',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF7D7168),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text('${nightMaxBpm.toStringAsFixed(0)} bpm', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFB7185))),
+                        Text(
+                          '${nightMaxBpm.toStringAsFixed(0)} bpm',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFFB7185),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -2783,7 +3349,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             const SizedBox(height: 8),
             Text(
               'Tối ưu lần cuối: ${VietnamTimeHelper.formatDateTimeHm(_thresholdData!.updatedAt)} (Giờ VN)',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF7D7168)),
             ),
           ],
           const SizedBox(height: 14),
@@ -2794,16 +3360,32 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 backgroundColor: const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               icon: _isAnalyzingThresholds
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.insights_rounded, size: 18),
               label: Text(
-                _isAnalyzingThresholds ? 'Đang phân tích dữ liệu 14 ngày...' : 'PHÂN TÍCH AI & ĐỀ XUẤT NGƯỠNG MỚI',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                _isAnalyzingThresholds
+                    ? 'Đang phân tích dữ liệu 14 ngày...'
+                    : 'PHÂN TÍCH AI & ĐỀ XUẤT NGƯỠNG MỚI',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
               ),
-              onPressed: _isAnalyzingThresholds ? null : () => _analyzeAndShowTuningSheet(),
+              onPressed: _isAnalyzingThresholds
+                  ? null
+                  : () => _analyzeAndShowTuningSheet(),
             ),
           ),
         ],
@@ -2814,13 +3396,15 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
   Future<void> _analyzeAndShowTuningSheet() async {
     setState(() => _isAnalyzingThresholds = true);
     try {
-      final rec = await CaregiverApiService.instance.getThresholdRecommendation(widget.elderProfileId);
+      final rec = await CaregiverApiService.instance.getThresholdRecommendation(
+        widget.elderProfileId,
+      );
       if (!mounted) return;
       setState(() => _isAnalyzingThresholds = false);
 
       showModalBottomSheet(
         context: context,
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFFFFFFFF),
         isScrollControlled: true,
         useSafeArea: true,
         shape: const RoundedRectangleBorder(
@@ -2863,22 +3447,31 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     String formatTime(TimeOfDay t) =>
         '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-    var startTime = parseTime(currentStart, const TimeOfDay(hour: 22, minute: 0));
+    var startTime = parseTime(
+      currentStart,
+      const TimeOfDay(hour: 22, minute: 0),
+    );
     var endTime = parseTime(currentEnd, const TimeOfDay(hour: 6, minute: 0));
 
     await showDialog(
       context: context,
       builder: (dlgCtx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: const Color(0xFFFFFFFF),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Row(
             children: [
-              Icon(Icons.bedtime_rounded, color: Color(0xFF818CF8), size: 22),
+              Icon(Icons.bedtime_rounded, color: Color(0xFF645796), size: 22),
               SizedBox(width: 8),
               Text(
                 'Điều Chỉnh Khung Giờ Ngủ',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: CareAiColors.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -2888,20 +3481,33 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
             children: [
               const Text(
                 'Trong khung giờ này, CareAI sẽ áp dụng dải ngưỡng ban đêm để tự động triệt tiêu báo động giả khi nhịp tim ông/bà chậm sinh lý lúc ngủ sâu.',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.4),
+                style: TextStyle(
+                  color: Color(0xFF7D7168),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.nights_stay_rounded, color: Color(0xFF818CF8)),
-                title: const Text('Bắt đầu ngủ (Giờ lên giường):', style: TextStyle(color: Colors.white, fontSize: 13)),
+                leading: const Icon(
+                  Icons.nights_stay_rounded,
+                  color: Color(0xFF645796),
+                ),
+                title: const Text(
+                  'Bắt đầu ngủ (Giờ lên giường):',
+                  style: TextStyle(color: CareAiColors.ink, fontSize: 13),
+                ),
                 trailing: TextButton(
                   style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    backgroundColor: const Color(0xFFFAF7F2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Color(0xFF334155)),
+                      side: const BorderSide(color: Color(0xFFE4DACD)),
                     ),
                   ),
                   onPressed: () async {
@@ -2915,22 +3521,35 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   },
                   child: Text(
                     formatTime(startTime),
-                    style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      color: Color(0xFF456624),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ),
-              const Divider(color: Color(0xFF334155)),
+              const Divider(color: Color(0xFFE4DACD)),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.wb_sunny_rounded, color: Color(0xFFFBBF24)),
-                title: const Text('Thức dậy (Giờ thức giấc):', style: TextStyle(color: Colors.white, fontSize: 13)),
+                leading: const Icon(
+                  Icons.wb_sunny_rounded,
+                  color: Color(0xFF916018),
+                ),
+                title: const Text(
+                  'Thức dậy (Giờ thức giấc):',
+                  style: TextStyle(color: CareAiColors.ink, fontSize: 13),
+                ),
                 trailing: TextButton(
                   style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    backgroundColor: const Color(0xFFFAF7F2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Color(0xFF334155)),
+                      side: const BorderSide(color: Color(0xFFE4DACD)),
                     ),
                   ),
                   onPressed: () async {
@@ -2944,7 +3563,11 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   },
                   child: Text(
                     formatTime(endTime),
-                    style: const TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      color: Color(0xFF916018),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ),
@@ -2953,13 +3576,18 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dlgCtx),
-              child: const Text('Hủy', style: TextStyle(color: Color(0xFF94A3B8))),
+              child: const Text(
+                'Hủy',
+                style: TextStyle(color: Color(0xFF7D7168)),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
+                backgroundColor: const Color(0xFF645796),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               onPressed: () async {
                 Navigator.pop(dlgCtx);
@@ -2967,23 +3595,26 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                 final endStr = formatTime(endTime);
                 final messenger = ScaffoldMessenger.of(context);
                 try {
-                  final updated = await CaregiverApiService.instance.updateElderThresholds(
-                    widget.elderProfileId,
-                    dayMinBpm,
-                    dayMaxBpm,
-                    nightMinBpm: nightMinBpm,
-                    nightMaxBpm: nightMaxBpm,
-                    sleepStart: startStr,
-                    sleepEnd: endStr,
-                  );
+                  final updated = await CaregiverApiService.instance
+                      .updateElderThresholds(
+                        widget.elderProfileId,
+                        dayMinBpm,
+                        dayMaxBpm,
+                        nightMinBpm: nightMinBpm,
+                        nightMaxBpm: nightMaxBpm,
+                        sleepStart: startStr,
+                        sleepEnd: endStr,
+                      );
                   if (mounted) {
                     setState(() {
                       _thresholdData = updated;
                     });
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text('Đã cập nhật khung giờ ngủ: $startStr - $endStr!'),
-                        backgroundColor: const Color(0xFF10B981),
+                        content: Text(
+                          'Đã cập nhật khung giờ ngủ: $startStr - $endStr!',
+                        ),
+                        backgroundColor: const Color(0xFF456624),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -3000,7 +3631,10 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                   }
                 }
               },
-              child: const Text('Lưu Thay Đổi', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Lưu Thay Đổi',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -3023,223 +3657,279 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFF475569),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D9488).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF2DD4BF), size: 22),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Đề Xuất Ngưỡng Thích Nghi (AI)',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    Text(
-                      'Phân tích bách phân vị P5/P95 chuỗi nhịp tim 14 ngày',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
+                  color: const Color(0xFF8C7A6B),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Khối so sánh ngưỡng Hiện tại vs Đề xuất mới
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF334155)),
             ),
-            child: Column(
+            const SizedBox(height: 16),
+            Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Dải ngưỡng hiện tại:', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
-                    Text(
-                      '${rec.currentMinBpm.toStringAsFixed(0)} - ${rec.currentMaxBpm.toStringAsFixed(0)} bpm',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                  ],
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D9488).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Color(0xFF2DD4BF),
+                    size: 22,
+                  ),
                 ),
-                const Divider(color: Color(0xFF334155), height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Bách phân vị thực tế:', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
-                    Text(
-                      'P5: ${rec.calculatedP5.toStringAsFixed(1)} | P95: ${rec.calculatedP95.toStringAsFixed(1)} bpm',
-                      style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                  ],
-                ),
-                const Divider(color: Color(0xFF334155), height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Đề xuất mới (Clamped ±3):', style: TextStyle(color: Color(0xFF2DD4BF), fontWeight: FontWeight.bold, fontSize: 13)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0D9488).withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF2DD4BF)),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Đề Xuất Ngưỡng Thích Nghi (AI)',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: CareAiColors.ink,
+                        ),
                       ),
-                      child: Text(
-                        '${rec.recommendedMinBpm.toStringAsFixed(0)} - ${rec.recommendedMaxBpm.toStringAsFixed(0)} bpm',
-                        style: const TextStyle(color: Color(0xFF2DD4BF), fontWeight: FontWeight.bold, fontSize: 14),
+                      Text(
+                        'Phân tích bách phân vị P5/P95 chuỗi nhịp tim 14 ngày',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF7D7168),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Giải trình lâm sàng (Clinical Rationale)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.5)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.info_outline_rounded, color: Color(0xFF38BDF8), size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    rec.clinicalRationale,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFFCBD5E1), height: 1.4),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-          // Nút áp dụng ngưỡng mới
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0284C7),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            // Khối so sánh ngưỡng Hiện tại vs Đề xuất mới
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF7F2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE4DACD)),
               ),
-              icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
-              label: const Text(
-                'ÁP DỤNG DẢI NGƯỠNG ĐỀ XUẤT NÀY',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  final updated = await CaregiverApiService.instance.updateElderThresholds(
-                    widget.elderProfileId,
-                    rec.recommendedMinBpm,
-                    rec.recommendedMaxBpm,
-                    nightMinBpm: _thresholdData?.nightHeartRateMin ?? 40.0,
-                    nightMaxBpm: _thresholdData?.nightHeartRateMax ?? 90.0,
-                    sleepStart: _thresholdData?.sleepWindowStart ?? '22:00',
-                    sleepEnd: _thresholdData?.sleepWindowEnd ?? '06:00',
-                  );
-                  if (mounted) {
-                    setState(() {
-                      _thresholdData = updated;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Đã áp dụng ngưỡng thích nghi mới: ${updated.restingHeartRateMin.toStringAsFixed(0)} - ${updated.restingHeartRateMax.toStringAsFixed(0)} bpm!',
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Dải ngưỡng hiện tại:',
+                        style: TextStyle(
+                          color: Color(0xFF7D7168),
+                          fontSize: 13,
                         ),
-                        backgroundColor: const Color(0xFF10B981),
-                        behavior: SnackBarBehavior.floating,
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Không thể cập nhật ngưỡng: $e'),
-                        backgroundColor: const Color(0xFFEF4444),
-                        behavior: SnackBarBehavior.floating,
+                      Text(
+                        '${rec.currentMinBpm.toStringAsFixed(0)} - ${rec.currentMaxBpm.toStringAsFixed(0)} bpm',
+                        style: const TextStyle(
+                          color: CareAiColors.ink,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
-                    );
-                  }
-                }
-              },
+                    ],
+                  ),
+                  const Divider(color: Color(0xFFE4DACD), height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Bách phân vị thực tế:',
+                        style: TextStyle(
+                          color: Color(0xFF7D7168),
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        'P5: ${rec.calculatedP5.toStringAsFixed(1)} | P95: ${rec.calculatedP95.toStringAsFixed(1)} bpm',
+                        style: const TextStyle(
+                          color: Color(0xFF456624),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: Color(0xFFE4DACD), height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Đề xuất mới (Clamped ±3):',
+                        style: TextStyle(
+                          color: Color(0xFF2DD4BF),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D9488)
+                              .withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF2DD4BF)),
+                        ),
+                        child: Text(
+                          '${rec.recommendedMinBpm.toStringAsFixed(0)} - ${rec.recommendedMaxBpm.toStringAsFixed(0)} bpm',
+                          style: const TextStyle(
+                            color: Color(0xFF2DD4BF),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 14),
+
+            // Giải trình lâm sàng (Clinical Rationale)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF7F2).withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFE4DACD).withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF456624),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      rec.clinicalRationale,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF5C493B),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Nút áp dụng ngưỡng mới
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4A3020),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                label: const Text(
+                  'ÁP DỤNG DẢI NGƯỠNG ĐỀ XUẤT NÀY',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    final updated = await CaregiverApiService.instance
+                        .updateElderThresholds(
+                          widget.elderProfileId,
+                          rec.recommendedMinBpm,
+                          rec.recommendedMaxBpm,
+                          nightMinBpm:
+                              _thresholdData?.nightHeartRateMin ?? 40.0,
+                          nightMaxBpm:
+                              _thresholdData?.nightHeartRateMax ?? 90.0,
+                          sleepStart:
+                              _thresholdData?.sleepWindowStart ?? '22:00',
+                          sleepEnd: _thresholdData?.sleepWindowEnd ?? '06:00',
+                        );
+                    if (mounted) {
+                      setState(() {
+                        _thresholdData = updated;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Đã áp dụng ngưỡng thích nghi mới: ${updated.restingHeartRateMin.toStringAsFixed(0)} - ${updated.restingHeartRateMax.toStringAsFixed(0)} bpm!',
+                          ),
+                          backgroundColor: const Color(0xFF456624),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Không thể cập nhật ngưỡng: $e'),
+                          backgroundColor: const Color(0xFFEF4444),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // --- THẺ MÃ PIN GHÉP NỐI ---
   Widget _buildPairingPinCard() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: const Color(0xFFE4DACD)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.pin_rounded, color: Color(0xFF38BDF8), size: 18),
-              SizedBox(width: 8),
-              Text(
-                'Mã PIN Ghép Nối Thiết Bị',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-              ),
-            ],
+          _dashboardHeading(
+            'Mã PIN Ghép Nối Thiết Bị',
+            icon: Icons.pin_rounded,
           ),
           const SizedBox(height: 6),
           const Text(
             'Nhập mã PIN 6 số này vào điện thoại hoặc Galaxy Watch của Người cao tuổi để kích hoạt liên kết:',
-            style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 12, color: Color(0xFF7D7168)),
           ),
           const SizedBox(height: 12),
           if (_generatedPin != null) ...[
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: const Color(0xFFFAF7F2),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF0284C7), width: 1.5),
+                border: Border.all(color: const Color(0xFF4A3020), width: 1.5),
               ),
               child: Column(
                 children: [
@@ -3249,13 +3939,16 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 8,
-                      color: Color(0xFF38BDF8),
+                      color: Color(0xFF456624),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Hết hạn lúc: ${VietnamTimeHelper.formatHms(_pinExpiresAt)} (Giờ VN)',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF7D7168),
+                    ),
                   ),
                 ],
               ),
@@ -3264,15 +3957,28 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
           ],
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF38BDF8),
-              side: const BorderSide(color: Color(0xFF0284C7)),
+              foregroundColor: const Color(0xFF456624),
+              side: const BorderSide(color: Color(0xFF4A3020)),
               padding: const EdgeInsets.symmetric(vertical: 11),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             icon: _isGeneratingPin
-                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)))
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF456624),
+                    ),
+                  )
                 : const Icon(Icons.autorenew_rounded, size: 18),
-            label: Text(_generatedPin == null ? 'SINH MÃ PIN MỚI (10 PHÚT)' : 'ĐỔI MÃ PIN MỚI'),
+            label: Text(
+              _generatedPin == null
+                  ? 'SINH MÃ PIN MỚI (10 PHÚT)'
+                  : 'ĐỔI MÃ PIN MỚI',
+            ),
             onPressed: _isGeneratingPin ? null : _generatePin,
           ),
         ],
@@ -3285,11 +3991,16 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     final type = inc.emergencyType.toUpperCase();
     final isStale = type.contains('STALE') || type.contains('OFFLINE');
     final isFall = type.contains('FALL');
-    final isOxygen = type.contains('LOW_OXYGEN') || type.contains('LOWOXYGEN') || type.contains('OXYGEN') || type.contains('SPO2');
+    final isOxygen =
+        type.contains('LOW_OXYGEN') ||
+        type.contains('LOWOXYGEN') ||
+        type.contains('OXYGEN') ||
+        type.contains('SPO2');
     final isTachy = type.contains('TACHYCARDIA');
     final isBrady = type.contains('BRADYCARDIA');
     final isSurge = type.contains('SURGE');
-    final isBp = type.contains('HYPERTENSION') || type.contains('BLOOD_PRESSURE');
+    final isBp =
+        type.contains('HYPERTENSION') || type.contains('BLOOD_PRESSURE');
 
     // Xác định giao diện chuyên biệt dựa trên từng loại sự cố
     final Color bgColor;
@@ -3304,7 +4015,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     if (isStale) {
       bgColor = const Color(0xFF451A03); // Vàng hổ phách trầm
       borderColor = const Color(0xFFF59E0B);
-      titleColor = const Color(0xFFFDE68A);
+      titleColor = const Color(0xFF916018);
       timeColor = const Color(0xFFFEF3C7);
       btnColor = const Color(0xFFD97706);
       iconData = Icons.wifi_off_rounded;
@@ -3313,15 +4024,15 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
     } else if (isFall) {
       bgColor = const Color(0xFF450A0A); // Đỏ cấp cứu té ngã
       borderColor = const Color(0xFFEF4444);
-      titleColor = const Color(0xFFFCA5A5);
-      timeColor = const Color(0xFFFECACA);
+      titleColor = const Color(0xFFC93B2B);
+      timeColor = const Color(0xFFC93B2B);
       btnColor = const Color(0xFFDC2626);
       iconData = Icons.warning_rounded;
       titleText = 'PHÁT HIỆN TÉ NGÃ KHẨN CẤP!';
       btnText = 'MỞ CHI TIẾT CỨU HỘ & XỬ LÝ';
     } else if (isOxygen) {
       bgColor = const Color(0xFF2E1065); // Tím sẫm oxy máu
-      borderColor = const Color(0xFFA855F7);
+      borderColor = const Color(0xFF645796);
       titleColor = const Color(0xFFE9D5FF);
       timeColor = const Color(0xFFF3E8FF);
       btnColor = const Color(0xFF7E22CE);
@@ -3368,8 +4079,8 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
       // Mặc định cho SOS khẩn cấp (MANUAL_SOS)
       bgColor = const Color(0xFF450A0A);
       borderColor = const Color(0xFFEF4444);
-      titleColor = const Color(0xFFFCA5A5);
-      timeColor = const Color(0xFFFECACA);
+      titleColor = const Color(0xFFC93B2B);
+      timeColor = const Color(0xFFC93B2B);
       btnColor = const Color(0xFFDC2626);
       iconData = Icons.emergency_rounded;
       titleText = 'BÁO ĐỘNG SOS KHẨN CẤP!';
@@ -3400,20 +4111,30 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               Expanded(
                 child: Text(
                   titleText,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: titleColor),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: titleColor,
+                  ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: inc.isOpen
-                      ? (isStale ? const Color(0xFFD97706) : const Color(0xFFDC2626))
+                      ? (isStale
+                            ? const Color(0xFFD97706)
+                            : const Color(0xFFDC2626))
                       : const Color(0xFF059669),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   inc.isOpen ? 'CHƯA TIẾP NHẬN' : 'ĐÃ TIẾP NHẬN',
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: CareAiColors.ink,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -3430,14 +4151,21 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen> with Widget
               style: ElevatedButton.styleFrom(
                 backgroundColor: btnColor,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-              label: Text(btnText, style: const TextStyle(fontWeight: FontWeight.bold)),
+              label: Text(
+                btnText,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               onPressed: () async {
                 final changed = await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => IncidentDetailScreen(incident: inc)),
+                  MaterialPageRoute(
+                    builder: (_) => IncidentDetailScreen(incident: inc),
+                  ),
                 );
                 if (changed == true) _loadDashboard();
               },

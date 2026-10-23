@@ -1,0 +1,69 @@
+@page "/Manage/{kind}/{id}"
+@model CareAI.AdminWeb.Pages.ManageModel
+@{ ViewData["Title"] = Model.Record.Title; }
+<a class="back-link" asp-page="@Model.BackPage">← Quay lại danh sách</a>
+<div class="title-row"><div><h1>@Model.Record.Title</h1><p>@Model.Record.Subtitle · @Model.Record.Status</p></div></div>
+@if (Model.Success is not null) { <p role="status" class="notice">@Model.Success</p> }
+<section class="panel"><h2>Thông tin hiện tại</h2><dl class="detail-list">
+@foreach (var field in Model.Record.Fields) { <div><dt>@field.Label</dt><dd class="feedback-message">@field.Value</dd></div> }
+</dl></section>
+@if (Model.Kind != "elders")
+{
+<section class="panel compact"><h2>Thao tác quản trị</h2>
+<p>Mọi thay đổi cần lý do và mật khẩu xác thực lại. Không ghi thông tin nhạy cảm vào lý do. Xem lại thông tin hiện tại và đối tượng trước khi gửi.</p>
+@if (Model.Error is not null) { <p role="alert" class="form-error">@Model.Error</p><a href="@HttpContext.Request.Path">Tải lại dữ liệu và tạo yêu cầu mới</a> }
+<form method="post" class="manage-form">
+<input asp-for="RequestId" type="hidden" /><input asp-for="ExpectedVersion" type="hidden" />
+<div asp-validation-summary="All" role="alert"></div>
+@if (Model.Kind == "accounts")
+{
+    @if (Model.Existing("API thực thi phiên") != "true") { <p class="notice">Sửa thông tin và mở khóa đăng nhập đang hoạt động. Đình chỉ/thu hồi JWT cần deploy API ứng dụng có kiểm tra phiên lên Azure trước khi bật; hiện chưa thể thực thi trên API public.</p> }
+    <label for="name">Họ tên</label><input id="name" name="Values[FullName]" value="@Model.Input("FullName", Model.Existing("Họ tên"))" maxlength="100" />
+    <label for="phone">Số điện thoại</label><input id="phone" name="Values[PhoneNumber]" value="@Model.Input("PhoneNumber", Model.Existing("Số điện thoại"))" maxlength="20" type="tel" />
+}
+@if (Model.Kind == "staff")
+{
+    @if (Model.Id == "new")
+    {
+        <label for="fullname">Họ tên nhân sự</label><input id="fullname" name="Values[FullName]" value="@Model.Input("FullName")" required maxlength="100" />
+        <label for="login">Tên đăng nhập hoặc email</label><input id="login" name="Values[Login]" value="@Model.Input("Login")" required maxlength="100" autocomplete="off" />
+        <label for="newpassword">Mật khẩu riêng cho nhân sự (tối thiểu 16 ký tự)</label><input id="newpassword" name="Values[NewPassword]" type="password" required minlength="16" maxlength="256" autocomplete="new-password" />
+        <p>Cấp trực tiếp tài khoản nội bộ. Không có email tự động hoặc mật khẩu dùng chung.</p>
+    }
+    <label for="role">Vai trò</label><select id="role" name="Values[Role]">
+    @foreach (var roleName in new[] { "Support", "Operations", "Auditor", "Owner" })
+    { <option value="@roleName" selected="@(Model.Input("Role", Model.Existing("Vai trò")) == roleName)">@roleName</option> }
+    </select>
+    @if (Model.Id != "new")
+    {
+        <label for="active">Trạng thái tài khoản</label><select id="active" name="Values[IsActive]"><option value="true" selected="@(Model.Input("IsActive", Model.Existing("Hoạt động")) == "true")">Hoạt động</option><option value="false" selected="@(Model.Input("IsActive", Model.Existing("Hoạt động")) == "false")">Tạm ngưng</option></select>
+    }
+}
+@if (Model.Kind == "feedback")
+{
+    <label for="reply">Nội dung trả lời khách hàng</label><textarea id="reply" name="Values[Reply]" rows="6" required minlength="5" maxlength="3000">@Model.Input("Reply", Model.Existing("Trả lời hiện tại"))</textarea>
+    <label for="feedbackstatus">Trạng thái</label><select id="feedbackstatus" name="Values[Status]"><option value="InProgress">Đang xử lý</option><option value="Resolved">Đã phản hồi</option></select>
+    <p>Người thân đọc trả lời trong lịch sử feedback trên app; không tự gửi email hoặc push.</p>
+}
+@if (Model.Kind == "devices") { <p class="notice">Thu hồi ngắt quyền gửi dữ liệu của thiết bị. Cần thiết bị thay thế; chặn khi hồ sơ có incident chưa giải quyết. Cache ở API khác có thể cần tối đa 5 phút để hết hiệu lực.</p> }
+@if (Model.Kind == "care-links") { <p class="notice">Chuyển chính sẽ hạ các người chăm sóc chính hiện tại xuống phụ. Không đổi liên kết khi có sự cố chưa giải quyết; không ngừng liên kết Primary trực tiếp.</p> }
+<label asp-for="Reason">Lý do và căn cứ xác minh</label><textarea asp-for="Reason" rows="3" required minlength="5" maxlength="500"></textarea>
+<label for="reauth">Mật khẩu của bạn để xác thực lại</label><input id="reauth" name="ReauthPassword" type="password" autocomplete="current-password" required maxlength="256" />
+<div class="form-actions">
+@switch (Model.Kind)
+{
+    case "accounts":
+        <button class="button primary" name="Action" value="account.update">Lưu thông tin</button><button class="button" name="Action" value="account.unlock">Mở khóa đăng nhập</button>
+        if (Model.Existing("API thực thi phiên") == "true") { <button class="button" name="Action" value="account.suspend">Tạm ngưng</button><button class="button" name="Action" value="account.restore">Khôi phục</button><button class="button" name="Action" value="account.revoke">Thu hồi phiên</button> }
+        break;
+    case "devices": <button class="button primary" name="Action" value="device.revoke">Xác nhận thu hồi thiết bị</button> break;
+    case "care-links": <button class="button primary" name="Action" value="link.primary">Chuyển người này thành Primary</button><button class="button" name="Action" value="link.deactivate">Ngừng liên kết phụ</button> break;
+    case "staff":
+        if (Model.Id == "new") { <button class="button primary" name="Action" value="staff.create">Tạo nhân sự</button> }
+        else { <button class="button primary" name="Action" value="staff.update">Lưu vai trò / trạng thái</button><button class="button" name="Action" value="staff.revoke">Thu hồi mọi phiên</button> }
+        break;
+    case "feedback": <button class="button primary" name="Action" value="feedback.reply">Lưu và gửi trả lời vào lịch sử</button> break;
+}
+<a class="button" asp-page="@Model.BackPage">Hủy</a>
+</div></form></section>
+}

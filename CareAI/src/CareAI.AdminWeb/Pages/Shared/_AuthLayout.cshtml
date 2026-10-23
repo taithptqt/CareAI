@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · CareAI Admin</title>
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+</head>
+<body class="auth-page">
+    <main class="auth-main" id="main">
+        <div class="brand auth-brand" aria-label="CareAI Admin">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27 5 17C-3 8 9 0 16 9 23 0 35 8 27 17Z"/><path d="M7 16h5l2-5 4 11 2-6h5"/></svg>
+            <span>CareAI <small>Không gian quản trị</small></span>
+        </div>
+        @RenderBody()
+    </main>
+</body>
+</html>

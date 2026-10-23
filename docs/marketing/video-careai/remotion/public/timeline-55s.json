@@ -1,0 +1,168 @@
+[
+  {
+    "id": "Opening",
+    "name": "01 · Khi cha mẹ cần giúp",
+    "duration": 4.5,
+    "title": "Khi cha mẹ\ncần giúp…",
+    "chapter": "LỜI MỞ",
+    "image": 5,
+    "text": "Khi cha mẹ cần giúp mà bạn không ở cạnh, làm sao để gia đình biết?"
+  },
+  {
+    "id": "Connection",
+    "name": "02 · Kết nối gia đình",
+    "duration": 4.5,
+    "title": "Kết nối\ncả gia đình.",
+    "chapter": "KẾT NỐI",
+    "image": 1,
+    "text": "CareAI kết nối người cao tuổi và người thân trong cùng một ứng dụng."
+  },
+  {
+    "id": "Monitoring",
+    "name": "03 · Chủ động hỏi thăm",
+    "duration": 6,
+    "title": "Chủ động\nhỏi thăm.",
+    "chapter": "THEO DÕI",
+    "image": 2,
+    "second": 3,
+    "switchAt": 2.16,
+    "secondFocus": {
+      "top": 0.22,
+      "height": 0.6,
+      "width": 760
+    },
+    "text": "Xem thông tin từ thiết bị, thời điểm cập nhật và tình trạng kết nối để chủ động hỏi thăm cha mẹ."
+  },
+  {
+    "id": "Sos",
+    "name": "04 · Cần giúp, bấm SOS",
+    "duration": 5.5,
+    "title": "Cần giúp?\nBấm SOS.",
+    "chapter": "CHỦ ĐỘNG",
+    "image": 5,
+    "focus": {
+      "top": 0.3,
+      "height": 0.6,
+      "width": 780
+    },
+    "accent": "#ff6969",
+    "sfx": [
+      [
+        "tap",
+        2.16
+      ]
+    ],
+    "text": "Khi cần giúp, cha mẹ có thể bấm nút SOS lớn, dễ nhận biết trên màn hình."
+  },
+  {
+    "id": "Confirmation",
+    "name": "05 · Xác nhận tín hiệu",
+    "duration": 4.5,
+    "title": "Chạm nhầm?\nCó thể hủy.",
+    "chapter": "XÁC NHẬN",
+    "image": 6,
+    "focus": {
+      "top": 0.26,
+      "height": 0.55,
+      "width": 780
+    },
+    "accent": "#ff6969",
+    "sfx": [
+      [
+        "tap",
+        2.3600000000000003
+      ]
+    ],
+    "text": "Có thể hủy nếu chạm nhầm, hoặc chọn gửi ngay tín hiệu cần giúp."
+  },
+  {
+    "id": "FallAlert",
+    "name": "06 · Tình huống khác: té ngã",
+    "duration": 6.5,
+    "title": "Tình huống khác:\ncảnh báo té ngã.",
+    "chapter": "CẢNH BÁO",
+    "image": 7,
+    "focus": {
+      "top": 0,
+      "height": 0.57,
+      "width": 780
+    },
+    "accent": "#ff6969",
+    "sfx": [
+      [
+        "notification",
+        0.48
+      ]
+    ],
+    "text": "Trong một tình huống khác, khi có cảnh báo té ngã, người thân mở thông tin sự cố để kiểm tra."
+  },
+  {
+    "id": "Incident",
+    "name": "07 · Xem và liên hệ",
+    "duration": 7,
+    "title": "Xem thông tin.\nLiên hệ người nhà.",
+    "chapter": "PHẢN HỒI",
+    "image": 9,
+    "focus": {
+      "top": 0.68,
+      "height": 0.3,
+      "width": 800
+    },
+    "second": 10,
+    "secondFocus": {
+      "top": 0.13,
+      "height": 0.77,
+      "width": 620
+    },
+    "switchAt": 3.6,
+    "accent": "#38bdf8",
+    "sfx": [
+      [
+        "tap",
+        2.2399999999999998
+      ]
+    ],
+    "text": "Xem vị trí và ảnh khi có dữ liệu, mở chỉ đường hoặc gọi liên hệ để tìm hiểu tình hình."
+  },
+  {
+    "id": "Acknowledged",
+    "name": "08 · Gia đình cùng phản hồi",
+    "duration": 8,
+    "title": "Đã có người\nnhận xử lý.",
+    "chapter": "CÙNG CHĂM SÓC",
+    "image": 10,
+    "focus": {
+      "top": 0.76,
+      "height": 0.22,
+      "width": 800
+    },
+    "second": 12,
+    "secondFocus": {
+      "top": 0.06,
+      "height": 0.5,
+      "width": 800
+    },
+    "switchAt": 3.2,
+    "accent": "#ffb454",
+    "sfx": [
+      [
+        "tap",
+        1.6800000000000002
+      ],
+      [
+        "accepted",
+        3.72
+      ]
+    ],
+    "text": "Một người thân xác nhận tiếp nhận. Gia đình biết sự cố đã có người nhận xử lý, để cùng phối hợp bước tiếp theo."
+  },
+  {
+    "id": "Closing",
+    "name": "09 · Kết nối quan tâm",
+    "duration": 8.5,
+    "title": "Kết nối quan tâm.\nCùng chăm sóc.",
+    "chapter": "CAREAI",
+    "ending": true,
+    "text": "CareAI. Kết nối quan tâm, cùng gia đình chăm sóc. Hỗ trợ theo dõi và cảnh báo."
+  }
+]

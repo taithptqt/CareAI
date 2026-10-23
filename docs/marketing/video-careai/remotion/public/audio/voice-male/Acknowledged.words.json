@@ -1,0 +1,127 @@
+[
+  {
+    "text": "Một",
+    "startMs": 100.0,
+    "endMs": 428.375
+  },
+  {
+    "text": "người",
+    "startMs": 428.375,
+    "endMs": 608.458
+  },
+  {
+    "text": "thân",
+    "startMs": 608.458,
+    "endMs": 799.124
+  },
+  {
+    "text": "xác",
+    "startMs": 799.166,
+    "endMs": 1021.624
+  },
+  {
+    "text": "nhận",
+    "startMs": 1021.625,
+    "endMs": 1233.458
+  },
+  {
+    "text": "tiếp",
+    "startMs": 1233.458,
+    "endMs": 1434.749
+  },
+  {
+    "text": "nhận",
+    "startMs": 1434.75,
+    "endMs": 1741.958
+  },
+  {
+    "text": "Gia",
+    "startMs": 2444.083,
+    "endMs": 2645.333
+  },
+  {
+    "text": "đình",
+    "startMs": 2645.333,
+    "endMs": 2793.624
+  },
+  {
+    "text": "biết",
+    "startMs": 2793.625,
+    "endMs": 2920.75
+  },
+  {
+    "text": "sự",
+    "startMs": 2920.75,
+    "endMs": 3090.25
+  },
+  {
+    "text": "cố",
+    "startMs": 3090.25,
+    "endMs": 3333.875
+  },
+  {
+    "text": "đã",
+    "startMs": 3333.916,
+    "endMs": 3429.249
+  },
+  {
+    "text": "có",
+    "startMs": 3429.25,
+    "endMs": 3535.166
+  },
+  {
+    "text": "người",
+    "startMs": 3535.166,
+    "endMs": 3715.249
+  },
+  {
+    "text": "nhận",
+    "startMs": 3715.25,
+    "endMs": 3916.541
+  },
+  {
+    "text": "xử",
+    "startMs": 3916.541,
+    "endMs": 4075.416
+  },
+  {
+    "text": "lý",
+    "startMs": 4075.416,
+    "endMs": 4382.624
+  },
+  {
+    "text": "để",
+    "startMs": 4520.333,
+    "endMs": 4668.624
+  },
+  {
+    "text": "cùng",
+    "startMs": 4668.625,
+    "endMs": 4859.291
+  },
+  {
+    "text": "phối",
+    "startMs": 4859.333,
+    "endMs": 5018.208
+  },
+  {
+    "text": "hợp",
+    "startMs": 5018.208,
+    "endMs": 5187.708
+  },
+  {
+    "text": "bước",
+    "startMs": 5187.708,
+    "endMs": 5357.208
+  },
+  {
+    "text": "tiếp",
+    "startMs": 5357.208,
+    "endMs": 5516.083
+  },
+  {
+    "text": "theo",
+    "startMs": 5516.083,
+    "endMs": 5780.916
+  }
+]
