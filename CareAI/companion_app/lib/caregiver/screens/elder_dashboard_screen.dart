@@ -9,6 +9,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../services/location_service.dart';
+import '../../services/fall_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/caregiver_api_service.dart';
 import 'incident_detail_screen.dart';
@@ -105,13 +107,67 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen>
     }
   }
 
-  Future<void> _loadDashboard() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadDashboard({bool isManual = false}) async {
+    if (_dashboard == null) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'caregiver_last_force_sync_${widget.elderProfileId}';
+      final lastSyncStr = prefs.getString(key);
+      final lastSync = lastSyncStr != null ? DateTime.tryParse(lastSyncStr) : null;
+      final now = DateTime.now();
+
+      final bool canForceSync = lastSync == null || now.difference(lastSync) >= const Duration(minutes: 30);
+
+      if (canForceSync) {
+        // Cập nhật mốc thời gian cưỡng chế làm tươi
+        await prefs.setString(key, now.toIso8601String());
+
+        // 1. Gửi tín hiệu cưỡng chế lên Backend Azure (sẽ lưu cờ pending cho thiết bị cụ già)
+        try {
+          final res = await CaregiverApiService.instance.requestForceSync(widget.elderProfileId);
+          if (mounted && isManual) {
+            final msg = res['message'] as String? ?? 'Đã yêu cầu đồng hồ làm tươi dữ liệu ngay.';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(msg),
+                backgroundColor: const Color(0xFF456624),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('[FORCE-SYNC] Lỗi gọi requestForceSync: $e');
+        }
+
+        // 2. Kích hoạt trực tiếp qua FallService cầu nối Watch cục bộ (nếu chạy cùng máy hoặc qua WCSession)
+        try {
+          await FallService.instance.requestWatchForceSync();
+        } catch (_) {}
+
+        // Chờ 1.8 giây để đồng hồ kịp lấy mẫu cảm biến và đẩy lên đám mây trước khi đọc DB
+        await Future.delayed(const Duration(milliseconds: 1800));
+      } else {
+        // Đang trong thời gian bảo vệ pin (cooldown 30 phút) -> Chỉ tải từ Database đám mây
+        if (mounted && isManual) {
+          final remainingMinutes = 30 - now.difference(lastSync).inMinutes;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Lấy dữ liệu từ đám mây. Đồng hồ được bảo vệ pin, có thể yêu cầu gửi dữ liệu mới sau $remainingMinutes phút nữa.',
+              ),
+              backgroundColor: const Color(0xFF556050),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+
       final dashFuture = CaregiverApiService.instance.getElderDashboard(
         widget.elderProfileId,
       );
@@ -158,10 +214,24 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen>
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = e.toString().replaceAll('Exception:', '').trim();
-          _isLoading = false;
-        });
+        if (_dashboard == null) {
+          setState(() {
+            _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+          if (isManual) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Không thể làm mới: ${e.toString().replaceAll('Exception:', '').trim()}'),
+                backgroundColor: Colors.red[700],
+              ),
+            );
+          }
+        }
       }
     }
   }
@@ -272,7 +342,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen>
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Color(0xFF456624)),
             tooltip: 'Làm mới dữ liệu',
-            onPressed: _loadDashboard,
+            onPressed: () => _loadDashboard(isManual: true),
           ),
         ],
       ),
@@ -316,7 +386,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen>
                       ),
                       icon: const Icon(Icons.refresh, size: 18),
                       label: const Text('Thử Lại'),
-                      onPressed: _loadDashboard,
+                      onPressed: () => _loadDashboard(isManual: true),
                     ),
                   ],
                 ),
@@ -337,7 +407,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen>
       child: RefreshIndicator(
         color: const Color(0xFF456624),
         backgroundColor: const Color(0xFFFFFFFF),
-        onRefresh: _loadDashboard,
+        onRefresh: () => _loadDashboard(isManual: true),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

@@ -252,6 +252,20 @@ class FallService {
     }
   }
 
+  /// Yêu cầu cưỡng chế Apple Watch / Smartwatch làm tươi dữ liệu viễn trắc ngay lập tức
+  Future<bool> requestWatchForceSync() async {
+    if (!_isSupportedPlatform) {
+      return false;
+    }
+    try {
+      final success = await _fallChannel.invokeMethod<bool>('requestWatchForceSync');
+      return success ?? false;
+    } catch (e) {
+      debugPrint('[FallService] Lỗi gửi yêu cầu cưỡng chế làm tươi viễn trắc sang đồng hồ: $e');
+      return false;
+    }
+  }
+
   void dispose() {
     _sensorSubscription?.cancel();
     _fallEventController.close();

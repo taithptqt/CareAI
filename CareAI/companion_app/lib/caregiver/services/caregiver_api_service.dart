@@ -587,6 +587,24 @@ class CaregiverApiService {
     }
   }
 
+  // 7.0. Gửi yêu cầu cưỡng chế làm tươi viễn trắc từ đồng hồ (Bảo vệ pin: Cooldown 30 phút)
+  Future<Map<String, dynamic>> requestForceSync(String elderProfileId) async {
+    final token = await getToken();
+    final response = await _executeWithFailover((baseUrl) => http
+        .post(
+          Uri.parse('$baseUrl/api/v1/dashboard/elder/$elderProfileId/force-sync'),
+          headers: _buildHeaders(token),
+        )
+        .timeout(const Duration(seconds: 10)));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      final err = _extractError(response.body, response.statusCode);
+      throw Exception(err);
+    }
+  }
+
   // 7.1. Lấy dữ liệu biến thiên nhịp tim 24h phục vụ biểu đồ (Nhiệm vụ 1.4)
   Future<HeartRate24hData> getHeartRate24h(String elderProfileId) async {
     final token = await getToken();

@@ -73,6 +73,7 @@ class DeviceActiveIncidentResponse {
   final DateTime? resolvedAt;
   final String? resolvedByName;
   final String? resolutionNotes;
+  final bool requiresForceSync;
 
   DeviceActiveIncidentResponse({
     required this.hasActiveIncident,
@@ -86,6 +87,7 @@ class DeviceActiveIncidentResponse {
     this.resolvedAt,
     this.resolvedByName,
     this.resolutionNotes,
+    this.requiresForceSync = false,
   });
 
   factory DeviceActiveIncidentResponse.fromJson(Map<String, dynamic> json) {
@@ -101,6 +103,7 @@ class DeviceActiveIncidentResponse {
       resolvedAt: json['resolvedAt'] != null ? DateTime.tryParse(json['resolvedAt'] as String) : null,
       resolvedByName: json['resolvedByName'] as String?,
       resolutionNotes: json['resolutionNotes'] as String?,
+      requiresForceSync: json['requiresForceSync'] as bool? ?? false,
     );
   }
 }

@@ -486,6 +486,23 @@ import workmanager_apple
         } else {
           result(false)
         }
+      case "requestWatchForceSync":
+        if WCSession.isSupported() {
+          let session = WCSession.default
+          if session.activationState != .activated {
+            session.activate()
+          }
+          let payload: [String: Any] = ["action": "FORCE_REFRESH"]
+          try? session.updateApplicationContext(payload)
+          session.transferUserInfo(payload)
+          if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+          }
+          NSLog("[CareAI-iOS] Đã gửi lệnh FORCE_REFRESH sang Apple Watch qua WCSession.")
+          result(true)
+        } else {
+          result(false)
+        }
       default:
         result(FlutterMethodNotImplemented)
       }

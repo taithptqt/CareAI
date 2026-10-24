@@ -620,6 +620,13 @@ class ApiService {
 
         if (response.statusCode == 200) {
           _activeServerUrl = url;
+          try {
+            final data = jsonDecode(response.body);
+            if (data is Map<String, dynamic> && data['requiresForceSync'] == true) {
+              debugPrint('[FORCE-SYNC] Nhận cờ requiresForceSync qua heartbeat. Ép đồng hồ làm tươi dữ liệu.');
+              unawaited(FallService.instance.requestWatchForceSync());
+            }
+          } catch (_) {}
           return true;
         }
       } catch (_) {}

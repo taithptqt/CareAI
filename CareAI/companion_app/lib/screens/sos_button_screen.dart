@@ -342,6 +342,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       final incident = await ApiService.instance.getActiveIncident();
       if (!mounted || incident == null) return;
 
+      if (incident.requiresForceSync) {
+        debugPrint('[FORCE-SYNC] Nhận cờ requiresForceSync qua active-incident. Ép đồng hồ làm tươi dữ liệu.');
+        unawaited(FallService.instance.requestWatchForceSync());
+      }
+
       if (incident.hasActiveIncident) {
         if (incident.status == 'ACKNOWLEDGED') {
           final wasAck = _activeIncidentStatus == 'ACKNOWLEDGED';

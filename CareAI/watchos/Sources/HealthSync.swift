@@ -266,79 +266,124 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        if let action = applicationContext["action"] as? String, action == "UNPAIR" {
-            handleUnpairCommand()
-            return
-        }
-        if let action = applicationContext["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
-            let status = applicationContext["status"] as? String ?? "RESOLVED"
-            let name = applicationContext["acknowledgedByName"] as? String
-            let notes = applicationContext["notes"] as? String
-            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
-            return
+        if let action = applicationContext["action"] as? String {
+            if action == "FORCE_REFRESH" {
+                NSLog("[CareAI-Watch] Nhận lệnh FORCE_REFRESH qua applicationContext. Ép làm tươi và gửi viễn trắc ngay.")
+                sendWatchDeviceInfo()
+                syncCurrentBatteryAndWearState()
+                Task { @MainActor in
+                    await HealthSync.shared?.sendNow()
+                }
+                return
+            }
+            if action == "UNPAIR" {
+                handleUnpairCommand()
+                return
+            }
+            if action == "INCIDENT_STATUS_CHANGED" {
+                let status = applicationContext["status"] as? String ?? "RESOLVED"
+                let name = applicationContext["acknowledgedByName"] as? String
+                let notes = applicationContext["notes"] as? String
+                handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
+                return
+            }
         }
         handleIncomingCredentials(applicationContext)
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
-        if let action = userInfo["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
-            sendWatchDeviceInfo()
-            syncCurrentBatteryAndWearState()
-            return
-        }
-        if let action = userInfo["action"] as? String, action == "UNPAIR" {
-            handleUnpairCommand()
-            return
-        }
-        if let action = userInfo["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
-            let status = userInfo["status"] as? String ?? "RESOLVED"
-            let name = userInfo["acknowledgedByName"] as? String
-            let notes = userInfo["notes"] as? String
-            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
-            return
+        if let action = userInfo["action"] as? String {
+            if action == "FORCE_REFRESH" {
+                NSLog("[CareAI-Watch] Nhận lệnh FORCE_REFRESH qua userInfo ngầm. Ép làm tươi và gửi viễn trắc ngay.")
+                sendWatchDeviceInfo()
+                syncCurrentBatteryAndWearState()
+                Task { @MainActor in
+                    await HealthSync.shared?.sendNow()
+                }
+                return
+            }
+            if action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
+                sendWatchDeviceInfo()
+                syncCurrentBatteryAndWearState()
+                return
+            }
+            if action == "UNPAIR" {
+                handleUnpairCommand()
+                return
+            }
+            if action == "INCIDENT_STATUS_CHANGED" {
+                let status = userInfo["status"] as? String ?? "RESOLVED"
+                let name = userInfo["acknowledgedByName"] as? String
+                let notes = userInfo["notes"] as? String
+                handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
+                return
+            }
         }
         handleIncomingCredentials(userInfo)
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
-            sendWatchDeviceInfo()
-            syncCurrentBatteryAndWearState()
-            return
-        }
-        if let action = message["action"] as? String, action == "UNPAIR" {
-            handleUnpairCommand()
-            return
-        }
-        if let action = message["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
-            let status = message["status"] as? String ?? "RESOLVED"
-            let name = message["acknowledgedByName"] as? String
-            let notes = message["notes"] as? String
-            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
-            return
+        if let action = message["action"] as? String {
+            if action == "FORCE_REFRESH" {
+                NSLog("[CareAI-Watch] Nhận lệnh FORCE_REFRESH qua sendMessage. Ép làm tươi và gửi viễn trắc ngay.")
+                sendWatchDeviceInfo()
+                syncCurrentBatteryAndWearState()
+                Task { @MainActor in
+                    await HealthSync.shared?.sendNow()
+                }
+                return
+            }
+            if action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
+                sendWatchDeviceInfo()
+                syncCurrentBatteryAndWearState()
+                return
+            }
+            if action == "UNPAIR" {
+                handleUnpairCommand()
+                return
+            }
+            if action == "INCIDENT_STATUS_CHANGED" {
+                let status = message["status"] as? String ?? "RESOLVED"
+                let name = message["acknowledgedByName"] as? String
+                let notes = message["notes"] as? String
+                handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
+                return
+            }
         }
         handleIncomingCredentials(message)
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
-        if let action = message["action"] as? String, action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
-            sendWatchDeviceInfo()
-            syncCurrentBatteryAndWearState()
-            replyHandler(["status": "OK"])
-            return
-        }
-        if let action = message["action"] as? String, action == "UNPAIR" {
-            handleUnpairCommand()
-            replyHandler(["status": "OK"])
-            return
-        }
-        if let action = message["action"] as? String, action == "INCIDENT_STATUS_CHANGED" {
-            let status = message["status"] as? String ?? "RESOLVED"
-            let name = message["acknowledgedByName"] as? String
-            let notes = message["notes"] as? String
-            handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
-            replyHandler(["status": "OK"])
-            return
+        if let action = message["action"] as? String {
+            if action == "FORCE_REFRESH" {
+                NSLog("[CareAI-Watch] Nhận lệnh FORCE_REFRESH qua sendMessage (replyHandler). Ép làm tươi và gửi viễn trắc ngay.")
+                sendWatchDeviceInfo()
+                syncCurrentBatteryAndWearState()
+                Task { @MainActor in
+                    await HealthSync.shared?.sendNow()
+                }
+                replyHandler(["status": "OK"])
+                return
+            }
+            if action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
+                sendWatchDeviceInfo()
+                syncCurrentBatteryAndWearState()
+                replyHandler(["status": "OK"])
+                return
+            }
+            if action == "UNPAIR" {
+                handleUnpairCommand()
+                replyHandler(["status": "OK"])
+                return
+            }
+            if action == "INCIDENT_STATUS_CHANGED" {
+                let status = message["status"] as? String ?? "RESOLVED"
+                let name = message["acknowledgedByName"] as? String
+                let notes = message["notes"] as? String
+                handleIncidentStatusUpdate(status: status, acknowledgedByName: name, notes: notes)
+                replyHandler(["status": "OK"])
+                return
+            }
         }
         handleIncomingCredentials(message)
         replyHandler(["status": "OK"])

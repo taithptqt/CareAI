@@ -316,7 +316,10 @@ public class DevicesController : ControllerBase
     [HttpPost("heartbeat")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest request, CancellationToken ct)
+    public async Task<IActionResult> Heartbeat(
+        [FromBody] HeartbeatRequest request,
+        CancellationToken ct = default,
+        [FromServices] IMemoryCache? cache = null)
     {
         var authenticatedDeviceId = HttpContext.Items["ValidatedDeviceId"] as string;
         if (string.IsNullOrEmpty(authenticatedDeviceId))
@@ -327,12 +330,25 @@ public class DevicesController : ControllerBase
         var device = await _db.DeviceRegistrations.FirstOrDefaultAsync(d => d.Id == authenticatedDeviceId, ct);
         object? activeIncidentInfo = null;
         string? elderFullName = null;
+        bool requiresForceSync = false;
 
         if (device != null)
         {
             device.LastHeartbeat = DateTime.UtcNow;
             device.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
+
+            // Kiểm tra xem Người thân có vừa gửi tín hiệu cưỡng chế làm tươi dữ liệu không
+            if (cache != null)
+            {
+                var pendingKey = $"force_sync_pending:{device.ElderProfileId}";
+                if (cache.TryGetValue(pendingKey, out _))
+                {
+                    requiresForceSync = true;
+                    cache.Remove(pendingKey);
+                    _logger.LogInformation("[FORCE-SYNC] Gửi cờ cưỡng chế làm tươi viễn trắc tới thiết bị {DeviceId} qua Heartbeat", device.Id);
+                }
+            }
 
             elderFullName = await _db.ElderProfiles.AsNoTracking()
                 .Where(e => e.Id == device.ElderProfileId && !e.IsDeleted)
@@ -373,7 +389,8 @@ public class DevicesController : ControllerBase
             deviceId = authenticatedDeviceId,
             elderName = elderFullName,
             serverTime = DateTime.UtcNow,
-            activeIncident = activeIncidentInfo
+            activeIncident = activeIncidentInfo,
+            requiresForceSync = requiresForceSync
         });
     }
 
@@ -383,7 +400,9 @@ public class DevicesController : ControllerBase
     [HttpGet("active-incident")]
     [ProducesResponseType(typeof(DeviceActiveIncidentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetActiveIncidentForDevice(CancellationToken ct)
+    public async Task<IActionResult> GetActiveIncidentForDevice(
+        CancellationToken ct = default,
+        [FromServices] IMemoryCache? cache = null)
     {
         var authenticatedDeviceId = HttpContext.Items["ValidatedDeviceId"] as string;
         if (string.IsNullOrEmpty(authenticatedDeviceId))
@@ -395,6 +414,18 @@ public class DevicesController : ControllerBase
         if (device == null)
         {
             return Unauthorized(new { error = "Thiết bị không tồn tại hoặc đã bị vô hiệu hóa." });
+        }
+
+        bool requiresForceSync = false;
+        if (cache != null)
+        {
+            var pendingKey = $"force_sync_pending:{device.ElderProfileId}";
+            if (cache.TryGetValue(pendingKey, out _))
+            {
+                requiresForceSync = true;
+                cache.Remove(pendingKey);
+                _logger.LogInformation("[FORCE-SYNC] Gửi cờ cưỡng chế làm tươi viễn trắc tới thiết bị {DeviceId} qua Active-Incident", device.Id);
+            }
         }
 
         // 1. Kiểm tra sự cố Active (Open hoặc Acknowledged)
@@ -434,7 +465,8 @@ public class DevicesController : ControllerBase
                 AcknowledgedNote: ackEvent?.Description,
                 ResolvedAt: null,
                 ResolvedByName: null,
-                ResolutionNotes: null
+                ResolutionNotes: null,
+                RequiresForceSync: requiresForceSync
             ));
         }
 
@@ -470,7 +502,8 @@ public class DevicesController : ControllerBase
                 AcknowledgedNote: null,
                 ResolvedAt: recentlyResolved.ResolvedAt,
                 ResolvedByName: resolvedByName,
-                ResolutionNotes: recentlyResolved.ResolutionNotes
+                ResolutionNotes: recentlyResolved.ResolutionNotes,
+                RequiresForceSync: requiresForceSync
             ));
         }
 
@@ -486,7 +519,8 @@ public class DevicesController : ControllerBase
             AcknowledgedNote: null,
             ResolvedAt: null,
             ResolvedByName: null,
-            ResolutionNotes: null
+            ResolutionNotes: null,
+            RequiresForceSync: requiresForceSync
         ));
     }
 

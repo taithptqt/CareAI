@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using CareAI.Core.DTOs;
 using CareAI.Core.Enums;
 using CareAI.Infrastructure.Data;
@@ -616,5 +617,68 @@ public class DashboardController : ControllerBase
         );
 
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Yêu cầu cưỡng chế Apple Watch / Smartwatch làm tươi dữ liệu viễn trắc ngay lập tức.
+    /// Giới hạn nghiêm ngặt (Rate Limiting): Chỉ cho phép 1 lần mỗi 30 phút để bảo vệ pin đồng hồ.
+    /// </summary>
+    [HttpPost("elder/{elderProfileId}/force-sync")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RequestForceSync(
+        string elderProfileId,
+        [FromServices] IMemoryCache cache,
+        CancellationToken ct)
+    {
+        var caregiverId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(caregiverId))
+            return Unauthorized();
+
+        var isAuthorized = await _db.ElderCaregivers
+            .AnyAsync(ec => ec.CaregiverId == caregiverId && ec.ElderProfileId == elderProfileId && ec.IsActive, ct);
+
+        if (!isAuthorized)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Bạn không có quyền quản lý người cao tuổi này." });
+        }
+
+        var cooldownKey = $"force_sync_cooldown:{elderProfileId}";
+        if (cache.TryGetValue(cooldownKey, out DateTime lastSyncUtc))
+        {
+            var elapsed = DateTime.UtcNow - lastSyncUtc;
+            if (elapsed < TimeSpan.FromMinutes(30))
+            {
+                var remainingMinutes = Math.Ceiling((TimeSpan.FromMinutes(30) - elapsed).TotalMinutes);
+                return Ok(new
+                {
+                    status = "COOLDOWN",
+                    isForced = false,
+                    message = $"Đang lấy dữ liệu từ đám mây. Đồng hồ được bảo vệ pin, chỉ có thể yêu cầu gửi dữ liệu mới sau {remainingMinutes} phút nữa.",
+                    remainingMinutes = remainingMinutes,
+                    lastForcedSyncAt = lastSyncUtc
+                });
+            }
+        }
+
+        // Thiết lập Cooldown 30 phút cho cụ già này
+        cache.Set(cooldownKey, DateTime.UtcNow, TimeSpan.FromMinutes(30));
+
+        // Đánh dấu cờ yêu cầu đồng bộ để thiết bị Người cao tuổi nhận được khi kết nối
+        var pendingKey = $"force_sync_pending:{elderProfileId}";
+        cache.Set(pendingKey, true, TimeSpan.FromMinutes(10));
+
+        _logger.LogInformation("[FORCE-SYNC] Caregiver {CaregiverId} requested force telemetry sync for elder {ElderProfileId}",
+            caregiverId, elderProfileId);
+
+        return Ok(new
+        {
+            status = "REQUESTED",
+            isForced = true,
+            message = "Đã gửi tín hiệu yêu cầu đồng hồ làm tươi dữ liệu ngay lập tức.",
+            cooldownMinutes = 30,
+            requestedAt = DateTime.UtcNow
+        });
     }
 }

@@ -42,5 +42,6 @@ public record DeviceActiveIncidentResponse(
     string? AcknowledgedNote,
     DateTime? ResolvedAt,
     string? ResolvedByName,
-    string? ResolutionNotes
+    string? ResolutionNotes,
+    bool RequiresForceSync = false
 );
