@@ -49,7 +49,10 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let reachable = session.isReachable
         DispatchQueue.main.async {
             HealthSync.shared?.isPhoneReachable = reachable
-            NSLog("[CareAI-Watch] WCSession reachability thay đổi: %d", reachable ? 1 : 0)
+            NSLog("[CareAI-Watch] WCSession reachability thay Ä‘á»•i: %d", reachable ? 1 : 0)
+            if reachable && (HealthSync.shared?.pendingCount ?? 0) > 0 {
+                HealthSync.shared?.flush(force: true)
+            }
         }
     }
 
@@ -1667,23 +1670,76 @@ final class HealthSync: ObservableObject {
 
     private func sendPending(maximum: Int) async {
         guard !simulatedOffline else { return }
-        guard outboxReady, !isSending,
-              let base = UserDefaults.standard.string(forKey: "backend"),
-              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/v1/telemetry/ingest"),
-              url.scheme == "https",
-              let deviceId = UserDefaults.standard.string(forKey: "deviceId"),
-              let token = KeychainToken.load() else { return }
+        guard outboxReady, !isSending else { return }
         isSending = true
         defer { isSending = false }
         var sent = 0
         let batchLimit = 50
         while sent < maximum && !queue.isEmpty {
             if simulatedOffline {
-                status = "DEMO offline · readings stay on watch"
+                status = "DEMO offline Â· readings stay on watch"
                 return
             }
             let chunk = Array(queue.prefix(min(batchLimit, maximum - sent)))
             guard !chunk.isEmpty else { break }
+
+            let batchId = "HK_BATCH_\(Int64(Date().timeIntervalSince1970 * 1000))_\(chunk.count)"
+
+            // KÃŠNH 1 (Æ¯U TIÃŠN): Chuyá»ƒn tiáº¿p tá»©c thÃ¬ 0ms qua Bluetooth WCSession sang iPhone Companion
+            if WCSession.isSupported() {
+                let session = WCSession.default
+                if session.activationState == .activated && session.isReachable {
+                    let samplesArray = chunk.map { r -> [String: Any] in
+                        return [
+                            "sampleId": r.sampleId,
+                            "metricType": r.metricType,
+                            "value": r.value,
+                            "unit": r.unit,
+                            "timestamp": r.timestamp
+                        ]
+                    }
+                    var relayPayload: [String: Any] = [
+                        "action": "TELEMETRY_BATCH",
+                        "batchId": batchId,
+                        "samples": samplesArray
+                    ]
+                    if let devId = UserDefaults.standard.string(forKey: "deviceId"), !devId.isEmpty {
+                        relayPayload["deviceId"] = devId
+                    }
+                    if let token = KeychainToken.load(), !token.isEmpty {
+                        relayPayload["deviceToken"] = token
+                    }
+
+                    let relaySuccess: Bool = await withCheckedContinuation { continuation in
+                        session.sendMessage(relayPayload, replyHandler: { reply in
+                            let replyStatus = reply["status"] as? String
+                            continuation.resume(returning: replyStatus == "OK")
+                        }, errorHandler: { _ in
+                            continuation.resume(returning: false)
+                        })
+                    }
+
+                    if relaySuccess {
+                        let remaining = Array(queue.dropFirst(chunk.count))
+                        try? persistQueue(remaining)
+                        queue = remaining
+                        pendingCount = remaining.count
+                        sent += chunk.count
+                        status = "ÄÃ£ gá»­i \(chunk.count) máº«u qua iPhone Â· Chá»: \(queue.count)"
+                        continue
+                    }
+                }
+            }
+
+            // KÃŠNH 2 (FALLBACK): Gá»­i trá»±c tiáº¿p qua Wi-Fi / LTE cá»§a Apple Watch (náº¿u cÃ³ thÃ´ng tin Ä‘Äƒng nháº­p vÃ  máº¡ng)
+            guard let base = UserDefaults.standard.string(forKey: "backend"),
+                  let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/v1/telemetry/ingest"),
+                  url.scheme == "https",
+                  let deviceId = UserDefaults.standard.string(forKey: "deviceId"),
+                  let token = KeychainToken.load() else {
+                status = "Chá» iPhone káº¿t ná»‘i hoáº·c thiáº¿t láº­p Wi-Fi"
+                return
+            }
 
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
@@ -1692,26 +1748,25 @@ final class HealthSync: ObservableObject {
             request.setValue(token, forHTTPHeaderField: "X-Device-Token")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             do {
-                let batchId = "HK_BATCH_\(Int64(Date().timeIntervalSince1970 * 1000))_\(chunk.count)"
                 request.httpBody = try JSONEncoder().encode(TelemetryBatch(
                     batchId: batchId, samples: chunk))
                 let (_, response) = try await URLSession.shared.data(for: request)
                 let code = (response as? HTTPURLResponse)?.statusCode
-                // Chấp nhận 200 OK, 201 Created (đồng bộ) hoặc 202 Accepted (kênh phi khóa Non-Blocking Channel)
+                // Cháº¥p nháº­n 200 OK, 201 Created (Ä‘á»“ng bá»™) hoáº·c 202 Accepted (kÃªnh phi khÃ³a Non-Blocking Channel)
                 guard code == 200 || code == 201 || code == 202 else {
-                    status = "Waiting to send · HTTP \(code.map(String.init) ?? "offline")"
+                    status = "Waiting to send Â· HTTP \(code.map(String.init) ?? "offline")"
                     return
                 }
-                // Giữ bản gốc trên đĩa cho đến khi máy chủ xác nhận cam kết thành công
+                // Giá»¯ báº£n gá»‘c trÃªn Ä‘Ä©a cho Ä‘áº¿n khi mÃ¡y chá»§ xÃ¡c nháº­n cam káº¿t thÃ nh cÃ´ng
                 let remaining = Array(queue.dropFirst(chunk.count))
                 try persistQueue(remaining)
                 queue = remaining
                 pendingCount = remaining.count
                 sent += chunk.count
-                status = "Sent \(chunk.count) samples · queued \(queue.count)"
+                status = "Sent \(chunk.count) samples Â· queued \(queue.count)"
             } catch {
-                // Thất bại giữ nguyên outbox để thử lại sau
-                status = "Offline or save failed · queued \(queue.count)"
+                // Tháº¥t báº¡i giá»¯ nguyÃªn outbox Ä‘á»ƒ thá»­ láº¡i sau
+                status = "Offline or save failed Â· queued \(queue.count)"
                 return
             }
         }

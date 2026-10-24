@@ -774,16 +774,117 @@ import workmanager_apple
   }
 
   func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+    if let action = userInfo["action"] as? String, action == "TELEMETRY_BATCH" {
+      relayTelemetryBatch(userInfo, replyHandler: nil)
+      return
+    }
     handleWatchRelay(userInfo)
   }
 
   func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+    if let action = message["action"] as? String, action == "TELEMETRY_BATCH" {
+      relayTelemetryBatch(message, replyHandler: nil)
+      return
+    }
     handleWatchRelay(message)
   }
 
   func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+    if let action = message["action"] as? String, action == "TELEMETRY_BATCH" {
+      relayTelemetryBatch(message, replyHandler: replyHandler)
+      return
+    }
     handleWatchRelay(message)
     replyHandler(["status": "OK"])
+  }
+
+  private func relayTelemetryBatch(_ payload: [String: Any], replyHandler: (([String: Any]) -> Void)?) {
+    let batchId = payload["batchId"] as? String ?? "HK_BATCH_\(Int64(Date().timeIntervalSince1970 * 1000))"
+    let samples = payload["samples"] as? [[String: Any]] ?? []
+
+    guard !samples.isEmpty else {
+      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Danh sÃ¡ch máº«u Ä‘o sinh hiá»‡u trá»‘ng: %@", batchId)
+      replyHandler?(["status": "OK", "count": 0])
+      return
+    }
+
+    let userDefaults = UserDefaults.standard
+    let serverUrl = userDefaults.string(forKey: "careai_backend_url")
+      ?? userDefaults.string(forKey: "flutter.server_base_url")
+      ?? userDefaults.string(forKey: "flutter.caregiver_server_url")
+      ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
+
+    var deviceId = (payload["deviceId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    if deviceId.isEmpty {
+      deviceId = userDefaults.string(forKey: "careai_device_id")
+        ?? userDefaults.string(forKey: "flutter.device_id")
+        ?? ""
+    }
+
+    var deviceToken = (payload["deviceToken"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    if deviceToken.isEmpty {
+      deviceToken = userDefaults.string(forKey: "careai_device_token")
+        ?? userDefaults.string(forKey: "flutter.device_token")
+        ?? ""
+    }
+
+    guard !deviceId.isEmpty, !deviceToken.isEmpty,
+          let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/api/v1/telemetry/ingest") else {
+      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] ChÆ°a Ä‘á»§ cáº¥u hÃ¬nh device/url Ä‘á»ƒ chuyá»ƒn tiáº¿p batch: %@", batchId)
+      replyHandler?(["status": "ERROR", "message": "Missing credentials"])
+      return
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.timeoutInterval = 15
+    request.setValue(deviceId, forHTTPHeaderField: "X-DeviceId")
+    request.setValue(deviceToken, forHTTPHeaderField: "X-Device-Token")
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+    let bodyJson: [String: Any] = [
+      "batchId": batchId,
+      "samples": samples
+    ]
+
+    var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+    bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "CareAI-WatchRelay-Telemetry") {
+      if bgTaskId != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTaskId)
+        bgTaskId = .invalid
+      }
+    }
+
+    do {
+      request.httpBody = try JSONSerialization.data(withJSONObject: bodyJson)
+      let config = URLSessionConfiguration.ephemeral
+      config.waitsForConnectivity = true
+      let session = URLSession(configuration: config)
+      let task = session.dataTask(with: request) { _, response, error in
+        defer {
+          if bgTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTaskId)
+            bgTaskId = .invalid
+          }
+        }
+        if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201 || httpRes.statusCode == 202) {
+          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] ÄÃ£ chuyá»ƒn tiáº¿p thÃ nh cÃ´ng máº» viá»…n tráº¯c tá»« Apple Watch (%d máº«u): HTTP %d", samples.count, httpRes.statusCode)
+          replyHandler?(["status": "OK", "batchId": batchId, "count": samples.count])
+        } else {
+          let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Chuyá»ƒn tiáº¿p máº» viá»…n tráº¯c lá»—i (HTTP %d): %@", code, error?.localizedDescription ?? "HTTP error")
+          replyHandler?(["status": "ERROR", "code": code, "message": error?.localizedDescription ?? "HTTP \(code)"])
+        }
+      }
+      task.resume()
+    } catch {
+      if bgTaskId != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTaskId)
+        bgTaskId = .invalid
+      }
+      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Lá»—i Ä‘Ã³ng gÃ³i JSON batch: %@", error.localizedDescription)
+      replyHandler?(["status": "ERROR", "message": error.localizedDescription])
+    }
   }
 
   private func handleWatchRelay(_ payload: [String: Any]) {

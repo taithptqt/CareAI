@@ -1003,6 +1003,25 @@ struct SettingsSheetView: View {
                         .font(.system(size: 9))
                         .foregroundColor(.gray)
 
+                    if sync.pendingCount > 0 {
+                        Button(action: {
+                            WKInterfaceDevice.current().play(.click)
+                            sync.flush(force: true)
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text("Gửi ngay \(sync.pendingCount) gói tin")
+                            }
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(Color.blue)
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     Button("Hủy ghép nối", role: .destructive) {
                         showUnpairConfirmation = true
                     }
@@ -1099,18 +1118,24 @@ struct StatusDetailSheetView: View {
                             .font(.system(size: 8, weight: .bold))
                             .foregroundColor(.gray)
                         Spacer()
-                        // Icon số lượng gói tin đang chờ ở góc phải trên
-                        HStack(spacing: 2) {
-                            Image(systemName: sync.pendingCount > 0 ? "tray.and.arrow.up.fill" : "tray.fill")
-                                .font(.system(size: 8))
-                            Text("\(sync.pendingCount)")
-                                .font(.system(size: 8, weight: .bold))
+                        // NÃºt sá»‘ lÆ°á»£ng gÃ³i tin Ä‘ang chá»: Cháº¡m vÃ o Ä‘á»ƒ Ã©p gá»­i ngay
+                        Button(action: {
+                            WKInterfaceDevice.current().play(.click)
+                            sync.flush(force: true)
+                        }) {
+                            HStack(spacing: 2) {
+                                Image(systemName: sync.pendingCount > 0 ? "tray.and.arrow.up.fill" : "tray.fill")
+                                    .font(.system(size: 8))
+                                Text("\(sync.pendingCount)")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(sync.pendingCount > 0 ? Color.orange.opacity(0.3) : Color.white.opacity(0.08))
+                            .foregroundColor(sync.pendingCount > 0 ? Color.orange : Color(white: 0.6))
+                            .cornerRadius(4)
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(sync.pendingCount > 0 ? Color.orange.opacity(0.2) : Color.white.opacity(0.08))
-                        .foregroundColor(sync.pendingCount > 0 ? Color.orange : Color(white: 0.6))
-                        .cornerRadius(4)
+                        .buttonStyle(.plain)
                     }
                     Text(sync.isPhoneReachable ? "🟢 Trực tiếp (0ms qua Bluetooth)" : "🟡 Lưu đệm cục bộ (Chờ kết nối)")
                         .font(.system(size: 10, weight: .semibold))
