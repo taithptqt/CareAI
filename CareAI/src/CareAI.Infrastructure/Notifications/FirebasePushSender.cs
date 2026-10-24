@@ -22,8 +22,17 @@ public class FirebasePushSender : IPushSender
         _messaging = new Lazy<FirebaseMessaging>(() =>
         {
             var credentialsPath = configuration["Firebase:CredentialsPath"];
+            var resolvedPath = !string.IsNullOrWhiteSpace(credentialsPath)
+                ? (Path.IsPathRooted(credentialsPath) ? credentialsPath : Path.Combine(AppContext.BaseDirectory, credentialsPath))
+                : null;
             GoogleCredential credential;
-            if (!string.IsNullOrWhiteSpace(credentialsPath) && File.Exists(credentialsPath))
+            if (!string.IsNullOrWhiteSpace(resolvedPath) && File.Exists(resolvedPath))
+            {
+#pragma warning disable CS0618
+                credential = GoogleCredential.FromFile(resolvedPath);
+#pragma warning restore CS0618
+            }
+            else if (!string.IsNullOrWhiteSpace(credentialsPath) && File.Exists(credentialsPath))
             {
 #pragma warning disable CS0618
                 credential = GoogleCredential.FromFile(credentialsPath);
