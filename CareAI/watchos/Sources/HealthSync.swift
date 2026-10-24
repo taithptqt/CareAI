@@ -1659,7 +1659,7 @@ final class HealthSync: ObservableObject {
             options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
-    private func flush(force: Bool = true) {
+    func flush(force: Bool = true) {
         // Tối ưu năng lượng vô tuyến (Radio Coalescing):
         // Nếu không ép buộc và không có cảnh báo y tế khẩn cấp, chỉ đánh thức modem mạng khi gom đủ ít nhất 10 mẫu
         if !force && healthAlert == nil && customAlert == nil && queue.count < 10 {
