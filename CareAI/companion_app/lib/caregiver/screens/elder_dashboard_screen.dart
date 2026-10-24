@@ -2485,7 +2485,7 @@ class _ElderDashboardScreenState extends State<ElderDashboardScreen>
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.bold,
                           color: CareAiColors.ink,
                         ),
