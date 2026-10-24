@@ -23,6 +23,19 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         }
         if session.activationState == .notActivated {
             session.activate()
+        } else if session.activationState == .activated {
+            let reachable = session.isReachable
+            DispatchQueue.main.async {
+                HealthSync.shared?.isPhoneReachable = reachable
+                if (HealthSync.shared?.pendingCount ?? 0) > 0 {
+                    HealthSync.shared?.flush(force: true)
+                }
+            }
+            if !session.receivedApplicationContext.isEmpty {
+                handleIncomingCredentials(session.receivedApplicationContext)
+            }
+            sendWatchDeviceInfo()
+            syncCurrentBatteryAndWearState()
         }
     }
 
@@ -31,6 +44,12 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             let reachable = session.isReachable
             DispatchQueue.main.async {
                 HealthSync.shared?.isPhoneReachable = reachable
+                if (HealthSync.shared?.pendingCount ?? 0) > 0 {
+                    HealthSync.shared?.flush(force: true)
+                }
+            }
+            if !session.receivedApplicationContext.isEmpty {
+                handleIncomingCredentials(session.receivedApplicationContext)
             }
             sendWatchDeviceInfo()
             syncCurrentBatteryAndWearState()
@@ -49,7 +68,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let reachable = session.isReachable
         DispatchQueue.main.async {
             HealthSync.shared?.isPhoneReachable = reachable
-            NSLog("[CareAI-Watch] WCSession reachability thay Ä‘á»•i: %d", reachable ? 1 : 0)
+            NSLog("[CareAI-Watch] WCSession reachability thay đổi: %d", reachable ? 1 : 0)
             if reachable && (HealthSync.shared?.pendingCount ?? 0) > 0 {
                 HealthSync.shared?.flush(force: true)
             }
@@ -71,7 +90,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let resolvedModel = HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: deviceName)
 
         let isWatchPaired = KeychainToken.load() != nil
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "action": "WATCH_DEVICE_INFO",
             "watchName": resolvedModel,
             "rawName": deviceName,
@@ -79,6 +98,9 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             "systemVersion": device.systemVersion,
             "isPaired": isWatchPaired
         ]
+        if UserDefaults.standard.string(forKey: "deviceId") == nil || KeychainToken.load() == nil {
+            payload["needsCredentials"] = true
+        }
 
         session.transferUserInfo(payload)
         if session.isReachable {
@@ -651,6 +673,10 @@ final class HealthSync: ObservableObject {
         self.isWorn = !self.isCharging
         self.fallSessionCoordinator = FallSessionCoordinator(sync: self)
 
+        if WCSession.isSupported() {
+            let session = WCSession.default
+            self.isPhoneReachable = (session.activationState == .activated && session.isReachable)
+        }
         WatchConnectivityCoordinator.shared.activate()
         WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
         latestHeartRate = UserDefaults.standard.object(forKey: "latest.heartRate") as? Double
@@ -659,6 +685,9 @@ final class HealthSync: ObservableObject {
         latestSpo2At = UserDefaults.standard.object(forKey: "latest.spo2At") as? Date
         updateHealthAlert()
         loadOutbox()
+        if pendingCount > 0 {
+            flush(force: true)
+        }
         setupFallDetection()
         requestHealthKitAuthorization()
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -1685,10 +1714,10 @@ final class HealthSync: ObservableObject {
 
             let batchId = "HK_BATCH_\(Int64(Date().timeIntervalSince1970 * 1000))_\(chunk.count)"
 
-            // KÃŠNH 1 (Æ¯U TIÃŠN): Chuyá»ƒn tiáº¿p tá»©c thÃ¬ 0ms qua Bluetooth WCSession sang iPhone Companion
+            // KÊNH 1 (ƯU TIÊN): Chuyển tiếp tức thì qua Bluetooth WCSession sang iPhone Companion
             if WCSession.isSupported() {
                 let session = WCSession.default
-                if session.activationState == .activated && session.isReachable {
+                if session.activationState == .activated {
                     let samplesArray = chunk.map { r -> [String: Any] in
                         return [
                             "sampleId": r.sampleId,
@@ -1710,22 +1739,57 @@ final class HealthSync: ObservableObject {
                         relayPayload["deviceToken"] = token
                     }
 
-                    let relaySuccess: Bool = await withCheckedContinuation { continuation in
-                        session.sendMessage(relayPayload, replyHandler: { reply in
-                            let replyStatus = reply["status"] as? String
-                            continuation.resume(returning: replyStatus == "OK")
-                        }, errorHandler: { _ in
-                            continuation.resume(returning: false)
-                        })
-                    }
+                    if session.isReachable {
+                        let relaySuccess: Bool = await withCheckedContinuation { continuation in
+                            var hasResumed = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                                if !hasResumed {
+                                    hasResumed = true
+                                    continuation.resume(returning: false)
+                                }
+                            }
+                            session.sendMessage(relayPayload, replyHandler: { reply in
+                                if !hasResumed {
+                                    hasResumed = true
+                                    let replyStatus = reply["status"] as? String
+                                    continuation.resume(returning: replyStatus == "OK")
+                                }
+                            }, errorHandler: { _ in
+                                if !hasResumed {
+                                    hasResumed = true
+                                    continuation.resume(returning: false)
+                                }
+                            })
+                        }
 
-                    if relaySuccess {
+                        if relaySuccess {
+                            let remaining = Array(queue.dropFirst(chunk.count))
+                            try? persistQueue(remaining)
+                            queue = remaining
+                            pendingCount = remaining.count
+                            sent += chunk.count
+                            status = "Đã gửi \(chunk.count) mẫu qua iPhone · Chờ: \(queue.count)"
+                            continue
+                        } else {
+                            // Dự phòng khi sendMessage timeout: Gửi qua transferUserInfo bảo đảm
+                            session.transferUserInfo(relayPayload)
+                            let remaining = Array(queue.dropFirst(chunk.count))
+                            try? persistQueue(remaining)
+                            queue = remaining
+                            pendingCount = remaining.count
+                            sent += chunk.count
+                            status = "Đã chuyển giao ngầm qua iPhone (\(chunk.count) mẫu) · Chờ: \(queue.count)"
+                            continue
+                        }
+                    } else {
+                        // iPhone đang ở chế độ nền (Background) hoặc tắt màn hình: Dùng transferUserInfo bảo đảm
+                        session.transferUserInfo(relayPayload)
                         let remaining = Array(queue.dropFirst(chunk.count))
                         try? persistQueue(remaining)
                         queue = remaining
                         pendingCount = remaining.count
                         sent += chunk.count
-                        status = "ÄÃ£ gá»­i \(chunk.count) máº«u qua iPhone Â· Chá»: \(queue.count)"
+                        status = "Đã chuyển giao ngầm qua iPhone (\(chunk.count) mẫu) · Chờ: \(queue.count)"
                         continue
                     }
                 }

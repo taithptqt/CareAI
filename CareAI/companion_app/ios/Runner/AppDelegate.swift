@@ -791,7 +791,9 @@ import workmanager_apple
 
   func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
     if let action = message["action"] as? String, action == "TELEMETRY_BATCH" {
-      relayTelemetryBatch(message, replyHandler: replyHandler)
+      // Phản hồi xác nhận tức thì cho Apple Watch để đồng hồ xả hàng đợi ngay lập tức (<5ms), tránh lỗi timeout WCSession
+      replyHandler(["status": "OK", "batchId": message["batchId"] as? String ?? "", "received": true])
+      relayTelemetryBatch(message, replyHandler: nil)
       return
     }
     handleWatchRelay(message)
@@ -1022,6 +1024,32 @@ import workmanager_apple
         NSLog("[CareAI-iOS] Đã nhận diện và lưu tên phần cứng Apple Watch từ watchOS: %@", validName)
       }
       notifyWatchConnectionStatus()
+
+      let needsCreds = payload["needsCredentials"] as? Bool ?? false
+      if needsCreds {
+        let userDefaults = UserDefaults.standard
+        let devId = userDefaults.string(forKey: "careai_device_id") ?? userDefaults.string(forKey: "flutter.device_id") ?? ""
+        let devToken = userDefaults.string(forKey: "careai_device_token") ?? userDefaults.string(forKey: "flutter.device_token") ?? ""
+        let serverUrl = userDefaults.string(forKey: "careai_backend_url") ?? userDefaults.string(forKey: "flutter.server_base_url") ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
+        let elderName = userDefaults.string(forKey: "careai_elder_name") ?? userDefaults.string(forKey: "flutter.elder_name") ?? ""
+
+        if !devId.isEmpty && !devToken.isEmpty && WCSession.isSupported() {
+          let credPayload: [String: Any] = [
+            "syncType": "CREDENTIALS",
+            "deviceId": devId,
+            "deviceToken": devToken,
+            "backendUrl": serverUrl,
+            "elderName": elderName
+          ]
+          let session = WCSession.default
+          try? session.updateApplicationContext(credPayload)
+          session.transferUserInfo(credPayload)
+          if session.isReachable {
+            session.sendMessage(credPayload, replyHandler: nil, errorHandler: nil)
+          }
+          NSLog("[CareAI-iOS] Đã tự động đồng bộ credentials sang Apple Watch theo yêu cầu (needsCredentials=true).")
+        }
+      }
       return
     }
 
