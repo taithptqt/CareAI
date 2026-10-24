@@ -309,6 +309,11 @@ import workmanager_apple
           NSLog("[CareAI-iOS] Flutter gọi getConnectedWatchStatus: btOff=%d, activationState=%ld, paired=%d, reachable=%d, installed=%d, isConnected=%d",
                 isBtOff ? 1 : 0, Int(session.activationState.rawValue), isPaired ? 1 : 0, isReachable ? 1 : 0, isAppInstalled ? 1 : 0, isConnected ? 1 : 0)
 
+          // Cập nhật ngay từ context mới nhất nếu đồng hồ đã gửi qua updateApplicationContext
+          if !session.receivedApplicationContext.isEmpty {
+            self.handleWatchRelay(session.receivedApplicationContext)
+          }
+
           // Yêu cầu đồng hồ gửi định danh và viễn trắc mới nhất nếu có thể kết nối
           if isReachable && !isBtOff {
             session.sendMessage(["action": "REQUEST_DEVICE_INFO"], replyHandler: nil, errorHandler: nil)
@@ -754,6 +759,9 @@ import workmanager_apple
       NSLog("[CareAI-iOS] WCSession activation completed: state=%d, paired=%d, installed=%d, reachable=%d",
             activationState.rawValue, session.isPaired, session.isWatchAppInstalled, session.isReachable)
     }
+    if !session.receivedApplicationContext.isEmpty {
+      handleWatchRelay(session.receivedApplicationContext)
+    }
     notifyWatchConnectionStatus(session: session)
   }
 
@@ -765,12 +773,20 @@ import workmanager_apple
 
   func sessionReachabilityDidChange(_ session: WCSession) {
     NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession reachability changed: reachable=%d, paired=%d", session.isReachable, session.isPaired)
+    if session.isReachable {
+      session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: nil, errorHandler: nil)
+    }
     notifyWatchConnectionStatus(session: session)
   }
 
   func sessionWatchStateDidChange(_ session: WCSession) {
     NSLog("[CareAI-iOS] [EVENT-DRIVEN] WCSession watch state changed: reachable=%d, paired=%d", session.isReachable, session.isPaired)
     notifyWatchConnectionStatus(session: session)
+  }
+
+  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+    NSLog("[CareAI-iOS] didReceiveApplicationContext: %@", String(describing: applicationContext["action"]))
+    handleWatchRelay(applicationContext)
   }
 
   func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
@@ -804,8 +820,25 @@ import workmanager_apple
     let batchId = payload["batchId"] as? String ?? "HK_BATCH_\(Int64(Date().timeIntervalSince1970 * 1000))"
     let samples = payload["samples"] as? [[String: Any]] ?? []
 
+    // Cập nhật trạng thái pin và đeo nếu có đính kèm trong batch viễn trắc
+    let batteryLevel = payload["batteryLevel"] as? Int
+    let isCharging = payload["isCharging"] as? Bool
+    let isWorn = payload["isWorn"] as? Bool
+    if let batteryLevel = batteryLevel { UserDefaults.standard.set(batteryLevel, forKey: "careai_watch_battery_level") }
+    if let isCharging = isCharging { UserDefaults.standard.set(isCharging, forKey: "careai_watch_is_charging") }
+    if let isWorn = isWorn { UserDefaults.standard.set(isWorn, forKey: "careai_watch_is_worn") }
+    if batteryLevel != nil || isCharging != nil || isWorn != nil {
+      let storedWatchName = UserDefaults.standard.string(forKey: "careai_apple_watch_name") ?? "Apple Watch"
+      self.syncWatchStateToAzure(
+        watchModel: storedWatchName,
+        batteryLevel: batteryLevel,
+        isCharging: isCharging,
+        isWorn: isWorn
+      )
+    }
+
     guard !samples.isEmpty else {
-      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Danh sÃ¡ch máº«u Ä‘o sinh hiá»‡u trá»‘ng: %@", batchId)
+      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Danh sách mẫu đo sinh hiệu trống: %@", batchId)
       replyHandler?(["status": "OK", "count": 0])
       return
     }
@@ -832,7 +865,7 @@ import workmanager_apple
 
     guard !deviceId.isEmpty, !deviceToken.isEmpty,
           let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/api/v1/telemetry/ingest") else {
-      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] ChÆ°a Ä‘á»§ cáº¥u hÃ¬nh device/url Ä‘á»ƒ chuyá»ƒn tiáº¿p batch: %@", batchId)
+      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Chưa đủ cấu hình device/url để chuyển tiếp batch: %@", batchId)
       replyHandler?(["status": "ERROR", "message": "Missing credentials"])
       return
     }
@@ -870,11 +903,11 @@ import workmanager_apple
           }
         }
         if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201 || httpRes.statusCode == 202) {
-          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] ÄÃ£ chuyá»ƒn tiáº¿p thÃ nh cÃ´ng máº» viá»…n tráº¯c tá»« Apple Watch (%d máº«u): HTTP %d", samples.count, httpRes.statusCode)
+          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Đã chuyển tiếp thành công mẻ viễn trắc từ Apple Watch (%d mẫu): HTTP %d", samples.count, httpRes.statusCode)
           replyHandler?(["status": "OK", "batchId": batchId, "count": samples.count])
         } else {
           let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Chuyá»ƒn tiáº¿p máº» viá»…n tráº¯c lá»—i (HTTP %d): %@", code, error?.localizedDescription ?? "HTTP error")
+          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Chuyển tiếp mẻ viễn trắc lỗi (HTTP %d): %@", code, error?.localizedDescription ?? "HTTP error")
           replyHandler?(["status": "ERROR", "code": code, "message": error?.localizedDescription ?? "HTTP \(code)"])
         }
       }
@@ -884,8 +917,84 @@ import workmanager_apple
         UIApplication.shared.endBackgroundTask(bgTaskId)
         bgTaskId = .invalid
       }
-      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Lá»—i Ä‘Ã³ng gÃ³i JSON batch: %@", error.localizedDescription)
+      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Lỗi đóng gói JSON batch: %@", error.localizedDescription)
       replyHandler?(["status": "ERROR", "message": error.localizedDescription])
+    }
+  }
+
+  // MARK: - Native Azure Cloud Relay for Watch Status (Background Capable)
+  private func syncWatchStateToAzure(watchModel: String, batteryLevel: Int?, isCharging: Bool?, isWorn: Bool?, todaySteps: Int? = nil, heartRate: Double? = nil, spo2: Double? = nil) {
+    let userDefaults = UserDefaults.standard
+    let serverUrl = userDefaults.string(forKey: "careai_backend_url")
+      ?? userDefaults.string(forKey: "flutter.server_base_url")
+      ?? userDefaults.string(forKey: "flutter.caregiver_server_url")
+      ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
+
+    var deviceId = userDefaults.string(forKey: "careai_device_id")
+      ?? userDefaults.string(forKey: "flutter.device_id")
+      ?? ""
+    var deviceToken = userDefaults.string(forKey: "careai_device_token")
+      ?? userDefaults.string(forKey: "flutter.device_token")
+      ?? ""
+
+    guard !deviceId.isEmpty, !deviceToken.isEmpty,
+          let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/api/v1/devices/sync-watch") else {
+      NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Chưa đủ cấu hình device/url để sync-watch: deviceId=%@", deviceId)
+      return
+    }
+
+    var bodyMap: [String: Any] = [
+      "watchModel": watchModel,
+      "isConnected": true
+    ]
+    if let isWorn = isWorn { bodyMap["isWorn"] = isWorn }
+    if let isCharging = isCharging { bodyMap["isCharging"] = isCharging }
+    if let batteryLevel = batteryLevel { bodyMap["batteryLevel"] = batteryLevel }
+    if let todaySteps = todaySteps, todaySteps > 0 { bodyMap["todaySteps"] = todaySteps }
+    if let heartRate = heartRate, heartRate > 0 { bodyMap["heartRate"] = heartRate }
+    if let spo2 = spo2, spo2 > 0 { bodyMap["spo2"] = spo2 }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.timeoutInterval = 10
+    request.setValue(deviceId, forHTTPHeaderField: "X-DeviceId")
+    request.setValue(deviceToken, forHTTPHeaderField: "X-Device-Token")
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+    var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+    bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "CareAI-NativeSyncWatchState") {
+      if bgTaskId != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTaskId)
+        bgTaskId = .invalid
+      }
+    }
+
+    do {
+      request.httpBody = try JSONSerialization.data(withJSONObject: bodyMap)
+      let config = URLSessionConfiguration.ephemeral
+      let session = URLSession(configuration: config)
+      let task = session.dataTask(with: request) { _, response, error in
+        defer {
+          if bgTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTaskId)
+            bgTaskId = .invalid
+          }
+        }
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if statusCode == 200 || statusCode == 201 || statusCode == 204 {
+          NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Đã đồng bộ trạng thái Apple Watch lên Azure thành công: HTTP %d (pin=%@, sạc=%@, đeo=%@)",
+                statusCode, String(describing: batteryLevel), String(describing: isCharging), String(describing: isWorn))
+        } else {
+          NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Đồng bộ trạng thái Apple Watch thất bại (HTTP %d): %@", statusCode, error?.localizedDescription ?? "HTTP error")
+        }
+      }
+      task.resume()
+    } catch {
+      if bgTaskId != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTaskId)
+        bgTaskId = .invalid
+      }
+      NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Lỗi đóng gói JSON sync-watch: %@", error.localizedDescription)
     }
   }
 
@@ -948,6 +1057,17 @@ import workmanager_apple
       if let nightSpo2DipsCount = nightSpo2DipsCount, nightSpo2DipsCount > 0 { UserDefaults.standard.set(nightSpo2DipsCount, forKey: "careai_watch_night_spo2_dips") }
       if let breathingDisturbances = breathingDisturbances, !breathingDisturbances.isEmpty { UserDefaults.standard.set(breathingDisturbances, forKey: "careai_watch_breathing_disturbances") }
       if let supportedMetrics = supportedMetrics { UserDefaults.standard.set(supportedMetrics, forKey: "careai_watch_supported_metrics") }
+
+      // Đồng bộ trực tiếp lên Azure Database ở tầng Native nền (không phụ thuộc vào việc người già mở app hay unlock iPhone)
+      self.syncWatchStateToAzure(
+        watchModel: watchModel,
+        batteryLevel: batteryLevel,
+        isCharging: isCharging,
+        isWorn: isWorn,
+        todaySteps: todaySteps,
+        heartRate: heartRate,
+        spo2: spo2
+      )
 
       DispatchQueue.main.async { [weak self] in
         guard let self = self else { return }

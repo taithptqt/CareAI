@@ -162,8 +162,8 @@ class _SosButtonScreenState extends State<SosButtonScreen>
       _loadPendingCount();
     });
 
-    // Fallback dự phòng kiểm tra trạng thái Bluetooth đồng hồ (chu kỳ giãn 60 giây để tiết kiệm pin tối đa nhờ Event-Driven)
-    _watchStatusTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+    // Fallback dự phòng kiểm tra trạng thái Bluetooth đồng hồ (chu kỳ 5 phút để tiết kiệm pin tối đa nhờ Event-Driven)
+    _watchStatusTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       _checkWatchStatus();
     });
 
@@ -776,8 +776,8 @@ class _SosButtonScreenState extends State<SosButtonScreen>
 
       if (online) {
         _heartbeatTicks++;
-        // Gửi nhịp đập thiết bị định kỳ mỗi 15 giây (mỗi 3 chu kỳ timer 5s) hoặc ngay khi máy vừa có mạng lại
-        if (wasOffline || _heartbeatTicks % 3 == 1) {
+        // Gửi nhịp đập thiết bị định kỳ mỗi 5 phút (mỗi 60 chu kỳ timer 5s) hoặc ngay khi máy vừa có mạng lại
+        if (wasOffline || _heartbeatTicks % 60 == 1) {
           unawaited(_sendElderDeviceHeartbeat());
         }
 

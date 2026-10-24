@@ -239,6 +239,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         }
         payload["supportedMetrics"] = supported
         if session.activationState == .activated {
+            try? session.updateApplicationContext(payload)
             session.transferUserInfo(payload)
             if session.isReachable {
                 session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
@@ -253,7 +254,10 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let batteryLevel = rawLevel >= 0 ? Int(rawLevel * 100) : 100
         let isCharging = (device.batteryState == .charging || device.batteryState == .full)
         DispatchQueue.main.async {
-            let currentWorn = HealthSync.shared?.isWorn ?? true
+            let currentWorn = HealthSync.shared?.isWorn ?? false
+            // Đã rút sạc chưa chắc gì đã đeo (unplugged != worn).
+            // Nếu đang cắm sạc thì chắc chắn không đeo (isWorn = false).
+            // Nếu rút sạc thì không tự động suy đoán là đeo; giữ nguyên trạng thái xác thực từ cảm biến quang học
             let isWorn = isCharging ? false : currentWorn
             HealthSync.shared?.isCharging = isCharging
             HealthSync.shared?.isWorn = isWorn
@@ -669,8 +673,9 @@ final class HealthSync: ObservableObject {
         self.hasSpo2Hardware = HealthSync.isSpo2HardwareSupported(machineCode: machineCode)
         let dev = WKInterfaceDevice.current()
         dev.isBatteryMonitoringEnabled = true
-        self.isCharging = (dev.batteryState == .charging || dev.batteryState == .full)
-        self.isWorn = !self.isCharging
+        let currentCharging = (dev.batteryState == .charging || dev.batteryState == .full)
+        self.isCharging = currentCharging
+        self.isWorn = currentCharging ? false : UserDefaults.standard.bool(forKey: "careai.isWorn")
         self.fallSessionCoordinator = FallSessionCoordinator(sync: self)
 
         if WCSession.isSupported() {
@@ -703,7 +708,6 @@ final class HealthSync: ObservableObject {
             Task { @MainActor in
                 self?.updateHealthAlert()
                 self?.flush(force: false)
-                WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
             }
         }
         if UserDefaults.standard.string(forKey: "backend") != nil,
@@ -1427,6 +1431,18 @@ final class HealthSync: ObservableObject {
     }
 
     private func processMotionAcceleration(_ g: Double) {
+        // Tận dụng luồng CoreMotion đang chạy nền (0% tốn thêm pin) để phát hiện tức thì thao tác cắm/rút sạc
+        let dev = WKInterfaceDevice.current()
+        let currentCharging = (dev.batteryState == .charging || dev.batteryState == .full)
+        if currentCharging != self.isCharging {
+            self.isCharging = currentCharging
+            if currentCharging {
+                self.isWorn = false
+                UserDefaults.standard.set(false, forKey: "careai.isWorn")
+            }
+            WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+        }
+
         let now = Date()
         // Chống spam: Mỗi sự cố ngã cách nhau tối thiểu 15 giây
         if let last = lastMotionFallDetectedAt, now.timeIntervalSince(last) < 15.0 {
@@ -1470,6 +1486,7 @@ final class HealthSync: ObservableObject {
             status = "DEMO offline · turn it off to send"
             return
         }
+        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
         if !outboxReady { loadOutbox() }
         guard outboxReady else { return }
         for (identifier, _, _, _) in metrics {
@@ -1615,6 +1632,12 @@ final class HealthSync: ObservableObject {
                         self.latestHeartRateAt = sample.endDate
                         UserDefaults.standard.set(value, forKey: "latest.heartRate")
                         UserDefaults.standard.set(sample.endDate, forKey: "latest.heartRateAt")
+                        // Cảm biến quang học ghi nhận nhịp tim sinh học thực tế -> Xác nhận đồng hồ đang được đeo trên cổ tay
+                        if !self.isWorn {
+                            self.isWorn = true
+                            UserDefaults.standard.set(true, forKey: "careai.isWorn")
+                            WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+                        }
                     } else if identifier == .oxygenSaturation,
                               sample.endDate > (self.latestSpo2At ?? .distantPast) {
                         self.latestSpo2 = value
@@ -1727,10 +1750,18 @@ final class HealthSync: ObservableObject {
                             "timestamp": r.timestamp
                         ]
                     }
+                    let dev = WKInterfaceDevice.current()
+                    dev.isBatteryMonitoringEnabled = true
+                    let rawLevel = dev.batteryLevel
+                    let batteryLevel = rawLevel >= 0 ? Int(rawLevel * 100) : 100
+                    let isCharging = (dev.batteryState == .charging || dev.batteryState == .full)
                     var relayPayload: [String: Any] = [
                         "action": "TELEMETRY_BATCH",
                         "batchId": batchId,
-                        "samples": samplesArray
+                        "samples": samplesArray,
+                        "batteryLevel": batteryLevel,
+                        "isCharging": isCharging,
+                        "isWorn": self.isWorn
                     ]
                     if let devId = UserDefaults.standard.string(forKey: "deviceId"), !devId.isEmpty {
                         relayPayload["deviceId"] = devId
