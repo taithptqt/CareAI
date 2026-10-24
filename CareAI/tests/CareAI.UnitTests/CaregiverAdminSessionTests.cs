@@ -1,4 +1,4 @@
-using CareAI.API.Middlewares;
+﻿using CareAI.API.Middlewares;
 using CareAI.API.Controllers;
 using CareAI.Core.DTOs;
 using System.Security.Claims;
@@ -84,7 +84,7 @@ public sealed class CaregiverAdminSessionTests
         using var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 50_000 });
 
         const string caregiverId = "CG_REVOKE_TARGET";
-        cache.Set($"auth:caregiver:{caregiverId}", new CaregiverCachedState(true, false, 1));
+        cache.Set($"auth:caregiver:{caregiverId}", new CaregiverCachedState(true, false, 1), new MemoryCacheEntryOptions { Size = 1 });
         Assert.True(cache.TryGetValue($"auth:caregiver:{caregiverId}", out _));
 
         var caregiver = new Caregiver { Id = caregiverId, FullName = "Nguyá»…n VÄƒn Test", Email = "cg@test.com", PasswordHash = "hash" };

@@ -21,7 +21,9 @@ public sealed class AdminApiClient(HttpClient http, IHttpContextAccessor accesso
     public async Task LogoutAsync(CancellationToken ct) => await SendAsync<object>(HttpMethod.Post, "auth/logout", null, await TokenAsync(), ct);
     public async Task<T> GetAsync<T>(string route, CancellationToken ct) => await SendAsync<T>(HttpMethod.Get, route, null, await TokenAsync(), ct);
     public async Task<T> PostAsync<T>(string route, object body, CancellationToken ct) => await SendAsync<T>(HttpMethod.Post, route, body, await TokenAsync(), ct);
-    private async Task<string?> TokenAsync() => accessor.HttpContext is { } context ? await context.GetTokenAsync("access_token") : null;
+    private async Task<string?> TokenAsync() => accessor.HttpContext is { } context
+        ? await context.GetTokenAsync("AdminCookie", "access_token") ?? await context.GetTokenAsync("access_token")
+        : null;
 
     private async Task<T> SendAsync<T>(HttpMethod method, string route, object? body, string? token, CancellationToken ct)
     {

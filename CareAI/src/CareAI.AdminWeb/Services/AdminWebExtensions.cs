@@ -1,4 +1,5 @@
-using CareAI.AdminWeb.Services;
+﻿using CareAI.AdminWeb.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -162,6 +163,22 @@ public static class AdminWebExtensions
         app.Use(async (context, next) =>
         {
             var path = context.Request.Path;
+            // Xác thực thủ công lược đồ AdminCookie cho toàn bộ các route Web Admin
+            if (path == "/" || path.StartsWithSegments("/Login") || path.StartsWithSegments("/Error")
+                || path.StartsWithSegments("/Denied") || path.StartsWithSegments("/Logout")
+                || path.StartsWithSegments("/Accounts") || path.StartsWithSegments("/Devices")
+                || path.StartsWithSegments("/Incidents") || path.StartsWithSegments("/Audit")
+                || path.StartsWithSegments("/Feedback") || path.StartsWithSegments("/Manage")
+                || path.StartsWithSegments("/Staff") || path.StartsWithSegments("/Security")
+                || path.StartsWithSegments("/Overview"))
+            {
+                var authResult = await context.AuthenticateAsync("AdminCookie");
+                if (authResult.Succeeded && authResult.Principal != null)
+                {
+                    context.User = authResult.Principal;
+                }
+            }
+
             if (path == "/")
             {
                 context.Response.Redirect("/Login");

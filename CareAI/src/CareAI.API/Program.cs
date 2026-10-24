@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using CareAI.AdminWeb.Services;
 using CareAI.API.Admin;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -220,7 +220,6 @@ app.UseRouting();
 app.UseRateLimiter();
 app.UseCors("CareAiWeb");
 app.UseStaticFiles();
-app.UseCareAiAdminWeb(builder.Configuration, builder.Environment);
 
 // 6. PIPELINE XỬ LÝ HTTP & SWAGGER
 if (app.Environment.IsDevelopment())
@@ -247,6 +246,7 @@ app.UseMiddleware<DeviceTokenAuthMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseCareAiAdminWeb(builder.Configuration, builder.Environment);
 
 app.MapControllers();
 app.MapRazorPages();

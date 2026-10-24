@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using CareAI.AdminWeb.Services;
 using CareAI.Core.DTOs.Admin;
@@ -15,8 +15,10 @@ public sealed class LoginModel(AdminApiClient api, AdminWebMode mode) : PageMode
     [BindProperty, RegularExpression("^[0-9]{6}$")] public string? OtpCode { get; set; }
     public bool Live => mode.Live;
     public string? Error { get; private set; }
-    public IActionResult OnGet(bool expired = false)
+    public async Task<IActionResult> OnGetAsync(bool expired = false)
     {
+        var auth = await HttpContext.AuthenticateAsync("AdminCookie");
+        if (auth.Succeeded && auth.Principal != null) HttpContext.User = auth.Principal;
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToPage(User.HasClaim("admin_permission", AdminPermissions.Accounts) ? "/Accounts/Index"
                 : User.HasClaim("admin_permission", AdminPermissions.Audit) ? "/Audit" : "/Security");
