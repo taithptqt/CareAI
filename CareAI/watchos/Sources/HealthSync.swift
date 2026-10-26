@@ -281,6 +281,13 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                     NSLog("[CareAI-Watch] relayWatchTelemetry sendMessage error: %@", error.localizedDescription)
                 })
             }
+            // Đảm bảo truyền nền bảo đảm (Guaranteed Delivery) qua transferUserInfo có hủy bỏ transfer cũ
+            for transfer in session.outstandingUserInfoTransfers {
+                if (transfer.userInfo["action"] as? String) == "WATCH_TELEMETRY" {
+                    transfer.cancel()
+                }
+            }
+            session.transferUserInfo(payload)
         } else {
             self.pendingTelemetryPayload = payload
             activate()

@@ -44,6 +44,7 @@ struct ContentView: View {
                         .tag(1)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .automatic))
+                .id("careai_main_tabview")
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -53,6 +54,7 @@ struct ContentView: View {
             VitalsTestLabSheetView(sync: sync)
         }
         .onAppear {
+            selectedTab = 0
             WatchConnectivityCoordinator.shared.sendWatchDeviceInfo()
             WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
             sync.requestHealthKitAuthorization()
@@ -66,6 +68,7 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                selectedTab = 0
                 sync.requestHealthKitAuthorization()
                 sync.fetchLatestSamples()
                 WatchConnectivityCoordinator.shared.sendWatchDeviceInfo()
@@ -842,9 +845,9 @@ struct DailyWellnessView: View {
                         Text(sync.isWorn ? "Đang đeo" : "Đã tháo")
                             .font(.system(size: 7.5))
                             .foregroundColor(sync.isWorn ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
-                        Text(sync.isPhoneReachable ? "🟢 iPhone" : "🟡 Ngoại tuyến")
+                        Text(sync.isPhoneReachable ? "🟢 iPhone" : (sync.isOnline ? "🟢 Bluetooth" : "🟡 Ngoại tuyến"))
                             .font(.system(size: 7.5))
-                            .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
+                            .foregroundColor(sync.isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
                     }
                 }
                 .padding(6)
@@ -1137,9 +1140,19 @@ struct StatusDetailSheetView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    Text(sync.isPhoneReachable ? "🟢 Trực tiếp (0ms qua Bluetooth)" : "🟡 Lưu đệm cục bộ (Chờ kết nối)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(sync.isPhoneReachable ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
+                    if sync.isPhoneReachable {
+                        Text("🟢 Trực tiếp (0ms qua Bluetooth)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                    } else if sync.isOnline {
+                        Text("🟢 Bluetooth sẵn sàng (Chuyển giao nền)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                    } else {
+                        Text("🟡 Lưu đệm cục bộ (Chờ kết nối)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color(red: 0.96, green: 0.62, blue: 0.04))
+                    }
                 }
                 .padding(5)
                 .frame(maxWidth: .infinity, alignment: .leading)

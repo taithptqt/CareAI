@@ -1004,10 +1004,10 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   /// Xử lý thao tác kéo xuống để làm mới (Pull-to-Refresh) trên màn hình Người cao tuổi
   Future<void> _handlePullToRefresh() async {
     HapticFeedback.mediumImpact();
-    // 1. Ép WCSession gửi tín hiệu FORCE_REFRESH sang Watch (cả qua sendMessage thời gian thực và updateApplicationContext)
+    // 1. Ép WCSession gửi tín hiệu FORCE_REFRESH sang Watch (cả qua sendMessage thời gian thực và transferUserInfo/updateApplicationContext)
     unawaited(FallService.instance.requestWatchForceSync());
-    // 2. Chờ 600ms để kênh Native & Watch trao đổi dữ liệu
-    await Future.delayed(const Duration(milliseconds: 600));
+    // 2. Chờ 800ms để kênh Native & Watch trao đổi dữ liệu qua Bluetooth
+    await Future.delayed(const Duration(milliseconds: 800));
     // 3. Tái kiểm tra kết nối, gói tin và trạng thái đồng hồ
     if (mounted) {
       await Future.wait([
@@ -1017,6 +1017,12 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         SyncService.instance.syncOfflineSpool(),
       ]);
     }
+    // Lần kiểm tra dự phòng sau 1.5s phòng khi Bluetooth cần thêm thời gian phản hồi
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        _checkWatchStatus(showFeedback: false);
+      }
+    });
   }
 
   Future<void> _prepareGps() async {

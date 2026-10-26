@@ -519,6 +519,11 @@ import workmanager_apple
           }
           let payload: [String: Any] = ["action": "FORCE_REFRESH"]
           try? session.updateApplicationContext(payload)
+          for transfer in session.outstandingUserInfoTransfers {
+            if (transfer.userInfo["action"] as? String) == "FORCE_REFRESH" {
+              transfer.cancel()
+            }
+          }
           if session.isReachable {
             session.sendMessage(payload, replyHandler: { [weak self] reply in
               self?.handleWatchRelay(reply)
