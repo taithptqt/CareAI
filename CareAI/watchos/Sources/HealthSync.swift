@@ -114,19 +114,28 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let resolvedModel = HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: deviceName)
 
         let isWatchPaired = KeychainToken.load() != nil
+        let rawLevel = device.batteryLevel
+        let bat = rawLevel >= 0 ? Int(round(rawLevel * 100)) : 100
+        let charging = (device.batteryState == .charging || device.batteryState == .full)
+        let worn = charging ? false : UserDefaults.standard.bool(forKey: "careai.isWorn")
+
         var payload: [String: Any] = [
             "action": "WATCH_DEVICE_INFO",
             "watchName": resolvedModel,
             "rawName": deviceName,
             "machineCode": machineCode,
             "systemVersion": device.systemVersion,
-            "isPaired": isWatchPaired
+            "isPaired": isWatchPaired,
+            "batteryLevel": bat,
+            "isCharging": charging,
+            "isWorn": worn
         ]
         if UserDefaults.standard.string(forKey: "deviceId") == nil || KeychainToken.load() == nil {
             payload["needsCredentials"] = true
         }
 
         session.transferUserInfo(payload)
+        try? session.updateApplicationContext(payload)
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
         }
@@ -329,6 +338,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                 sendWatchDeviceInfo()
                 syncCurrentBatteryAndWearState()
                 Task { @MainActor in
+                    await HealthSync.shared?.syncDeviceStatusToBackend()
                     await HealthSync.shared?.sendNow()
                 }
                 return
@@ -355,6 +365,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                 sendWatchDeviceInfo()
                 syncCurrentBatteryAndWearState()
                 Task { @MainActor in
+                    await HealthSync.shared?.syncDeviceStatusToBackend()
                     await HealthSync.shared?.sendNow()
                 }
                 return
@@ -386,6 +397,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                 sendWatchDeviceInfo()
                 syncCurrentBatteryAndWearState()
                 Task { @MainActor in
+                    await HealthSync.shared?.syncDeviceStatusToBackend()
                     await HealthSync.shared?.sendNow()
                 }
                 return
@@ -428,6 +440,8 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                     let worn = charging ? false : (hrRecent || (HealthSync.shared?.isWorn ?? false))
                     let rep = self.buildWatchTelemetryPayload(isWorn: worn, isCharging: charging, batteryLevel: bat)
                     replyHandler(rep)
+                    try? WCSession.default.updateApplicationContext(rep)
+                    await HealthSync.shared?.syncDeviceStatusToBackend()
                     await HealthSync.shared?.sendNow()
                 }
                 return
@@ -1619,6 +1633,61 @@ final class HealthSync: ObservableObject {
         }
     }
 
+    func syncDeviceStatusToBackend() async {
+        guard let base = UserDefaults.standard.string(forKey: "backend"),
+              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/v1/devices/sync-watch"),
+              url.scheme == "https",
+              let deviceId = UserDefaults.standard.string(forKey: "deviceId"),
+              let token = KeychainToken.load(), !token.isEmpty else {
+            return
+        }
+        let dev = WKInterfaceDevice.current()
+        dev.isBatteryMonitoringEnabled = true
+        let raw = dev.batteryLevel
+        let bat = raw >= 0 ? Int(round(raw * 100)) : 100
+        let charging = (dev.batteryState == .charging || dev.batteryState == .full)
+        let worn = charging ? false : self.isWorn
+
+        var size: Int = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        var machine = [CChar](repeating: 0, count: max(1, size))
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        let machineCode = String(cString: machine)
+        let model = HealthSync.resolveWatchModelName(machineCode: machineCode, fallbackName: dev.name)
+
+        var bodyMap: [String: Any] = [
+            "watchModel": model,
+            "isConnected": true,
+            "isWorn": worn,
+            "isCharging": charging,
+            "batteryLevel": bat
+        ]
+        if let steps = self.todaySteps, steps > 0 { bodyMap["todaySteps"] = steps }
+        if let hr = self.latestHeartRate, hr > 0 { bodyMap["heartRate"] = hr }
+        if let spo2 = self.latestSpo2, spo2 > 0 { bodyMap["spo2"] = spo2 }
+        if let sys = self.latestBpSystolic, sys > 0 { bodyMap["bpSystolic"] = sys }
+        if let dia = self.latestBpDiastolic, dia > 0 { bodyMap["bpDiastolic"] = dia }
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: bodyMap) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 6
+        request.setValue(deviceId, forHTTPHeaderField: "X-DeviceId")
+        request.setValue(token, forHTTPHeaderField: "X-Device-Token")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = bodyData
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+                NSLog("[CareAI-Watch] syncDeviceStatusToBackend thành công: model=%@, bat=%d%%, worn=%d", model, bat, worn ? 1 : 0)
+            }
+        } catch {
+            NSLog("[CareAI-Watch] syncDeviceStatusToBackend thất bại: %@", error.localizedDescription)
+        }
+    }
+
     func sendNow() async {
         if simulatedOffline {
             status = "DEMO offline · turn it off to send"
@@ -1631,8 +1700,9 @@ final class HealthSync: ObservableObject {
                 fetchNew(identifier, completion: { continuation.resume() }, sendAfter: false)
             }
         }
-        // Gửi ngay pin/trạng thái đeo và các chỉ số sinh hiệu vừa quét sang iPhone
+        // Gửi ngay pin/trạng thái đeo và các chỉ số sinh hiệu vừa quét sang iPhone và Azure Backend
         WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
+        await syncDeviceStatusToBackend()
         if queue.isEmpty {
             status = "No readings waiting to send"
             return
@@ -1856,7 +1926,10 @@ final class HealthSync: ObservableObject {
         if !force && healthAlert == nil && customAlert == nil && queue.count < 10 {
             return
         }
-        Task { await sendPending(maximum: .max) }
+        Task {
+            await syncDeviceStatusToBackend()
+            await sendPending(maximum: .max)
+        }
     }
 
     private func sendPending(maximum: Int) async {

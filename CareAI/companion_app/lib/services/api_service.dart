@@ -334,11 +334,75 @@ class ApiService {
         ).timeout(const Duration(seconds: 4));
 
         if (response.statusCode == 200) {
+          try {
+            final data = jsonDecode(response.body) as Map<String, dynamic>;
+            final serverBat = (data['batteryLevel'] as num?)?.toInt();
+            final serverWorn = data['isWorn'] as bool?;
+            final serverCharging = data['isCharging'] as bool?;
+            final prefs = await SharedPreferences.getInstance();
+            if (serverBat != null) {
+              await prefs.setInt('last_watch_battery_level', serverBat);
+            }
+            if (serverWorn != null) {
+              await prefs.setBool('last_watch_is_worn', serverWorn);
+            }
+            if (serverCharging != null) {
+              await prefs.setBool('last_watch_is_charging', serverCharging);
+            }
+          } catch (_) {}
           return true;
         }
       } catch (_) {}
     }
     return false;
+  }
+
+  /// Lấy thông tin trạng thái đồng hồ mới nhất từ máy chủ (pin, sạc, đeo)
+  Future<Map<String, dynamic>?> fetchWatchStatusFromServer() async {
+    final deviceId = await getDeviceId();
+    final deviceToken = await getDeviceToken();
+    if (deviceId == null || deviceToken == null) return null;
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'X-DeviceId': deviceId,
+      'X-Device-Token': deviceToken,
+    };
+    final prefs = await SharedPreferences.getInstance();
+    final watchModel = prefs.getString('last_paired_watch_name') ?? 'Apple Watch';
+    final body = jsonEncode({
+      'watchModel': watchModel,
+      'isConnected': true,
+    });
+    final endpoints = _getEndpointsToTry();
+
+    for (final url in endpoints) {
+      try {
+        final response = await http.post(
+          Uri.parse('$url/api/v1/devices/sync-watch'),
+          headers: headers,
+          body: body,
+        ).timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final serverBat = (data['batteryLevel'] as num?)?.toInt();
+          final serverWorn = data['isWorn'] as bool?;
+          final serverCharging = data['isCharging'] as bool?;
+          if (serverBat != null) {
+            await prefs.setInt('last_watch_battery_level', serverBat);
+          }
+          if (serverWorn != null) {
+            await prefs.setBool('last_watch_is_worn', serverWorn);
+          }
+          if (serverCharging != null) {
+            await prefs.setBool('last_watch_is_charging', serverCharging);
+          }
+          return data;
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   /// Danh sách URL thử nghiệm theo thứ tự ưu tiên:

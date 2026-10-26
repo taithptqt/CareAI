@@ -213,6 +213,9 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     final prefs = await SharedPreferences.getInstance();
     final savedAlias = prefs.getString('custom_watch_alias');
     final saved = prefs.getString('last_paired_watch_name');
+    final savedBat = prefs.getInt('last_watch_battery_level');
+    final savedWorn = prefs.getBool('last_watch_is_worn');
+    final savedCharging = prefs.getBool('last_watch_is_charging');
     if (mounted) {
       setState(() {
         if (savedAlias != null && savedAlias.isNotEmpty) {
@@ -220,6 +223,13 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         }
         if (saved != null && saved.isNotEmpty) {
           _lastPairedWatchName = saved;
+        }
+        if (savedBat != null || savedWorn != null || savedCharging != null) {
+          _watchStatus = _watchStatus.copyWith(
+            batteryLevel: savedBat,
+            isWorn: savedWorn,
+            isCharging: savedCharging,
+          );
         }
       });
     }
@@ -446,13 +456,6 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     return 'Galaxy Watch (Wear OS)';
   }
 
-  String get _platformSensorLabel {
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return 'Cảm biến quang học PPG / ECG';
-    }
-    return 'Cảm biến BioActive / PPG';
-  }
-
   Future<void> _checkWatchStatus({bool showFeedback = false}) async {
     if (showFeedback && mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -476,7 +479,23 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         ),
       );
     }
-    final status = await FallService.instance.getConnectedWatchStatus();
+    var status = await FallService.instance.getConnectedWatchStatus();
+
+    // Dự phòng tức thì qua Đám Mây: Nếu đồng hồ đã kết nối nhưng chưa có phần trăm pin, lấy từ máy chủ Azure
+    if (status.isConnected && status.batteryLevel == null) {
+      final serverData = await ApiService.instance.fetchWatchStatusFromServer();
+      if (serverData != null && serverData['batteryLevel'] != null) {
+        final serverBat = (serverData['batteryLevel'] as num).toInt();
+        final serverWorn = serverData['isWorn'] as bool?;
+        final serverCharging = serverData['isCharging'] as bool?;
+        status = status.copyWith(
+          batteryLevel: serverBat,
+          isWorn: serverWorn,
+          isCharging: serverCharging,
+        );
+      }
+    }
+
     if (mounted) {
       await _applyWatchStatus(status, showFeedback: showFeedback);
     }
@@ -494,8 +513,37 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         // Hủy bộ đếm hoãn ngắt kết nối nếu đang đếm (đồng hồ đã kết nối lại an toàn)
         _watchDisconnectDebounceTimer?.cancel();
         _watchDisconnectDebounceTimer = null;
+
+        // Lưu giữ và dự phòng pin, trạng thái đeo để không bị chớp nháy hoặc mất dữ liệu
+        int? effectiveBattery = status.batteryLevel;
+        if (effectiveBattery != null) {
+          await prefs.setInt('last_watch_battery_level', effectiveBattery);
+        } else {
+          effectiveBattery = _watchStatus.batteryLevel ?? prefs.getInt('last_watch_battery_level');
+        }
+
+        bool? effectiveWorn = status.isWorn;
+        if (effectiveWorn != null) {
+          await prefs.setBool('last_watch_is_worn', effectiveWorn);
+        } else {
+          effectiveWorn = _watchStatus.isWorn ?? prefs.getBool('last_watch_is_worn');
+        }
+
+        bool? effectiveCharging = status.isCharging;
+        if (effectiveCharging != null) {
+          await prefs.setBool('last_watch_is_charging', effectiveCharging);
+        } else {
+          effectiveCharging = _watchStatus.isCharging ?? prefs.getBool('last_watch_is_charging');
+        }
+
+        final mergedStatus = status.copyWith(
+          batteryLevel: effectiveBattery,
+          isWorn: effectiveWorn,
+          isCharging: effectiveCharging,
+        );
+
         setState(() {
-          _watchStatus = status;
+          _watchStatus = mergedStatus;
           _isDebouncingDisconnect = false;
           if (savedWatchName != null && savedWatchName.isNotEmpty) {
             _lastPairedWatchName = savedWatchName;
@@ -1004,21 +1052,22 @@ class _SosButtonScreenState extends State<SosButtonScreen>
   /// Xử lý thao tác kéo xuống để làm mới (Pull-to-Refresh) trên màn hình Người cao tuổi
   Future<void> _handlePullToRefresh() async {
     HapticFeedback.mediumImpact();
-    // 1. Ép WCSession gửi tín hiệu FORCE_REFRESH sang Watch (cả qua sendMessage thời gian thực và transferUserInfo/updateApplicationContext)
-    unawaited(FallService.instance.requestWatchForceSync());
-    // 2. Chờ 800ms để kênh Native & Watch trao đổi dữ liệu qua Bluetooth
-    await Future.delayed(const Duration(milliseconds: 800));
-    // 3. Tái kiểm tra kết nối, gói tin và trạng thái đồng hồ
+    // 1. Ép WCSession gửi tín hiệu FORCE_REFRESH sang Watch (Bluetooth) và đồng thời kéo từ Azure Cloud
+    final watchSyncFuture = FallService.instance.requestWatchForceSync();
+    final serverSyncFuture = ApiService.instance.fetchWatchStatusFromServer();
+    await Future.wait([watchSyncFuture, serverSyncFuture]);
+
+    // 2. Tái kiểm tra kết nối, gói tin và trạng thái đồng hồ
     if (mounted) {
       await Future.wait([
         _checkServerHealth(),
         _loadPendingCount(),
-        _checkWatchStatus(showFeedback: false),
+        _checkWatchStatus(showFeedback: true),
         SyncService.instance.syncOfflineSpool(),
       ]);
     }
-    // Lần kiểm tra dự phòng sau 1.5s phòng khi Bluetooth cần thêm thời gian phản hồi
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // Lần kiểm tra dự phòng sau 1.2s phòng khi Bluetooth cần thêm thời gian phản hồi
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
         _checkWatchStatus(showFeedback: false);
       }
@@ -2620,7 +2669,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                     } else {
                       final batText = batteryPct != null
                           ? ' · Pin $batteryPct%'
-                          : '';
+                          : ' · Đang cập nhật pin...';
                       statusSubtext =
                           '🟢 Đã kết nối · Trên cổ tay$batText';
                       borderColor = const Color(0xFF7A9850)
