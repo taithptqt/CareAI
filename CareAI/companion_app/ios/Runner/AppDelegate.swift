@@ -58,6 +58,8 @@ import workmanager_apple
       setupChannelsIfNeeded(messenger: controller.binaryMessenger)
     }
 
+    drainRelayOutbox()
+
     return result
   }
 
@@ -418,6 +420,7 @@ import workmanager_apple
           if session.isReachable {
             session.sendMessage(context, replyHandler: nil, errorHandler: nil)
           }
+          drainRelayOutbox()
           NSLog("[CareAI-iOS] Đã đồng bộ credentials sang Apple Watch qua 3 kênh WCSession thành công.")
           result(true)
         } else {
@@ -801,7 +804,7 @@ import workmanager_apple
     notifyWatchConnectionStatus(session: session)
   }
 
-  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
     NSLog("[CareAI-iOS] didReceiveApplicationContext: %@", String(describing: applicationContext["action"]))
     handleWatchRelay(applicationContext)
   }
@@ -810,32 +813,82 @@ import workmanager_apple
     if let action = userInfo["action"] as? String, action == "TELEMETRY_BATCH" {
       relayTelemetryBatch(userInfo, replyHandler: nil)
       return
+
+// MARK: - Quản lý Hàng Đợi Viễn Trắc Bền Vững (Store-and-Forward Relay Outbox)
+  private let relayOutboxQueue = DispatchQueue(label: "vn.careai.relay.outbox")
+  private var isDrainingRelayOutbox = false
+
+  private var relayOutboxURL: URL {
+    let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    if !FileManager.default.fileExists(atPath: dir.path) {
+      try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
-    handleWatchRelay(userInfo)
+    return dir.appendingPathComponent("careai_relay_outbox.json")
   }
 
-  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-    if let action = message["action"] as? String, action == "TELEMETRY_BATCH" {
-      relayTelemetryBatch(message, replyHandler: nil)
+  private func loadRelayOutbox() -> [[String: Any]] {
+    guard let data = try? Data(contentsOf: relayOutboxURL),
+          let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+      return []
+    }
+    return json
+  }
+
+  private func saveRelayOutbox(_ list: [[String: Any]]) -> Bool {
+    do {
+      let data = try JSONSerialization.data(withJSONObject: list, options: [])
+      try data.write(to: relayOutboxURL, options: .atomic)
+      return true
+    } catch {
+      NSLog("[CareAI-iOS] [RELAY_OUTBOX] Lỗi lưu đĩa hàng đợi viễn trắc: %@", error.localizedDescription)
+      return false
+    }
+  }
+
+  private func enqueueRelayBatch(_ payload: [String: Any]) -> Bool {
+    return relayOutboxQueue.sync {
+      var current = loadRelayOutbox()
+      let batchId = payload["batchId"] as? String ?? ""
+      if !batchId.isEmpty && current.contains(where: { ($0["batchId"] as? String) == batchId }) {
+        return true
+      }
+      current.append(payload)
+      return saveRelayOutbox(current)
+    }
+  }
+
+  private func removeRelayBatch(batchId: String) {
+    relayOutboxQueue.sync {
+      var current = loadRelayOutbox()
+      current.removeAll { ($0["batchId"] as? String) == batchId }
+      _ = saveRelayOutbox(current)
+    }
+  }
+
+  func drainRelayOutbox() {
+    relayOutboxQueue.async { [weak self] in
+      guard let self = self, !self.isDrainingRelayOutbox else { return }
+      self.isDrainingRelayOutbox = true
+      self.processNextRelayBatch()
+    }
+  }
+
+  private func processNextRelayBatch() {
+    var nextBatch: [String: Any]?
+    relayOutboxQueue.sync {
+      let current = loadRelayOutbox()
+      nextBatch = current.first
+    }
+
+    guard let batch = nextBatch else {
+      relayOutboxQueue.async { [weak self] in
+        self?.isDrainingRelayOutbox = false
+      }
       return
     }
-    handleWatchRelay(message)
-  }
 
-  func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
-    if let action = message["action"] as? String, action == "TELEMETRY_BATCH" {
-      // Phản hồi xác nhận tức thì cho Apple Watch để đồng hồ xả hàng đợi ngay lập tức (<5ms), tránh lỗi timeout WCSession
-      replyHandler(["status": "OK", "batchId": message["batchId"] as? String ?? "", "received": true])
-      relayTelemetryBatch(message, replyHandler: nil)
-      return
-    }
-    handleWatchRelay(message)
-    replyHandler(["status": "OK"])
-  }
-
-  private func relayTelemetryBatch(_ payload: [String: Any], replyHandler: (([String: Any]) -> Void)?) {
-    let batchId = payload["batchId"] as? String ?? "HK_BATCH_\(Int64(Date().timeIntervalSince1970 * 1000))"
-    let samples = payload["samples"] as? [[String: Any]] ?? []
+    let batchId = batch["batchId"] as? String ?? "UNKNOWN"
+    let samples = batch["samples"] as? [[String: Any]] ?? []
 
     // Cập nhật trạng thái pin và đeo nếu có đính kèm trong batch viễn trắc
     let batteryLevel = payload["batteryLevel"] as? Int
@@ -855,8 +908,8 @@ import workmanager_apple
     }
 
     guard !samples.isEmpty else {
-      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Danh sách mẫu đo sinh hiệu trống: %@", batchId)
-      replyHandler?(["status": "OK", "count": 0])
+      removeRelayBatch(batchId: batchId)
+      processNextRelayBatch()
       return
     }
 
@@ -866,14 +919,14 @@ import workmanager_apple
       ?? userDefaults.string(forKey: "flutter.caregiver_server_url")
       ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
 
-    var deviceId = (payload["deviceId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    var deviceId = (batch["deviceId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     if deviceId.isEmpty {
       deviceId = userDefaults.string(forKey: "careai_device_id")
         ?? userDefaults.string(forKey: "flutter.device_id")
         ?? ""
     }
 
-    var deviceToken = (payload["deviceToken"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    var deviceToken = (batch["deviceToken"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     if deviceToken.isEmpty {
       deviceToken = userDefaults.string(forKey: "careai_device_token")
         ?? userDefaults.string(forKey: "flutter.device_token")
@@ -881,9 +934,11 @@ import workmanager_apple
     }
 
     guard !deviceId.isEmpty, !deviceToken.isEmpty,
-          let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/api/v1/telemetry/ingest") else {
-      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Chưa đủ cấu hình device/url để chuyển tiếp batch: %@", batchId)
-      replyHandler?(["status": "ERROR", "message": "Missing credentials"])
+          let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: \"/\")))/api/v1/telemetry/ingest") else {
+      NSLog("[CareAI-iOS] [RELAY_OUTBOX] Chưa có thông tin xác thực để gửi mẻ %@, giữ lại đĩa iPhone chờ xác thực.", batchId)
+      relayOutboxQueue.async { [weak self] in
+        self?.isDrainingRelayOutbox = false
+      }
       return
     }
 
@@ -900,7 +955,7 @@ import workmanager_apple
     ]
 
     var bgTaskId: UIBackgroundTaskIdentifier = .invalid
-    bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "CareAI-WatchRelay-Telemetry") {
+    bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "CareAI-Drain-RelayOutbox") {
       if bgTaskId != .invalid {
         UIApplication.shared.endBackgroundTask(bgTaskId)
         bgTaskId = .invalid
@@ -912,98 +967,25 @@ import workmanager_apple
       let config = URLSessionConfiguration.ephemeral
       config.waitsForConnectivity = true
       let session = URLSession(configuration: config)
-      let task = session.dataTask(with: request) { _, response, error in
+      let task = session.dataTask(with: request) { [weak self] _, response, error in
         defer {
           if bgTaskId != .invalid {
             UIApplication.shared.endBackgroundTask(bgTaskId)
             bgTaskId = .invalid
           }
         }
+        guard let self = self else { return }
         if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201 || httpRes.statusCode == 202) {
-          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Đã chuyển tiếp thành công mẻ viễn trắc từ Apple Watch (%d mẫu): HTTP %d", samples.count, httpRes.statusCode)
-          replyHandler?(["status": "OK", "batchId": batchId, "count": samples.count])
+          NSLog("[CareAI-iOS] [RELAY_OUTBOX] Đã nạp thành công mẻ %@ (%d mẫu) lên Azure (HTTP %d). Xóa khỏi đĩa iPhone.", batchId, samples.count, httpRes.statusCode)
+          self.removeRelayBatch(batchId: batchId)
+          self.processNextRelayBatch()
         } else {
           let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-          NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Chuyển tiếp mẻ viễn trắc lỗi (HTTP %d): %@", code, error?.localizedDescription ?? "HTTP error")
-          replyHandler?(["status": "ERROR", "code": code, "message": error?.localizedDescription ?? "HTTP \(code)"])
-        }
-      }
-      task.resume()
-    } catch {
-      if bgTaskId != .invalid {
-        UIApplication.shared.endBackgroundTask(bgTaskId)
-        bgTaskId = .invalid
-      }
-      NSLog("[CareAI-iOS] [TELEMETRY_RELAY] Lỗi đóng gói JSON batch: %@", error.localizedDescription)
-      replyHandler?(["status": "ERROR", "message": error.localizedDescription])
-    }
-  }
-
-  // MARK: - Native Azure Cloud Relay for Watch Status (Background Capable)
-  private func syncWatchStateToAzure(watchModel: String, batteryLevel: Int?, isCharging: Bool?, isWorn: Bool?, todaySteps: Int? = nil, heartRate: Double? = nil, spo2: Double? = nil) {
-    let userDefaults = UserDefaults.standard
-    let serverUrl = userDefaults.string(forKey: "careai_backend_url")
-      ?? userDefaults.string(forKey: "flutter.server_base_url")
-      ?? userDefaults.string(forKey: "flutter.caregiver_server_url")
-      ?? "https://careai-hweuawcug0eehucf.southeastasia-01.azurewebsites.net"
-
-    var deviceId = userDefaults.string(forKey: "careai_device_id")
-      ?? userDefaults.string(forKey: "flutter.device_id")
-      ?? ""
-    var deviceToken = userDefaults.string(forKey: "careai_device_token")
-      ?? userDefaults.string(forKey: "flutter.device_token")
-      ?? ""
-
-    guard !deviceId.isEmpty, !deviceToken.isEmpty,
-          let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/api/v1/devices/sync-watch") else {
-      NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Chưa đủ cấu hình device/url để sync-watch: deviceId=%@", deviceId)
-      return
-    }
-
-    var bodyMap: [String: Any] = [
-      "watchModel": watchModel,
-      "isConnected": true
-    ]
-    if let isWorn = isWorn { bodyMap["isWorn"] = isWorn }
-    if let isCharging = isCharging { bodyMap["isCharging"] = isCharging }
-    if let batteryLevel = batteryLevel { bodyMap["batteryLevel"] = batteryLevel }
-    if let todaySteps = todaySteps, todaySteps > 0 { bodyMap["todaySteps"] = todaySteps }
-    if let heartRate = heartRate, heartRate > 0 { bodyMap["heartRate"] = heartRate }
-    if let spo2 = spo2, spo2 > 0 { bodyMap["spo2"] = spo2 }
-
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.timeoutInterval = 10
-    request.setValue(deviceId, forHTTPHeaderField: "X-DeviceId")
-    request.setValue(deviceToken, forHTTPHeaderField: "X-Device-Token")
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-    var bgTaskId: UIBackgroundTaskIdentifier = .invalid
-    bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "CareAI-NativeSyncWatchState") {
-      if bgTaskId != .invalid {
-        UIApplication.shared.endBackgroundTask(bgTaskId)
-        bgTaskId = .invalid
-      }
-    }
-
-    do {
-      request.httpBody = try JSONSerialization.data(withJSONObject: bodyMap)
-      let config = URLSessionConfiguration.ephemeral
-      let session = URLSession(configuration: config)
-      let task = session.dataTask(with: request) { _, response, error in
-        defer {
-          if bgTaskId != .invalid {
-            UIApplication.shared.endBackgroundTask(bgTaskId)
-            bgTaskId = .invalid
+          NSLog("[CareAI-iOS] [RELAY_OUTBOX] Gửi mẻ %@ lên Azure thất bại (HTTP %d): %@. Giữ lại trên đĩa iPhone chờ retry.", batchId, code, error?.localizedDescription ?? "HTTP error")
+          self.relayOutboxQueue.async {
+            self.isDrainingRelayOutbox = false
           }
         }
-        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-        if statusCode == 200 || statusCode == 201 || statusCode == 204 {
-          NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Đã đồng bộ trạng thái Apple Watch lên Azure thành công: HTTP %d (pin=%@, sạc=%@, đeo=%@)",
-                statusCode, String(describing: batteryLevel), String(describing: isCharging), String(describing: isWorn))
-        } else {
-          NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Đồng bộ trạng thái Apple Watch thất bại (HTTP %d): %@", statusCode, error?.localizedDescription ?? "HTTP error")
-        }
       }
       task.resume()
     } catch {
@@ -1011,8 +993,11 @@ import workmanager_apple
         UIApplication.shared.endBackgroundTask(bgTaskId)
         bgTaskId = .invalid
       }
-      NSLog("[CareAI-iOS] [SYNC_WATCH_AZURE] Lỗi đóng gói JSON sync-watch: %@", error.localizedDescription)
-    }
+          let url = URL(string: "\(serverUrl.trimmingCharacters(in: CharacterSet(charactersIn: \"/\")))/api/v1/telemetry/ingest") else {
+      NSLog("[CareAI-iOS] [RELAY_OUTBOX] Chưa có thông tin xác thực để gửi mẻ %@, giữ lại đĩa iPhone chờ xác thực.", batchId)
+      relayOutboxQueue.async { [weak self] in
+        self?.isDrainingRelayOutbox = false
+      }
   }
 
   private func handleWatchRelay(_ payload: [String: Any]) {
