@@ -517,6 +517,7 @@ private final class FallSessionCoordinator: NSObject, WKExtendedRuntimeSessionDe
     private weak var sync: HealthSync?
     private var session: WKExtendedRuntimeSession?
     private var isRunning = false
+    private var consecutiveFailures = 0
 
     init(sync: HealthSync) {
         self.sync = sync
@@ -542,6 +543,7 @@ private final class FallSessionCoordinator: NSObject, WKExtendedRuntimeSessionDe
     }
 
     func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        consecutiveFailures = 0
         NSLog("[CareAI-Watch] WKExtendedRuntimeSession nền đã kích hoạt thành công.")
     }
 
@@ -557,16 +559,27 @@ private final class FallSessionCoordinator: NSObject, WKExtendedRuntimeSessionDe
     }
 
     func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
-        NSLog("[CareAI-Watch] WKExtendedRuntimeSession invalidate (mã: %ld). Tự phục hồi sau 1s nếu đang đeo...", reason.rawValue)
+        NSLog("[CareAI-Watch] WKExtendedRuntimeSession invalidate (mã: %ld, error: %@)", reason.rawValue, String(describing: error))
         isRunning = false
         if let error = error as NSError?, error.code == 8 {
-            NSLog("[CareAI-Watch] WKExtendedRuntimeSession không được cấp quyền chạy nền tự do. Duy trì cảm biến theo chu kỳ tiêu chuẩn.")
+            NSLog("[CareAI-Watch] WKExtendedRuntimeSession chạm hạn mức nền trong ngày. Giữ cảm biến theo chu kỳ nền tiêu chuẩn, không retry dồn dập.")
+            consecutiveFailures = 0
+            return
+        }
+        consecutiveFailures += 1
+        if consecutiveFailures > 3 {
+            NSLog("[CareAI-Watch] WKExtendedRuntimeSession thất bại %ld lần liên tiếp. Tạm dừng tái khởi động trong 15 phút để bảo vệ tiến trình app khỏi bị watchOS kill.", consecutiveFailures)
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 15 * 60 * 1_000_000_000)
+                self?.consecutiveFailures = 0
+                self?.start()
+            }
             return
         }
         Task { @MainActor [weak self] in
             guard let self = self, let sync = self.sync else { return }
             if sync.autoFallDetectionEnabled && sync.isWorn && !sync.isCharging {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
                 self.start()
             }
         }

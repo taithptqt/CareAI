@@ -147,7 +147,7 @@
 				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = (
 					careai.healthsync,
 				);
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				INFOPLIST_KEY_CFBundleDisplayName = CareAI;
 				INFOPLIST_KEY_CFBundleName = CareAI;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
@@ -159,7 +159,7 @@
 					"physical-therapy",
 				);
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = vn.careai.careaiCompanion;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -243,7 +243,7 @@
 				INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers = (
 					careai.healthsync,
 				);
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				INFOPLIST_KEY_CFBundleDisplayName = CareAI;
 				INFOPLIST_KEY_CFBundleName = CareAI;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "CareAI reads heart rate and blood oxygen samples to share with an authorized family member.";
@@ -255,7 +255,7 @@
 					"physical-therapy",
 				);
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = vn.careai.careaiCompanion;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = vn.careai.careaiCompanion.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
