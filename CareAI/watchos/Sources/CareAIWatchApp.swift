@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchConnectivity
 
 @main
 struct CareAIWatchApp: App {
@@ -328,6 +329,25 @@ struct PrimaryEmergencyView: View {
         sync.isOnline
     }
 
+    private var connectionStatusText: String {
+        if !isOnline {
+            return "Ngoại tuyến"
+        }
+        if WCSession.isSupported() {
+            let session = WCSession.default
+            if session.activationState == .activated && (session.isReachable || sync.isPhoneReachable) {
+                return "Trực tuyến (BT)"
+            }
+        }
+        if sync.isNetworkSatisfied {
+            return "Trực tuyến (Wi-Fi)"
+        }
+        if WCSession.isSupported() && WCSession.default.activationState == .activated {
+            return "Trực tuyến (BT)"
+        }
+        return "Trực tuyến"
+    }
+
     private var emergencyAlertTitle: String? {
         if let alert = sync.customAlert {
             switch alert {
@@ -477,7 +497,7 @@ struct PrimaryEmergencyView: View {
                             Circle()
                                 .fill(isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
                                 .frame(width: 7, height: 7)
-                            Text(isOnline ? "Trực tuyến" : "Ngoại tuyến")
+                            Text(connectionStatusText)
                                 .font(.system(size: 9.5, weight: .semibold))
                                 .foregroundColor(isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color(red: 0.96, green: 0.62, blue: 0.04))
                             Spacer()
@@ -845,7 +865,7 @@ struct DailyWellnessView: View {
                         Text(sync.isWorn ? "Đang đeo" : "Đã tháo")
                             .font(.system(size: 7.5))
                             .foregroundColor(sync.isWorn ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
-                        Text(sync.isPhoneReachable ? "🟢 iPhone" : (sync.isOnline ? "🟢 Bluetooth" : "🟡 Ngoại tuyến"))
+                        Text(sync.isPhoneReachable ? "🟢 iPhone (BT)" : (sync.isNetworkSatisfied ? "🟢 Wi-Fi" : (sync.isOnline ? "🟢 Bluetooth" : "🟡 Ngoại tuyến")))
                             .font(.system(size: 7.5))
                             .foregroundColor(sync.isOnline ? Color(red: 0.06, green: 0.73, blue: 0.51) : Color.orange)
                     }
@@ -1145,9 +1165,15 @@ struct StatusDetailSheetView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
                     } else if sync.isOnline {
-                        Text("🟢 Bluetooth sẵn sàng (Chuyển giao nền)")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                        if sync.isNetworkSatisfied && !sync.isPhoneReachable {
+                            Text("🟢 Trực tuyến qua Wi-Fi")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                        } else {
+                            Text("🟢 Bluetooth sẵn sàng (Chuyển giao nền)")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(Color(red: 0.06, green: 0.73, blue: 0.51))
+                        }
                     } else {
                         Text("🟡 Lưu đệm cục bộ (Chờ kết nối)")
                             .font(.system(size: 10, weight: .semibold))

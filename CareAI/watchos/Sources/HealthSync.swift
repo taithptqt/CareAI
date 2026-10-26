@@ -283,7 +283,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             }
             // Đảm bảo truyền nền bảo đảm (Guaranteed Delivery) qua transferUserInfo có hủy bỏ transfer cũ
             for transfer in session.outstandingUserInfoTransfers {
-                if (transfer.userInfo["action"] as? String) == "WATCH_TELEMETRY" {
+                if (transfer.userInfo["action"] as? String) == "WATCH_TELEMETRY" && !transfer.isTransferring {
                     transfer.cancel()
                 }
             }

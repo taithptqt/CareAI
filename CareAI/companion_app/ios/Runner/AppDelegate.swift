@@ -70,7 +70,11 @@ import workmanager_apple
       let session = WCSession.default
       if session.activationState == .activated {
         if !session.receivedApplicationContext.isEmpty {
-          handleWatchRelay(session.receivedApplicationContext)
+          let ctxTimestamp = self.getInt64(session.receivedApplicationContext["timestamp"]) ?? 0
+          let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+          if ctxTimestamp > 0 && (nowMs - ctxTimestamp) <= 45 * 60 * 1000 {
+            handleWatchRelay(session.receivedApplicationContext)
+          }
         }
         if session.isReachable {
           session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: { [weak self] reply in
@@ -331,17 +335,44 @@ import workmanager_apple
           NSLog("[CareAI-iOS] Flutter gọi getConnectedWatchStatus: btOff=%d, activationState=%ld, paired=%d, reachable=%d, installed=%d, isConnected=%d",
                 isBtOff ? 1 : 0, Int(session.activationState.rawValue), isPaired ? 1 : 0, isReachable ? 1 : 0, isAppInstalled ? 1 : 0, isConnected ? 1 : 0)
 
-          // Cập nhật ngay từ context mới nhất nếu đồng hồ đã gửi qua updateApplicationContext
+          // Kiểm tra độ tươi mới của dữ liệu viễn trắc đã lưu
+          let storedTimestamp = self.getInt64(UserDefaults.standard.object(forKey: "careai_watch_telemetry_timestamp")) ?? 0
+          let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+          if storedTimestamp == 0 || (nowMs - storedTimestamp) > 45 * 60 * 1000 {
+            // Dữ liệu viễn trắc đã quá cũ (> 45 phút) hoặc chưa từng có timestamp hợp lệ: Xóa trạng thái sạc/pin cũ để tránh hiển thị sai
+            UserDefaults.standard.removeObject(forKey: "careai_watch_battery_level")
+            UserDefaults.standard.removeObject(forKey: "careai_watch_is_charging")
+            UserDefaults.standard.removeObject(forKey: "careai_watch_is_worn")
+          }
+
+          // CHỈ xử lý receivedApplicationContext nếu nó tươi mới (< 45 phút) và mới hơn timestamp đã lưu
           if !session.receivedApplicationContext.isEmpty {
-            self.handleWatchRelay(session.receivedApplicationContext)
+            let ctxTimestamp = self.getInt64(session.receivedApplicationContext["timestamp"]) ?? 0
+            if ctxTimestamp > 0 && (nowMs - ctxTimestamp) <= 45 * 60 * 1000 && ctxTimestamp >= storedTimestamp {
+              self.handleWatchRelay(session.receivedApplicationContext)
+            }
           }
 
           // Yêu cầu đồng hồ gửi định danh và viễn trắc mới nhất nếu có thể kết nối
           if isReachable && !isBtOff {
+            let group = DispatchGroup()
+            group.enter()
+            var hasReplied = false
             session.sendMessage(["action": "REQUEST_DEVICE_INFO"], replyHandler: nil, errorHandler: nil)
             session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: { [weak self] reply in
               self?.handleWatchRelay(reply)
-            }, errorHandler: nil)
+              if !hasReplied {
+                hasReplied = true
+                group.leave()
+              }
+            }, errorHandler: { _ in
+              if !hasReplied {
+                hasReplied = true
+                group.leave()
+              }
+            })
+            // Chờ tối đa 350ms để nhận kết quả trực tiếp 0ms qua Bluetooth trước khi trả lời cho Flutter
+            _ = group.wait(timeout: .now() + 0.35)
           } else if isPaired && !isBtOff {
             session.transferUserInfo(["action": "REQUEST_DEVICE_INFO"])
             session.transferUserInfo(["action": "REQUEST_TELEMETRY"])
@@ -361,13 +392,13 @@ import workmanager_apple
           if isPaired {
             resPayload["nodeId"] = "apple_watch_wcsession"
           }
-          if let battery = UserDefaults.standard.object(forKey: "careai_watch_battery_level") as? Int {
+          if let battery = self.getInt(UserDefaults.standard.object(forKey: "careai_watch_battery_level")) {
             resPayload["batteryLevel"] = battery
           }
-          if let worn = UserDefaults.standard.object(forKey: "careai_watch_is_worn") as? Bool {
+          if let worn = self.getBool(UserDefaults.standard.object(forKey: "careai_watch_is_worn")) {
             resPayload["isWorn"] = worn
           }
-          if let charging = UserDefaults.standard.object(forKey: "careai_watch_is_charging") as? Bool {
+          if let charging = self.getBool(UserDefaults.standard.object(forKey: "careai_watch_is_charging")) {
             resPayload["isCharging"] = charging
           }
           result(resPayload)
@@ -458,6 +489,7 @@ import workmanager_apple
         UserDefaults.standard.removeObject(forKey: "careai_watch_battery_level")
         UserDefaults.standard.removeObject(forKey: "careai_watch_is_worn")
         UserDefaults.standard.removeObject(forKey: "careai_watch_is_charging")
+        UserDefaults.standard.removeObject(forKey: "careai_watch_telemetry_timestamp")
 
         // 2. Gửi lệnh UNPAIR sang Apple Watch qua 3 kênh WCSession
         if WCSession.isSupported() {
@@ -518,9 +550,8 @@ import workmanager_apple
             session.activate()
           }
           let payload: [String: Any] = ["action": "FORCE_REFRESH"]
-          try? session.updateApplicationContext(payload)
           for transfer in session.outstandingUserInfoTransfers {
-            if (transfer.userInfo["action"] as? String) == "FORCE_REFRESH" {
+            if (transfer.userInfo["action"] as? String) == "FORCE_REFRESH" && !transfer.isTransferring {
               transfer.cancel()
             }
           }
@@ -813,7 +844,11 @@ import workmanager_apple
             activationState.rawValue, session.isPaired, session.isWatchAppInstalled, session.isReachable)
     }
     if !session.receivedApplicationContext.isEmpty {
-      handleWatchRelay(session.receivedApplicationContext)
+      let ctxTimestamp = getInt64(session.receivedApplicationContext["timestamp"]) ?? 0
+      let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+      if ctxTimestamp > 0 && (nowMs - ctxTimestamp) <= 45 * 60 * 1000 {
+        handleWatchRelay(session.receivedApplicationContext)
+      }
     }
     notifyWatchConnectionStatus(session: session)
   }
@@ -1128,28 +1163,73 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
     }
   }
 
+  private func getInt64(_ val: Any?) -> Int64? {
+    if let num = val as? NSNumber { return num.int64Value }
+    if let i = val as? Int64 { return i }
+    if let i = val as? Int { return Int64(i) }
+    return nil
+  }
+
+  private func getInt(_ val: Any?) -> Int? {
+    if let num = val as? NSNumber { return num.intValue }
+    if let i = val as? Int { return i }
+    return nil
+  }
+
+  private func getBool(_ val: Any?) -> Bool? {
+    if let num = val as? NSNumber { return num.boolValue }
+    if let b = val as? Bool { return b }
+    return nil
+  }
+
+  private func getDouble(_ val: Any?) -> Double? {
+    if let num = val as? NSNumber { return num.doubleValue }
+    if let d = val as? Double { return d }
+    if let f = val as? Float { return Double(f) }
+    return nil
+  }
+
   private func handleWatchRelay(_ payload: [String: Any]) {
     guard let action = payload["action"] as? String else { return }
 
     if action == "WATCH_TELEMETRY" {
-      let isWorn = payload["isWorn"] as? Bool
-      let isCharging = payload["isCharging"] as? Bool
-      let batteryLevel = payload["batteryLevel"] as? Int
-      let todaySteps = payload["todaySteps"] as? Int
-      let heartRate = payload["heartRate"] as? Double
-      let spo2 = payload["spo2"] as? Double
-      let bpSystolic = payload["bpSystolic"] as? Double
-      let bpDiastolic = payload["bpDiastolic"] as? Double
-      let sleepMinutes = payload["sleepMinutes"] as? Int
-      let deepSleepMinutes = payload["deepSleepMinutes"] as? Int
-      let coreSleepMinutes = payload["coreSleepMinutes"] as? Int
-      let remSleepMinutes = payload["remSleepMinutes"] as? Int
-      let awakeMinutes = payload["awakeMinutes"] as? Int
-      let wakeCount = payload["wakeCount"] as? Int
-      let minSleepingHr = payload["minSleepingHr"] as? Double
-      let avgSleepingHr = payload["avgSleepingHr"] as? Double
-      let minNightSpo2 = payload["minNightSpo2"] as? Double
-      let nightSpo2DipsCount = payload["nightSpo2DipsCount"] as? Int
+      let incomingTimestamp = getInt64(payload["timestamp"]) ?? 0
+      let storedTimestamp = getInt64(UserDefaults.standard.object(forKey: "careai_watch_telemetry_timestamp")) ?? 0
+      let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+
+      // Bỏ qua nếu payload cũ hơn timestamp đã được ghi nhận trước đó
+      if incomingTimestamp > 0 && incomingTimestamp < storedTimestamp {
+        NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Bỏ qua payload cũ: incoming=%lld < stored=%lld", incomingTimestamp, storedTimestamp)
+        return
+      }
+
+      // Bỏ qua nếu context quá hạn (> 45 phút)
+      if incomingTimestamp > 0 && (nowMs - incomingTimestamp) > 45 * 60 * 1000 {
+        NSLog("[CareAI-iOS] [WATCH_TELEMETRY] Bỏ qua context quá hạn: tuổi = %lld giây", (nowMs - incomingTimestamp) / 1000)
+        return
+      }
+
+      let effectiveTimestamp = incomingTimestamp > 0 ? incomingTimestamp : nowMs
+      UserDefaults.standard.set(effectiveTimestamp, forKey: "careai_watch_telemetry_timestamp")
+
+      let isWorn = getBool(payload["isWorn"])
+      let isCharging = getBool(payload["isCharging"])
+      let batteryLevel = getInt(payload["batteryLevel"])
+      let todaySteps = getInt(payload["todaySteps"])
+      let heartRate = getDouble(payload["heartRate"])
+      let spo2 = getDouble(payload["spo2"])
+      let bpSystolic = getDouble(payload["bpSystolic"])
+      let bpDiastolic = getDouble(payload["bpDiastolic"])
+      let sleepMinutes = getInt(payload["sleepMinutes"])
+      let deepSleepMinutes = getInt(payload["deepSleepMinutes"])
+      let coreSleepMinutes = getInt(payload["coreSleepMinutes"])
+      let remSleepMinutes = getInt(payload["remSleepMinutes"])
+      let awakeMinutes = getInt(payload["awakeMinutes"])
+      let wakeCount = getInt(payload["wakeCount"])
+      let minSleepingHr = getDouble(payload["minSleepingHr"])
+      let avgSleepingHr = getDouble(payload["avgSleepingHr"])
+      let minNightSpo2 = getDouble(payload["minNightSpo2"])
+      let nightSpo2DipsCount = getInt(payload["nightSpo2DipsCount"])
       let breathingDisturbances = payload["breathingDisturbances"] as? String
       let supportedMetrics = payload["supportedMetrics"] as? [String]
 
@@ -1240,6 +1320,7 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
       UserDefaults.standard.removeObject(forKey: "careai_watch_battery_level")
       UserDefaults.standard.removeObject(forKey: "careai_watch_is_worn")
       UserDefaults.standard.removeObject(forKey: "careai_watch_is_charging")
+      UserDefaults.standard.removeObject(forKey: "careai_watch_telemetry_timestamp")
       UserDefaults.standard.removeObject(forKey: "careai_watch_today_steps")
       UserDefaults.standard.removeObject(forKey: "careai_watch_heart_rate")
       UserDefaults.standard.removeObject(forKey: "careai_watch_spo2")
