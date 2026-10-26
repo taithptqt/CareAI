@@ -358,7 +358,6 @@ import workmanager_apple
             let group = DispatchGroup()
             group.enter()
             var hasReplied = false
-            session.sendMessage(["action": "REQUEST_DEVICE_INFO"], replyHandler: nil, errorHandler: nil)
             session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: { [weak self] reply in
               self?.handleWatchRelay(reply)
               if !hasReplied {
@@ -371,10 +370,9 @@ import workmanager_apple
                 group.leave()
               }
             })
-            // Chờ tối đa 350ms để nhận kết quả trực tiếp 0ms qua Bluetooth trước khi trả lời cho Flutter
-            _ = group.wait(timeout: .now() + 0.35)
+            // Chờ tối đa 450ms để nhận kết quả trực tiếp qua Bluetooth trước khi trả lời cho Flutter
+            _ = group.wait(timeout: .now() + 0.45)
           } else if isPaired && !isBtOff {
-            session.transferUserInfo(["action": "REQUEST_DEVICE_INFO"])
             session.transferUserInfo(["action": "REQUEST_TELEMETRY"])
           }
 

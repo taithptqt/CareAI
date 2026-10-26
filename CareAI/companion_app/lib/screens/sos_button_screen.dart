@@ -2618,11 +2618,11 @@ class _SosButtonScreenState extends State<SosButtonScreen>
                       subtextColor = const Color(0xFF916018);
                       iconData = Icons.battery_alert_rounded;
                     } else {
-                      final pctStr = batteryPct != null
-                          ? ' (Pin $batteryPct%)'
+                      final batText = batteryPct != null
+                          ? ' · Pin $batteryPct%'
                           : '';
                       statusSubtext =
-                          '🟢 Đã kết nối · Trên cổ tay$pctStr · $_platformSensorLabel';
+                          '🟢 Đã kết nối · Trên cổ tay$batText';
                       borderColor = const Color(0xFF7A9850)
                           .withValues(alpha: 0.6);
                       iconBgColor = const Color(0xFFE2EDD3)
