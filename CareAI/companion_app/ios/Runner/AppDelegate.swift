@@ -836,8 +836,7 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
   }
 
   private func relayTelemetryBatch(_ payload: [String: Any], replyHandler: (([String: Any]) -> Void)?) {
-    _ = enqueueRelayBatch(payload)
-    drainRelayOutbox()
+    enqueueRelayBatch(payload)
     replyHandler?(["status": "OK"])
   }
 
@@ -872,45 +871,36 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
     }
   }
 
-  private func enqueueRelayBatch(_ payload: [String: Any]) -> Bool {
-    return relayOutboxQueue.sync {
-      var current = loadRelayOutbox()
+  private func enqueueRelayBatch(_ payload: [String: Any]) {
+    relayOutboxQueue.async { [weak self] in
+      guard let self = self else { return }
+      var current = self.loadRelayOutbox()
       let batchId = payload["batchId"] as? String ?? ""
       if !batchId.isEmpty && current.contains(where: { ($0["batchId"] as? String) == batchId }) {
-        return true
+        return
       }
       current.append(payload)
-      return saveRelayOutbox(current)
-    }
-  }
-
-  private func removeRelayBatch(batchId: String) {
-    relayOutboxQueue.sync {
-      var current = loadRelayOutbox()
-      current.removeAll { ($0["batchId"] as? String) == batchId }
-      _ = saveRelayOutbox(current)
+      _ = self.saveRelayOutbox(current)
+      self.drainRelayOutboxLocked()
     }
   }
 
   func drainRelayOutbox() {
     relayOutboxQueue.async { [weak self] in
-      guard let self = self, !self.isDrainingRelayOutbox else { return }
-      self.isDrainingRelayOutbox = true
-      self.processNextRelayBatch()
+      self?.drainRelayOutboxLocked()
     }
   }
 
-  private func processNextRelayBatch() {
-    var nextBatch: [String: Any]?
-    relayOutboxQueue.sync {
-      let current = loadRelayOutbox()
-      nextBatch = current.first
-    }
+  private func drainRelayOutboxLocked() {
+    guard !isDrainingRelayOutbox else { return }
+    isDrainingRelayOutbox = true
+    processNextRelayBatchLocked()
+  }
 
-    guard let batch = nextBatch else {
-      relayOutboxQueue.async { [weak self] in
-        self?.isDrainingRelayOutbox = false
-      }
+  private func processNextRelayBatchLocked() {
+    let current = loadRelayOutbox()
+    guard let batch = current.first else {
+      isDrainingRelayOutbox = false
       return
     }
 
@@ -935,8 +925,10 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
     }
 
     guard !samples.isEmpty else {
-      removeRelayBatch(batchId: batchId)
-      processNextRelayBatch()
+      var remaining = current
+      remaining.removeAll { ($0["batchId"] as? String) == batchId }
+      _ = saveRelayOutbox(remaining)
+      processNextRelayBatchLocked()
       return
     }
 
@@ -964,9 +956,7 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
     guard !deviceId.isEmpty, !deviceToken.isEmpty,
           let url = URL(string: "\(trimmedServerUrl)/api/v1/telemetry/ingest") else {
       NSLog("[CareAI-iOS] [RELAY_OUTBOX] Chưa có thông tin xác thực để gửi mẻ %@, giữ lại đĩa iPhone chờ xác thực.", batchId)
-      relayOutboxQueue.async { [weak self] in
-        self?.isDrainingRelayOutbox = false
-      }
+      isDrainingRelayOutbox = false
       return
     }
 
@@ -1003,14 +993,16 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
           }
         }
         guard let self = self else { return }
-        if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201 || httpRes.statusCode == 202) {
-          NSLog("[CareAI-iOS] [RELAY_OUTBOX] Đã nạp thành công mẻ %@ (%d mẫu) lên Azure (HTTP %d). Xóa khỏi đĩa iPhone.", batchId, samples.count, httpRes.statusCode)
-          self.removeRelayBatch(batchId: batchId)
-          self.processNextRelayBatch()
-        } else {
-          let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-          NSLog("[CareAI-iOS] [RELAY_OUTBOX] Gửi mẻ %@ lên Azure thất bại (HTTP %d): %@. Giữ lại trên đĩa iPhone chờ retry.", batchId, code, error?.localizedDescription ?? "HTTP error")
-          self.relayOutboxQueue.async {
+        self.relayOutboxQueue.async {
+          if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201 || httpRes.statusCode == 202) {
+            NSLog("[CareAI-iOS] [RELAY_OUTBOX] Đã nạp thành công mẻ %@ (%d mẫu) lên Azure (HTTP %d). Xóa khỏi đĩa iPhone.", batchId, samples.count, httpRes.statusCode)
+            var currentList = self.loadRelayOutbox()
+            currentList.removeAll { ($0["batchId"] as? String) == batchId }
+            _ = self.saveRelayOutbox(currentList)
+            self.processNextRelayBatchLocked()
+          } else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            NSLog("[CareAI-iOS] [RELAY_OUTBOX] Gửi mẻ %@ lên Azure thất bại (HTTP %d): %@. Giữ lại trên đĩa iPhone chờ retry.", batchId, code, error?.localizedDescription ?? "HTTP error")
             self.isDrainingRelayOutbox = false
           }
         }
@@ -1022,9 +1014,7 @@ func session(_ session: WCSession, didReceiveApplicationContext applicationConte
         bgTaskId = .invalid
       }
       NSLog("[CareAI-iOS] [RELAY_OUTBOX] Lỗi đóng gói JSON batch: %@", error.localizedDescription)
-      relayOutboxQueue.async { [weak self] in
-        self?.isDrainingRelayOutbox = false
-      }
+      isDrainingRelayOutbox = false
     }
   }
 
