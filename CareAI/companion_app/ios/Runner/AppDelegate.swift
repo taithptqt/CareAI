@@ -63,6 +63,26 @@ import workmanager_apple
     return result
   }
 
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    super.applicationDidBecomeActive(application)
+    drainRelayOutbox()
+    if WCSession.isSupported() {
+      let session = WCSession.default
+      if session.activationState == .activated {
+        if !session.receivedApplicationContext.isEmpty {
+          handleWatchRelay(session.receivedApplicationContext)
+        }
+        if session.isReachable {
+          session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: { [weak self] reply in
+            self?.handleWatchRelay(reply)
+          }, errorHandler: nil)
+        }
+      } else {
+        session.activate()
+      }
+    }
+  }
+
   // MARK: - Quản lý Còi hú cấp cứu Y tế (ICU Medical Emergency Siren) cho iOS
   private func setupCaregiverAlarmChannel(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(name: "vn.careai.companion/caregiver_alarm", binaryMessenger: messenger)
@@ -319,7 +339,9 @@ import workmanager_apple
           // Yêu cầu đồng hồ gửi định danh và viễn trắc mới nhất nếu có thể kết nối
           if isReachable && !isBtOff {
             session.sendMessage(["action": "REQUEST_DEVICE_INFO"], replyHandler: nil, errorHandler: nil)
-            session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: nil, errorHandler: nil)
+            session.sendMessage(["action": "REQUEST_TELEMETRY"], replyHandler: { [weak self] reply in
+              self?.handleWatchRelay(reply)
+            }, errorHandler: nil)
           } else if isPaired && !isBtOff {
             session.transferUserInfo(["action": "REQUEST_DEVICE_INFO"])
             session.transferUserInfo(["action": "REQUEST_TELEMETRY"])
@@ -497,9 +519,15 @@ import workmanager_apple
           }
           let payload: [String: Any] = ["action": "FORCE_REFRESH"]
           try? session.updateApplicationContext(payload)
-          session.transferUserInfo(payload)
           if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            session.sendMessage(payload, replyHandler: { [weak self] reply in
+              self?.handleWatchRelay(reply)
+            }, errorHandler: { error in
+              NSLog("[CareAI-iOS] requestWatchForceSync sendMessage error: %@", error.localizedDescription)
+              session.transferUserInfo(payload)
+            })
+          } else {
+            session.transferUserInfo(payload)
           }
           NSLog("[CareAI-iOS] Đã gửi lệnh FORCE_REFRESH sang Apple Watch qua WCSession.")
           result(true)

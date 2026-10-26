@@ -9,10 +9,24 @@ import WatchConnectivity
 final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     static let shared = WatchConnectivityCoordinator()
     private var pendingSosPayload: [String: Any]?
+    private var pendingTelemetryPayload: [String: Any]?
+    private var periodicHeartbeatTimer: Timer?
 
     override init() {
         super.init()
+        WKInterfaceDevice.current().isBatteryMonitoringEnabled = true
+        startPeriodicSyncTimer()
         activate()
+    }
+
+    func startPeriodicSyncTimer() {
+        periodicHeartbeatTimer?.invalidate()
+        // Định kỳ 90 giây kiểm tra và phát viễn trắc pin/sạc/đeo sang iPhone ngay cả khi chạy nền
+        periodicHeartbeatTimer = Timer.scheduledTimer(withTimeInterval: 90.0, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.syncCurrentBatteryAndWearState()
+            }
+        }
     }
 
     func activate() {
@@ -53,6 +67,16 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             }
             sendWatchDeviceInfo()
             syncCurrentBatteryAndWearState()
+            if let pending = self.pendingTelemetryPayload {
+                self.pendingTelemetryPayload = nil
+                Task { @MainActor [weak self] in
+                    self?.relayWatchTelemetry(
+                        isWorn: pending["isWorn"] as? Bool ?? false,
+                        isCharging: pending["isCharging"] as? Bool ?? false,
+                        batteryLevel: pending["batteryLevel"] as? Int ?? 100
+                    )
+                }
+            }
             if let pending = self.pendingSosPayload {
                 session.transferUserInfo(pending)
                 if session.isReachable {
@@ -155,9 +179,7 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
     }
 
     @MainActor
-    func relayWatchTelemetry(isWorn: Bool, isCharging: Bool, batteryLevel: Int) {
-        guard WCSession.isSupported() else { return }
-        let session = WCSession.default
+    func buildWatchTelemetryPayload(isWorn: Bool, isCharging: Bool, batteryLevel: Int) -> [String: Any] {
         let device = WKInterfaceDevice.current()
         var size: Int = 0
         sysctlbyname("hw.machine", nil, &size, nil, 0)
@@ -171,7 +193,8 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             "isWorn": isWorn,
             "isCharging": isCharging,
             "batteryLevel": batteryLevel,
-            "watchModel": resolvedModel
+            "watchModel": resolvedModel,
+            "timestamp": Int64(Date().timeIntervalSince1970 * 1000)
         ]
         if let steps = HealthSync.shared?.todaySteps, steps > 0 {
             payload["todaySteps"] = steps
@@ -238,12 +261,29 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
             supported.append("SLEEP_APNEA")
         }
         payload["supportedMetrics"] = supported
+        return payload
+    }
+
+    @MainActor
+    func relayWatchTelemetry(isWorn: Bool, isCharging: Bool, batteryLevel: Int) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        let payload = buildWatchTelemetryPayload(isWorn: isWorn, isCharging: isCharging, batteryLevel: batteryLevel)
+
         if session.activationState == .activated {
-            try? session.updateApplicationContext(payload)
-            session.transferUserInfo(payload)
-            if session.isReachable {
-                session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            do {
+                try session.updateApplicationContext(payload)
+            } catch {
+                NSLog("[CareAI-Watch] updateApplicationContext error: %@", error.localizedDescription)
             }
+            if session.isReachable {
+                session.sendMessage(payload, replyHandler: nil, errorHandler: { error in
+                    NSLog("[CareAI-Watch] relayWatchTelemetry sendMessage error: %@", error.localizedDescription)
+                })
+            }
+        } else {
+            self.pendingTelemetryPayload = payload
+            activate()
         }
     }
 
@@ -251,16 +291,26 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
         let device = WKInterfaceDevice.current()
         device.isBatteryMonitoringEnabled = true
         let rawLevel = device.batteryLevel
-        let batteryLevel = rawLevel >= 0 ? Int(rawLevel * 100) : 100
+        let batteryLevel = rawLevel >= 0 ? Int(round(rawLevel * 100)) : 100
         let isCharging = (device.batteryState == .charging || device.batteryState == .full)
         DispatchQueue.main.async {
             let currentWorn = HealthSync.shared?.isWorn ?? false
             // Đã rút sạc chưa chắc gì đã đeo (unplugged != worn).
             // Nếu đang cắm sạc thì chắc chắn không đeo (isWorn = false).
-            // Nếu rút sạc thì không tự động suy đoán là đeo; giữ nguyên trạng thái xác thực từ cảm biến quang học
-            let isWorn = isCharging ? false : currentWorn
+            // Nếu rút sạc và có nhịp tim gần đây (<30 phút) hoặc đang tương tác: coi là đang đeo.
+            let hrRecent = (HealthSync.shared?.latestHeartRateAt != nil) &&
+                           (Date().timeIntervalSince(HealthSync.shared!.latestHeartRateAt!) < 30 * 60)
+            let isWorn: Bool
+            if isCharging {
+                isWorn = false
+            } else if hrRecent || currentWorn {
+                isWorn = true
+            } else {
+                isWorn = UserDefaults.standard.bool(forKey: "careai.isWorn")
+            }
             HealthSync.shared?.isCharging = isCharging
             HealthSync.shared?.isWorn = isWorn
+            UserDefaults.standard.set(isWorn, forKey: "careai.isWorn")
             self.relayWatchTelemetry(isWorn: isWorn, isCharging: isCharging, batteryLevel: batteryLevel)
         }
     }
@@ -359,16 +409,38 @@ final class WatchConnectivityCoordinator: NSObject, WCSessionDelegate {
                 NSLog("[CareAI-Watch] Nhận lệnh FORCE_REFRESH qua sendMessage (replyHandler). Ép làm tươi và gửi viễn trắc ngay.")
                 sendWatchDeviceInfo()
                 syncCurrentBatteryAndWearState()
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    let dev = WKInterfaceDevice.current()
+                    dev.isBatteryMonitoringEnabled = true
+                    let raw = dev.batteryLevel
+                    let bat = raw >= 0 ? Int(round(raw * 100)) : 100
+                    let charging = (dev.batteryState == .charging || dev.batteryState == .full)
+                    let hrRecent = (HealthSync.shared?.latestHeartRateAt != nil) &&
+                                   (Date().timeIntervalSince(HealthSync.shared!.latestHeartRateAt!) < 30 * 60)
+                    let worn = charging ? false : (hrRecent || (HealthSync.shared?.isWorn ?? false))
+                    let rep = self.buildWatchTelemetryPayload(isWorn: worn, isCharging: charging, batteryLevel: bat)
+                    replyHandler(rep)
                     await HealthSync.shared?.sendNow()
                 }
-                replyHandler(["status": "OK"])
                 return
             }
             if action == "REQUEST_DEVICE_INFO" || action == "PING" || action == "REQUEST_TELEMETRY" {
                 sendWatchDeviceInfo()
                 syncCurrentBatteryAndWearState()
-                replyHandler(["status": "OK"])
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    let dev = WKInterfaceDevice.current()
+                    dev.isBatteryMonitoringEnabled = true
+                    let raw = dev.batteryLevel
+                    let bat = raw >= 0 ? Int(round(raw * 100)) : 100
+                    let charging = (dev.batteryState == .charging || dev.batteryState == .full)
+                    let hrRecent = (HealthSync.shared?.latestHeartRateAt != nil) &&
+                                   (Date().timeIntervalSince(HealthSync.shared!.latestHeartRateAt!) < 30 * 60)
+                    let worn = charging ? false : (hrRecent || (HealthSync.shared?.isWorn ?? false))
+                    let rep = self.buildWatchTelemetryPayload(isWorn: worn, isCharging: charging, batteryLevel: bat)
+                    replyHandler(rep)
+                }
                 return
             }
             if action == "UNPAIR" {
@@ -766,6 +838,7 @@ final class HealthSync: ObservableObject {
             Task { @MainActor in
                 self?.updateHealthAlert()
                 self?.flush(force: false)
+                WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
             }
         }
         if UserDefaults.standard.string(forKey: "backend") != nil,
@@ -1544,7 +1617,6 @@ final class HealthSync: ObservableObject {
             status = "DEMO offline · turn it off to send"
             return
         }
-        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
         if !outboxReady { loadOutbox() }
         guard outboxReady else { return }
         for (identifier, _, _, _) in metrics {
@@ -1552,6 +1624,8 @@ final class HealthSync: ObservableObject {
                 fetchNew(identifier, completion: { continuation.resume() }, sendAfter: false)
             }
         }
+        // Gửi ngay pin/trạng thái đeo và các chỉ số sinh hiệu vừa quét sang iPhone
+        WatchConnectivityCoordinator.shared.syncCurrentBatteryAndWearState()
         if queue.isEmpty {
             status = "No readings waiting to send"
             return

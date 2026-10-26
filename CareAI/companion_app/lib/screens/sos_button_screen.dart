@@ -1001,6 +1001,24 @@ class _SosButtonScreenState extends State<SosButtonScreen>
     }
   }
 
+  /// Xử lý thao tác kéo xuống để làm mới (Pull-to-Refresh) trên màn hình Người cao tuổi
+  Future<void> _handlePullToRefresh() async {
+    HapticFeedback.mediumImpact();
+    // 1. Ép WCSession gửi tín hiệu FORCE_REFRESH sang Watch (cả qua sendMessage thời gian thực và updateApplicationContext)
+    unawaited(FallService.instance.requestWatchForceSync());
+    // 2. Chờ 600ms để kênh Native & Watch trao đổi dữ liệu
+    await Future.delayed(const Duration(milliseconds: 600));
+    // 3. Tái kiểm tra kết nối, gói tin và trạng thái đồng hồ
+    if (mounted) {
+      await Future.wait([
+        _checkServerHealth(),
+        _loadPendingCount(),
+        _checkWatchStatus(showFeedback: false),
+        SyncService.instance.syncOfflineSpool(),
+      ]);
+    }
+  }
+
   Future<void> _prepareGps() async {
     await EmergencyEvidenceService.requestPermissions();
     final backgroundGranted = await Permission.locationAlways.isGranted;
@@ -2238,9 +2256,14 @@ class _SosButtonScreenState extends State<SosButtonScreen>
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 20),
-          children: [
+        child: RefreshIndicator(
+          color: const Color(0xFF456624),
+          backgroundColor: const Color(0xFFFFFFFF),
+          onRefresh: _handlePullToRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 20),
+            children: [
             // Banner trạng thái SOS / Sự cố khẩn cấp (Phản hồi 2 chiều Closed-Loop)
             if (_isSosActive)
               Container(
@@ -2822,6 +2845,7 @@ class _SosButtonScreenState extends State<SosButtonScreen>
           ],
         ),
       ),
+    ),
       // Thanh trạng thái dưới cùng: Cố định 100% ở đáy màn hình bằng bottomNavigationBar (không bao giờ bị trôi/di chuyển)
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
