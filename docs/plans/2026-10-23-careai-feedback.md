@@ -53,7 +53,7 @@ EF InMemory không xác minh được unique index hay transaction SQL Server.
 ### Áp dụng Azure SQL ngày 23/10/2026
 
 Theo yêu cầu trực tiếp của người dùng, đã áp dụng script feedback vào database
-`CareAI` trên server `***REMOVED***` và xác minh metadata:
+`CareAI` trên server Azure SQL và xác minh metadata:
 7 cột, primary key, 3 index, foreign key và check constraint đều được tạo, bật và
 trusted. Không thêm dữ liệu feedback thử nghiệm hoặc chạy script nền tảng admin.
 
